@@ -9,7 +9,7 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 - **一键化安装 / 配置（运行时全部收拢在 qq-bot）**
   - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建；依赖**默认直接解压插件内置的离线 node_modules 包**，无需 npm 和网络（当前平台）
   - 没有匹配平台离线包时自动回退 `npm install`（macOS 已内置 arm64 包；Windows 可在 Windows 上运行打包脚本生成）
-  - 下载并打开官方 NapCat macOS 安装器（仅系统授权与扫码需要用户点一下）
+  - NapCat 安装器下载完成后**自动打开**（10 分钟内不重复弹窗，可用 `autoOpenInstaller: false` 关闭；仅系统授权与扫码需要用户点一下）
   - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
   - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
 - **一键启动 / 停止（无需终端）**
@@ -140,6 +140,7 @@ node scripts/install-profile.mjs --profile desktop --install
 | `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
 | `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
+| `autoOpenInstaller` | `true` | NapCat 安装器下载后自动打开（10 分钟防重复弹窗） |
 | `logLines` | `200` | 日志/状态返回的行数上限 |
 
 ## 扩展：注册自己的功能

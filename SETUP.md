@@ -50,7 +50,7 @@ node scripts/install-profile.mjs --profile desktop --install
    - QQ：已安装
    - NapCat：已安装（v4.x）
    - Koishi：项目存在、依赖已安装
-3. 如果 NapCat 未安装：点「安装 NapCat」→ 在安装器里选择版本、授权「App 管理」、切换入口
+3. 如果 NapCat 未安装：插件会自动下载并**自动打开安装器**（10 分钟内不重复弹窗；可用 `autoOpenInstaller: false` 关闭），按提示授权「App 管理」并切换入口
 4. 点「启动 NapCat」；概览页会直接显示**登录二维码**，用手机 QQ 扫码即可（二维码可刷新，不需要终端）
 5. 回到面板点「写入 OneBot 配置」（自动写 `ws://127.0.0.1:5140/onebot` 并热应用）
 6. 点「一键启动全部」

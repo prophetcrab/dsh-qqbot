@@ -78,3 +78,10 @@ test('parseNetstatPid: LISTENING line for the requested port', () => {
   assert.equal(parseNetstatPid(output, 6099), 8765)
   assert.equal(parseNetstatPid(output, 1234), null)
 })
+
+
+test('resolveSettings: autoOpenInstaller defaults to true and can be disabled', () => {
+  assert.equal(resolveSettings().autoOpenInstaller, true)
+  assert.equal(resolveSettings({ autoOpenInstaller: false }).autoOpenInstaller, false)
+  assert.equal(resolveSettings({ autoOpenInstaller: true }).autoOpenInstaller, true)
+})

@@ -9,7 +9,8 @@
  * @module dsh-qqbot
  */
 
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
 import { fetchContacts } from './lib/contacts.js'
 import { fetchMessages } from './lib/messages.js'
@@ -87,9 +88,30 @@ export async function apply(ctx, config) {
       if (boot?.ok === false) logger.warn('自动安装 Koishi 运行环境失败：%s', boot.message ?? boot.error ?? 'unknown')
       const state = await napcat.status()
       if (state.installed !== true) {
-        const downloaded = await napcat.downloadInstaller()
-        if (downloaded.ok === true) logger.info('NapCat 安装器已自动下载，等待打开安装器')
-        else logger.warn('自动下载 NapCat 安装器失败：%s', downloaded.message ?? downloaded.error ?? 'unknown')
+        const markerPath = join(settings.projectDir, 'runtime', 'installer-opened.json')
+        let recentlyOpened = false
+        try {
+          const marker = await stat(markerPath)
+          recentlyOpened = Date.now() - marker.mtimeMs < 10 * 60 * 1000
+        } catch {
+          recentlyOpened = false
+        }
+        if (settings.autoOpenInstaller === false) {
+          const downloaded = await napcat.downloadInstaller()
+          if (downloaded.ok === true) logger.info('NapCat 安装器已自动下载（autoOpenInstaller=false，等待手动打开）')
+          else logger.warn('自动下载 NapCat 安装器失败：%s', downloaded.message ?? downloaded.error ?? 'unknown')
+        } else if (recentlyOpened) {
+          logger.info('NapCat 安装器最近已自动打开，跳过重复弹窗')
+        } else {
+          const opened = await napcat.install()
+          if (opened.ok === true) {
+            await mkdir(dirname(markerPath), { recursive: true })
+            await writeFile(markerPath, JSON.stringify({ openedAt: new Date().toISOString(), version: opened.version ?? null }), 'utf8')
+            logger.info('NapCat 安装器已自动打开（版本 %s）', opened.version ?? 'latest')
+          } else {
+            logger.warn('自动打开 NapCat 安装器失败：%s', opened.message ?? opened.error ?? 'unknown')
+          }
+        }
       } else if (state.configApplied !== true) {
         const configured = await napcat.configure()
         if (configured.ok === true) logger.info('已自动写入 NapCat OneBot 配置')
