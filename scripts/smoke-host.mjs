@@ -56,7 +56,7 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 27, `expected at least 27 routes, got ${routes.size}`)
+assert.ok(routes.size >= 29, `expected at least 29 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
@@ -68,6 +68,8 @@ for (const required of [
   '/qqbot/setup',
   '/qqbot/setup/koishi',
   '/qqbot/setup/full',
+  '/qqbot/ai/status',
+  '/qqbot/ai/chat',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -125,6 +127,22 @@ try {
   assert.equal(typeof contactsBody.ok, 'boolean')
   assert.ok(Array.isArray(contactsBody.groups))
   assert.ok(Array.isArray(contactsBody.friends))
+
+  const aiStatusResponse = await fetch(`${base}/qqbot/ai/status`)
+  const aiStatusBody = await aiStatusResponse.json()
+  assert.equal(aiStatusBody.ok, true)
+  assert.equal(typeof aiStatusBody.data.available, 'boolean')
+  assert.equal(typeof aiStatusBody.data.provider, 'string')
+  assert.equal(typeof aiStatusBody.data.model, 'string')
+
+  const aiEmptyResponse = await fetch(`${base}/qqbot/ai/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  })
+  const aiEmptyBody = await aiEmptyResponse.json()
+  assert.equal(aiEmptyBody.ok, false)
+  assert.equal(aiEmptyBody.code, 'EMPTY_MESSAGES')
 
   const setupResponse = await fetch(`${base}/qqbot/setup`)
   const setupBody = await setupResponse.json()

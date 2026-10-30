@@ -65,6 +65,16 @@ node scripts/install-profile.mjs --profile desktop --install
 
 > 如果之前已经手工配置过 NapCat（本机当前就是），插件检测到已有 `koishi` 客户端后会保持幂等，不会重复添加。
 
+## AI 聊天
+
+机器人上线后 AI 聊天默认已启用，直接复用 DSH 当前模型（无需再填 API Key）：
+
+1. 在群里 **@机器人** 或发送 **`/ai 你好`**
+2. AI 会读取本群最近消息作为上下文后回复
+3. 调整触发方式：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`trigger: mention|prefix|both`、`prefix`、`historyLimit`）
+4. 调整模型/提示词：在 `cordis.patch.yml` 配 `aiProvider/aiModel/aiSystemPrompt`；DSH 面板「AI 聊天」卡片可点「测试 AI」验证链路
+5. 如果 AI 未接入：先确认 DSH 已配置模型（`/qqbot/ai/status` 返回 available=true），再重启 Koishi（它会重新读取 `data/ai.json`）
+
 ## Windows 安装（概要）
 
 1. 安装 QQNT（或使用 NapCat 一键包内置的 QQ）

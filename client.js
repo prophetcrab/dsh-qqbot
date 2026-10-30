@@ -92,6 +92,16 @@ window.__ModuleLoader__.load({
       installNapcatHintUnsupported: 'Automatic NapCat installation is not supported on this platform. The Koishi runtime can still be installed.',
       setupNapcatUnsupported: 'Not supported on this platform',
       loginUnsupported: 'NapCat login is unavailable on this platform.',
+      aiTitle: 'AI chat',
+      aiConnected: 'AI connected to DSH',
+      aiUnavailable: 'DSH LLM is not connected',
+      aiSourceConfig: 'from config',
+      aiSourceHarness: 'DSH default',
+      aiSourceFallback: 'fallback',
+      aiHint: 'Trigger with @bot or /ai in a group; the AI reads recent group messages as context.',
+      aiTest: 'Test AI',
+      aiTestFailed: 'AI test failed',
+      aiReply: 'Reply',
       pluginsTitle: 'Koishi plugins',
       pluginsEmpty: 'No plugin was found in koishi.yml.',
       plName: 'Name',
@@ -312,6 +322,16 @@ window.__ModuleLoader__.load({
       installNapcatHintUnsupported: '当前平台暂不支持 NapCat 自动安装。Koishi 运行环境仍可正常安装。',
       setupNapcatUnsupported: '当前平台不支持',
       loginUnsupported: '当前平台无法使用 NapCat 扫码登录。',
+      aiTitle: 'AI 聊天',
+      aiConnected: 'AI 已接入 DSH',
+      aiUnavailable: '未接入 DSH LLM',
+      aiSourceConfig: '来自配置',
+      aiSourceHarness: 'DSH 默认',
+      aiSourceFallback: '回退',
+      aiHint: '群里 @机器人 或 /ai 触发；AI 会读取本群近期消息作为上下文。',
+      aiTest: '测试 AI',
+      aiTestFailed: 'AI 测试失败',
+      aiReply: '回复',
       pluginsTitle: 'Koishi 插件',
       pluginsEmpty: 'koishi.yml 里没有检测到插件。',
       plName: '名称',
@@ -699,6 +719,13 @@ window.__ModuleLoader__.load({
 .qqbot-setup-step-name { flex: none; color: var(--dsw-alias-label-primary); }
 .qqbot-setup-step-message { color: var(--dsw-alias-label-tertiary); min-width: 0; overflow-wrap: anywhere; }
 
+.qqbot-ai-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qqbot-ai-state { font-size: 12px; font-weight: 500; }
+.qqbot-ai-state.is-ok { color: var(--dsw-alias-state-success-primary); }
+.qqbot-ai-state.is-bad { color: var(--dsw-alias-state-warn-primary); }
+.qqbot-ai-reply-wrap { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-ai-reply { max-height: 220px; }
+
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
@@ -797,6 +824,9 @@ window.__ModuleLoader__.load({
 
     /** Scope modes accepted by the Host access policy. */
     const ACCESS_MODES = ['all', 'whitelist', 'blacklist']
+
+    /** Fixed smoke-style prompt used by the panel's AI self-test. */
+    const AI_TEST_PROMPT = '请只回复：AI 面板测试成功'
 
     /** Locale keys for the `/qqbot/setup/full` step ids. */
     const SETUP_STEP_KEYS = {
@@ -922,6 +952,8 @@ window.__ModuleLoader__.load({
       const [setupResultMsg, setSetupResultMsg] = React.useState(null)
       const [setupPolling, setSetupPolling] = React.useState(false)
       const [setupExpanded, setSetupExpanded] = React.useState(true)
+      const [aiReply, setAiReply] = React.useState(null)
+      const [aiError, setAiError] = React.useState(null)
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
@@ -1283,6 +1315,41 @@ window.__ModuleLoader__.load({
         }, t('setupNapcatDone'))
       }
 
+      /**
+       * Ask the Host's local AI bridge for a fixed self-test reply. The route
+       * answers 200 with `ok:false` on failure, so it opts out of the global
+       * throw and renders the error inside the card.
+       */
+      const testAi = async () => {
+        if (busyOf('ai-test')) return
+        setBusy((previous) => ({ ...previous, 'ai-test': true }))
+        setAiReply(null)
+        setAiError(null)
+        try {
+          const result = await requestJson('/qqbot/ai/chat', {
+            method: 'POST',
+            body: { messages: [{ role: 'user', text: AI_TEST_PROMPT }] },
+            acceptNotOk: true,
+          })
+          if (result !== null && result.ok === true && typeof result.reply === 'string') {
+            setAiReply(result.reply)
+          } else {
+            const reason = result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : result !== null && typeof result.code === 'string' ? result.code : t('aiTestFailed')
+            setAiError(reason)
+          }
+        } catch (error) {
+          setAiError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['ai-test']
+            return next
+          })
+        }
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -1471,6 +1538,46 @@ window.__ModuleLoader__.load({
         : null
 
       // ------------------------------------------------------------- overview --
+      // ---------------------------------------------------------------- AI chat --
+      const renderAiCard = () => {
+        const ai = (snapshot && snapshot.ai) || {}
+        const available = ai.available === true
+        const provider = typeof ai.provider === 'string' ? ai.provider : ''
+        const model = typeof ai.model === 'string' ? ai.model : ''
+        const sourceLabel = ai.source === 'config'
+          ? t('aiSourceConfig')
+          : ai.source === 'harness-default' ? t('aiSourceHarness') : ai.source === 'fallback' ? t('aiSourceFallback') : ''
+        const statusText = available
+          ? `${t('aiConnected')} · ${provider || '—'}/${model || '—'}${sourceLabel !== '' ? ` · ${sourceLabel}` : ''}`
+          : t('aiUnavailable')
+        const working = busyOf('ai-test')
+        return h('section', { className: 'qqbot-card qqbot-ai-card', 'data-testid': 'qqbot-ai-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('aiTitle')),
+            h('span', { className: available ? 'qqbot-ai-state is-ok' : 'qqbot-ai-state is-bad' }, available ? '✓' : '✕')),
+          h('div', { className: 'qqbot-ai-status', 'data-testid': 'qqbot-ai-status' },
+            h('span', { className: `qqbot-pill qqbot-pill-${available ? 'ok' : 'warn'}` },
+              h('i', { className: 'qqbot-pill-dot' }),
+              h('span', { className: 'qqbot-pill-text' }, statusText))),
+          h('p', { className: 'qqbot-hint' }, t('aiHint')),
+          h('div', { className: 'qqbot-btns' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-ai-test',
+              'aria-label': t('aiTest'),
+              'aria-busy': working ? 'true' : undefined,
+              disabled: !available || working,
+              onClick: () => { testAi() },
+            }, working ? t('working') : t('aiTest'))),
+          aiReply !== null
+            ? h('div', { className: 'qqbot-ai-reply-wrap' },
+              h('span', { className: 'qqbot-field-label' }, t('aiReply')),
+              h('pre', { className: 'qqbot-pre qqbot-ai-reply', 'data-testid': 'qqbot-ai-reply' }, aiReply))
+            : null,
+          aiError !== null ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-error' }, aiError) : null)
+      }
+
       // ------------------------------------------------------------- setup card --
       const renderSetupCard = () => {
         const data = setupInfo
@@ -1761,6 +1868,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
           renderLoginCard(),
           renderSetupCard(),
+          renderAiCard(),
           h('section', { className: 'qqbot-card' },
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),

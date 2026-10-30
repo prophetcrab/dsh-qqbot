@@ -44,6 +44,23 @@ qq-bot/
 └── package.json
 ```
 
+## AI 聊天
+
+`plugins/ai-chat`：群消息进入短期上下文，@机器人 或 `/ai` 触发后调用 DSH 的 `/qqbot/ai/chat` 桥（复用 DSH 的模型和凭据，不保存 API Key）。触发配置在 `koishi.yml`：
+
+```yaml
+./plugins/ai-chat:ai7k2m:
+  trigger: both    # mention | prefix | both
+  prefix: /ai
+  historyLimit: 12
+```
+
+DSH 端会把 `data/ai.json`（端点、provider、model）写好，插件自动读取；DSH 端口变化后自动更新。
+
+## 运行时目录
+
+本项目就是机器人运行时的唯一目录：Koishi 源码、`node_modules`、`data`、`logs`、`runtime/napcat-installer`（NapCat 安装器缓存）都在这里。DSH 插件「QQ 机器人」会负责创建/安装依赖/启动，无需手动搭环境。
+
 ## 快速开始
 
 环境要求：Node.js >= 20（推荐 22 LTS 及以上），npm。

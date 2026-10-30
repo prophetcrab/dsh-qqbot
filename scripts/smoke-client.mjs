@@ -125,6 +125,15 @@ const STATUS = {
     logs: [],
   },
   bot: { online: true, selfId: '10001', platform: 'qq', uptime: null },
+  ai: {
+    available: true,
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    source: 'harness-default',
+    systemPromptConfigured: true,
+    endpoint: 'http://127.0.0.1:3000/qqbot/ai/chat',
+    ready: true,
+  },
   features: [],
   updatedAt: '2026-10-30T00:00:00.000Z',
 }
@@ -238,6 +247,9 @@ globalThis.fetch = async (url, init) => {
       })
     }
     return json({ ok: true, data: STATUS })
+  }
+  if (path === '/qqbot/ai/chat') {
+    return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
   }
   if (path === '/qqbot/setup') {
     return json({
@@ -563,6 +575,37 @@ if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('未知平台')) 
 console.log('platform unknown: ok')
 
 STATUS.platform = { ...MACOS_PLATFORM }
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
+
+// ---- AI chat card -----------------------------------------------------------
+expectTestId(tree, 'qqbot-ai-card')
+const aiStatusText = text(expectTestId(tree, 'qqbot-ai-status'))
+if (!aiStatusText.includes('AI 已接入 DSH')) throw new Error('AI connected copy missing')
+if (!aiStatusText.includes('deepseek/deepseek-chat')) throw new Error('AI provider/model missing')
+if (!text(expectTestId(tree, 'qqbot-ai-card')).includes('/ai')) throw new Error('AI trigger hint missing')
+if (expectTestId(tree, 'qqbot-ai-test').props.disabled === true) throw new Error('AI test should be enabled when available')
+clickTestId(tree, 'qqbot-ai-test')
+tree = await settle()
+const aiPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/ai/chat')
+if (aiPosts.length !== 1) throw new Error(`expected one POST /qqbot/ai/chat, got ${aiPosts.length}`)
+const aiBody = JSON.parse(String(aiPosts[0].body))
+if (!Array.isArray(aiBody.messages) || aiBody.messages.length !== 1) throw new Error('AI test messages missing')
+if (aiBody.messages[0].role !== 'user' || aiBody.messages[0].text !== '请只回复：AI 面板测试成功') {
+  throw new Error(`AI test prompt wrong: ${JSON.stringify(aiBody.messages[0])}`)
+}
+if (!text(expectTestId(tree, 'qqbot-ai-reply')).includes('AI 面板测试成功')) throw new Error('AI reply missing')
+console.log('ai card: ok')
+
+STATUS.ai = { ...STATUS.ai, available: false, ready: false }
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-ai-status')).includes('未接入 DSH LLM')) {
+  throw new Error('AI unavailable copy missing')
+}
+if (expectTestId(tree, 'qqbot-ai-test').props.disabled !== true) throw new Error('AI test must disable when unavailable')
+console.log('ai unavailable: ok')
+STATUS.ai = { ...STATUS.ai, available: true, ready: true }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
 

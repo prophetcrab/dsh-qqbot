@@ -15,6 +15,7 @@ import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy }
 import { fetchContacts } from './lib/contacts.js'
 import { fetchMessages } from './lib/messages.js'
 import { SetupManager } from './lib/setup.js'
+import { AiChatService } from './lib/ai.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -53,6 +54,32 @@ export async function apply(ctx, config) {
   const koishi = new KoishiManager({ settings, logger: ctx.logger('qqbot/koishi') })
   const plugins = new KoishiPluginsManager({ koishi, settings, logger: ctx.logger('qqbot/plugins') })
   const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
+  const ai = new AiChatService({ ctx, settings, logger: ctx.logger('qqbot/ai') })
+  let lastAiDiscovery = ''
+  /** Publish the local AI bridge endpoint for the Koishi ai-chat plugin. */
+  const ensureAiEndpoint = async () => {
+    try {
+      const origin = ctx.webServer.getOrigin()
+      const endpoint = `${origin}/qqbot/ai/chat`
+      const selection = ai.resolveSelection()
+      const text = JSON.stringify({
+        version: 1,
+        endpoint,
+        provider: selection.provider,
+        model: selection.model,
+        updatedAt: new Date().toISOString(),
+      }, null, 2)
+      if (text !== lastAiDiscovery) {
+        await mkdir(join(settings.projectDir, 'data'), { recursive: true })
+        await writeFile(join(settings.projectDir, 'data', 'ai.json'), `${text}\n`, 'utf8')
+        lastAiDiscovery = text
+      }
+      return endpoint
+    } catch {
+      return null
+    }
+  }
+  void ensureAiEndpoint()
 
   const registry = new FeatureRegistry({
     settings,
@@ -134,6 +161,8 @@ export async function apply(ctx, config) {
     const support = safeDetect(() => platformInfo(), {
       id: 'other', label: 'Unsupported', supported: false, napcatSupported: false, koishiSupported: false,
     })
+    const aiEndpoint = await ensureAiEndpoint()
+    const aiStatus = { ...ai.status(), endpoint: aiEndpoint, ready: aiEndpoint !== null }
     const bot = {
       online: koishiStatus?.online === true,
       selfId: koishiStatus?.selfId ?? null,
@@ -155,6 +184,7 @@ export async function apply(ctx, config) {
         reversePath: settings.reversePath,
       },
       qq,
+      ai: aiStatus,
       napcat: napcatStatus,
       koishi: koishiStatus,
       bot,
@@ -257,6 +287,20 @@ export async function apply(ctx, config) {
       const limit = clampInt(urlParam(req, 'limit'), 50, 1, 200)
       const feed = await fetchMessages(settings, { limit })
       sendJson(res, 200, { ok: feed.ok, data: feed, ...(feed.ok ? {} : { error: feed.error }) })
+    }))
+
+    route('/qqbot/ai/status', (req, res) => only(req, res, ['GET'], async () => {
+      sendJson(res, 200, { ok: true, data: { ...ai.status(), endpoint: await ensureAiEndpoint() } })
+    }))
+
+    route('/qqbot/ai/chat', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const messages = Array.isArray(body.messages) ? body.messages : []
+      const result = await ai.chat({
+        messages,
+        ...(typeof body.system === 'string' ? { system: body.system } : {}),
+      })
+      sendJson(res, 200, result)
     }))
 
     route('/qqbot/setup', (req, res) => only(req, res, ['GET'], async () => {
@@ -689,6 +733,8 @@ function renderStatus(snapshot) {
   const bot = snapshot?.bot ?? {}
   return [
     `平台: ${snapshot?.platform?.label ?? '未知'}${snapshot?.platform?.arch ? ` · ${snapshot.platform.arch}` : ''}${snapshot?.platform?.napcatSupported === false ? '（不支持 NapCat 自动安装）' : ''}`,
+    `AI: ${snapshot?.ai?.available === true ? `已接入 DSH（${snapshot.ai.provider}/${snapshot.ai.model}）` : '未接入 DSH LLM'}`,
+
     `QQ: ${qq.installed ? `已安装${qq.version ? ` (${qq.version})` : ''}` : '未安装'}`,
     `NapCat: ${napcat.installed ? `已安装${napcat.version ? ` v${napcat.version}` : ''}` : '未安装'} · ${napcat.running ? '运行中' : '未运行'}${napcat.loggedIn ? ` · 已登录${napcat.qq ? ` ${napcat.qq}` : ''}` : ''}`,
     `Koishi: ${koishi.exists === false ? '项目不存在' : koishi.running ? `运行中${koishi.managed ? '（本插件管理）' : ''}` : '未运行'} · 端口 ${snapshot?.settings?.koishiPort ?? '?'}`,

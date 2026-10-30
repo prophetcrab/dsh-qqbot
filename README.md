@@ -109,6 +109,34 @@ node scripts/install-profile.mjs --profile desktop --install
 6. **功能**：查看所有 Feature；其他插件注册的功能也会出现在这里
 7. **日志**：查看托管 Koishi 进程的输出
 
+## AI 聊天（复用 DSH 模型）
+
+- DSH 侧提供 `/qqbot/ai/chat` 本地桥：通过 harness 自带的 `ctx.llm` 服务调用**当前 DSH 已配置的 provider/model 和凭据**，不复制、不保存 API Key。
+- provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
+- 端点自动写入 `qq-bot/data/ai.json`，Koishi 的 `ai-chat` 插件启动时读取；DSH 端口变化后文件会更新。
+- 群聊里 **@机器人** 或 **`/ai` 前缀** 触发；普通群消息会进入该群短期上下文，AI 能理解前文。
+- 触发方式/前缀/上下文条数/超时在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
+
+```yaml
+# cordis.patch.yml（可选覆盖）
+- insert:
+    - id: qqbot
+      name: dsh-qqbot
+      config:
+        aiProvider: deepseek-account
+        aiModel: deepseek-flash
+        aiSystemPrompt: 你是群里的助手，回答简短自然。
+        aiMaxTokens: 800
+```
+
+```yaml
+# qq-bot/koishi.yml（触发方式）
+./plugins/ai-chat:ai7k2m:
+  trigger: both      # mention | prefix | both
+  prefix: /ai
+  historyLimit: 12
+```
+
 ## 配置项
 
 在 `cordis.patch.yml` 的插件行里覆盖（都有默认值）：
@@ -141,6 +169,11 @@ node scripts/install-profile.mjs --profile desktop --install
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
 | `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
 | `autoOpenInstaller` | `true` | NapCat 安装器下载后自动打开（10 分钟防重复弹窗） |
+| `aiProvider` | 空 | AI 模型 provider；留空复用 DSH 默认 |
+| `aiModel` | 空 | AI 模型 id；留空复用 DSH 默认 |
+| `aiSystemPrompt` | 内置中文提示 | 群聊 AI 系统提示词 |
+| `aiMaxTokens` | `800` | 回复 token 上限 |
+| `aiTemperature` | `0.7` | 采样温度 |
 | `logLines` | `200` | 日志/状态返回的行数上限 |
 
 ## 扩展：注册自己的功能
@@ -187,6 +220,7 @@ dsh-qqbot/
 │   ├── access.js             # 权限策略读写/归一化（data/access.json）
 │   ├── contacts.js           # 群/好友列表代理（Koishi /api/qqbot/contacts）
 │   ├── messages.js           # 消息流代理（Koishi /api/qqbot/messages）
+│   ├── ai.js                 # AI 桥：复用 ctx.llm 调用 DSH 当前模型
 │   ├── setup.js              # 环境自举：模板建项目 + 离线依赖解压 / npm 回退
 │   ├── features.js           # FeatureRegistry
 │   └── features/             # 内置 Feature（含 access）
@@ -205,7 +239,7 @@ dsh-qqbot/
 ## 开发
 
 ```bash
-npm test          # 81 个单元测试
+npm test          # 112 个单元测试
 npm run smoke:host
 npm run smoke:client
 npm run check     # 全部
@@ -224,8 +258,8 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 105/105 通过（含 macOS 与 Windows 分支：NapCat 34、Koishi 24、插件管理 15、平台 7、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2）
-- Host 冒烟：27 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
+- 单元测试 112/112 通过（含 macOS/Windows 分支与 AI 桥：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 6）
+- Host 冒烟：29 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
 
