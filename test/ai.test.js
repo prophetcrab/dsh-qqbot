@@ -241,4 +241,6 @@ test('sanitizeReply: strips context labels and speaker prefixes only', () => {
   assert.equal(sanitizeReply('第一行\n[背景] AI：第二行'), '第一行\n第二行')
   assert.equal(sanitizeReply('【当前消息】回复内容'), '回复内容')
   assert.equal(sanitizeReply('正常内容 [图片] 保留'), '正常内容 [图片] 保留')
+  assert.equal(sanitizeReply('内容 [背景] 继续'), '内容 继续')
+  assert.equal(sanitizeReply('内容【当前消息】继续'), '内容继续')
 })

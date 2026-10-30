@@ -127,6 +127,7 @@ function readDiscovery(file: string): Discovery | null {
 export function sanitizeReplyText(text: string): string {
   return String(text ?? '')
     .replace(/^\s*[\[【](?:背景|当前消息|群聊背景|历史|上下文)[\]】]\s*(?:AI|[^：\n]{0,40})?\s*[:：]?\s*/u, '')
+    .replace(/[\[【]\s*(?:背景|当前消息|群聊背景|最近群聊背景|历史|上下文)\s*[\]】]/gu, '')
     .replace(/^\s*AI\s*[:：]\s*/u, '')
     .trim()
 }
