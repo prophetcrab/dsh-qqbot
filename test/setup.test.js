@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { mkdtemp, mkdir, readFile, writeFile, stat } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -165,4 +165,64 @@ test('setKoishiSelfId: updates the adapter selfId and validates input', async ()
   const invalid = await setup.setKoishiSelfId('abc')
   assert.equal(invalid.ok, false)
   assert.equal(invalid.error, 'invalid-qq')
+})
+
+
+test('offline bundle: installDeps extracts node_modules without npm', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  const settings = await makeSettings(root)
+  const bundleDir = join(templateDir, 'runtime-bundles')
+  await mkdir(bundleDir, { recursive: true })
+  const bundle = join(bundleDir, `node_modules-${process.platform}-${process.arch}.tar.gz`)
+  await writeFile(bundle, 'fake-bundle')
+  let spawned = 0
+  const setup = new SetupManager({
+    settings,
+    logger,
+    deps: {
+      templateDir,
+      spawn: () => { spawned += 1; return fakeSpawn()() },
+      run: async (file, args) => {
+        assert.equal(file, 'tar')
+        assert.equal(args[0], '-xzf')
+        assert.equal(args[1], bundle)
+        await mkdir(join(settings.projectDir, 'node_modules', 'koishi'), { recursive: true })
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  await setup.ensureProject()
+  const status = await setup.status()
+  assert.equal(status.bundleAvailable, true)
+  assert.equal(status.bundleKey, `${process.platform}-${process.arch}`)
+  await rm(join(settings.projectDir, 'node_modules'), { recursive: true, force: true })
+  const result = await setup.installDeps()
+  assert.equal(result.ok, true)
+  assert.equal(result.bundled, true)
+  assert.equal(spawned, 0)
+})
+
+test('offline bundle: ensureProject extracts bundled dependencies', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  const settings = await makeSettings(root)
+  const bundleDir = join(templateDir, 'runtime-bundles')
+  await mkdir(bundleDir, { recursive: true })
+  await writeFile(join(bundleDir, `node_modules-${process.platform}-${process.arch}.tar.gz`), 'fake')
+  const setup = new SetupManager({
+    settings,
+    logger,
+    deps: {
+      templateDir,
+      run: async () => {
+        await mkdir(join(settings.projectDir, 'node_modules'), { recursive: true })
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  const result = await setup.ensureProject()
+  assert.equal(result.ok, true)
+  assert.equal(result.bundled, true)
+  assert.ok(existsSync(join(settings.projectDir, 'node_modules')))
 })

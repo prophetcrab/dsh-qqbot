@@ -7,7 +7,8 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 ## 功能
 
 - **一键化安装 / 配置（运行时全部收拢在 qq-bot）**
-  - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建，缺少依赖时自动 `npm install`
+  - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建；依赖**默认直接解压插件内置的离线 node_modules 包**，无需 npm 和网络（当前平台）
+  - 没有匹配平台离线包时自动回退 `npm install`（macOS 已内置 arm64 包；Windows 可在 Windows 上运行打包脚本生成）
   - 下载并打开官方 NapCat macOS 安装器（仅系统授权与扫码需要用户点一下）
   - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
   - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
@@ -194,6 +195,7 @@ dsh-qqbot/
 │   └── smoke-client.mjs      # 客户端渲染冒烟
 ├── test/                     # node:test 单元测试
 ├── template/                 # 内置 Koishi 项目模板（首次安装时复制到 qq-bot）
+│   └── runtime-bundles/      # 离线 node_modules 包（按 平台-架构 命名）
 ├── locale/                   # 插件市场显示文案
 ├── cordis.patch.yml          # bundle patch
 └── SETUP.md                  # 本机安装/卸载/排错
@@ -210,9 +212,18 @@ npm run check     # 全部
 
 无运行时依赖；Host 只用 Node 内置模块；客户端只有 React（由 DSH 提供）。
 
+### 离线 Koishi 依赖
+
+- 插件内置 `template/runtime-bundles/node_modules-<platform>-<arch>.tar.gz`（当前仓库包含 `darwin-arm64`，13.8 MiB）；首次创建运行时项目时直接解压，**不需要 npm、不需要网络**。
+- 重新生成：
+  ```bash
+  node scripts/bundle-runtime.mjs --source ~/project/qq-bot
+  ```
+  在目标平台（Windows、Linux）上执行同一命令即可生成对应平台的包；插件会按 `process.platform-process.arch` 选择，找不到时回退 `npm install`。
+
 ### 已验证
 
-- 单元测试 101/101 通过（含 macOS 与 Windows 分支：NapCat 34、Koishi 22、插件管理 15、平台 7、环境自举 8、权限 7、群友列表 3、消息 3、Feature 2）
+- 单元测试 103/103 通过（含 macOS 与 Windows 分支：NapCat 34、Koishi 22、插件管理 15、平台 7、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2）
 - Host 冒烟：27 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
