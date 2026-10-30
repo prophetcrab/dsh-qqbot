@@ -87,6 +87,9 @@ test('installDeps: runs npm install and captures logs', async () => {
     logger,
     deps: {
       templateDir,
+      // Keep the historical POSIX expectations deterministic on any host.
+      hostPlatform: () => 'macos',
+      npmExecutable: () => 'npm',
       spawn: (file, args, options) => {
         calls.push([file, ...args, options.cwd])
         return fakeSpawn({ code: 0, stdout: 'added 1 package\n' })()

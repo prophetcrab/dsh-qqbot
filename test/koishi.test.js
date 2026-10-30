@@ -27,12 +27,16 @@ async function makeProject(t, { packageJson = true } = {}) {
   return dir
 }
 
-/** Manager with quiet logging, immediate sleep and a test port. */
+/** Manager with quiet logging, immediate sleep and a test port.
+ * Defaults to the macOS seam so the process/command cases stay deterministic on
+ * any host; Windows cases override `hostPlatform` explicitly. */
 function makeManager(projectDir, overrides = {}) {
+  const platformInjected = overrides.hostPlatform !== undefined || overrides.deps?.hostPlatform !== undefined
   return new KoishiManager({
     settings: { projectDir, koishiPort: TEST_PORT },
     logger: QUIET_LOGGER,
     sleep: async () => {},
+    ...(platformInjected ? {} : { hostPlatform: 'macos' }),
     ...overrides,
   })
 }

@@ -35,9 +35,12 @@ function makeSettings(overrides = {}) {
   })
 }
 
-/** Fake platform seams; individual tests override what they need. */
+/** Fake platform seams; individual tests override what they need.
+ * The default is macOS so the historical macOS cases stay deterministic on any
+ * host; Windows-specific tests pass `windowsPlatform()` instead. */
 function fakePlatform(overrides = {}) {
   return {
+    hostPlatform: () => 'macos',
     detectNapcat: () => ({
       installed: false,
       installDir: null,
@@ -1013,6 +1016,134 @@ test('stop on Windows escalates to killPid force and reports failure', async () 
   assert.equal(result.ok, false)
   assert.equal(result.error, 'kill-failed')
   assert.deepEqual(kills, [{ pid: 4242, force: false }, { pid: 4242, force: true }])
+})
+
+test('stop on Windows escalates to force when the graceful taskkill fails', async () => {
+  let clock = 0
+  let alive = true
+  const kills = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      findProcess: () => (alive ? { running: true, pid: 4242 } : { running: false, pid: null }),
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        if (options.force) {
+          alive = false
+          return { ok: true }
+        }
+        // QQ ignores WM_CLOSE: `taskkill` without /F fails with this message.
+        return { ok: false, error: '只能强制终止此进程' }
+      },
+    }),
+    deps: {
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    },
+  })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.forced, true)
+  assert.equal(alive, false)
+  assert.deepEqual(kills, [{ pid: 4242, force: false }, { pid: 4242, force: true }])
+})
+
+test('start on Windows closes a running QQ before launching NapCat', async (t) => {
+  const installDir = await makeTempDir(t)
+  for (const name of ['napcat.bat', 'launcher-win10.bat', 'launcher.bat']) {
+    await writeFile(join(installDir, name), '@echo off\r\n')
+  }
+  const runs = []
+  const kills = []
+  let qqRunning = true
+  let launched = false
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.41',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      findProcess: () => (qqRunning ? { running: true, pid: 4242 } : { running: false, pid: null }),
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        qqRunning = false
+        return { ok: true }
+      },
+    }),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        launched = true
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      sleep: async () => {},
+      now: (() => {
+        let clock = 0
+        return () => {
+          clock += 1000
+          return clock
+        }
+      })(),
+    },
+  })
+  manager.loginStatus = async () => (launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.loggedIn, true)
+  // QQ is force-killed before the launcher runs, and only then NapCat starts.
+  assert.deepEqual(kills, [{ pid: 4242, force: true }])
+  assert.deepEqual(runs.map((entry) => entry.file), ['cmd.exe'])
+  assert.deepEqual(runs[0].args, ['/c', 'start', '', join(installDir, 'napcat.bat')])
+})
+
+test('start on Windows reports a failure when the running QQ cannot be closed', async (t) => {
+  const installDir = await makeTempDir(t)
+  await writeFile(join(installDir, 'napcat.bat'), '@echo off\r\n')
+  const runs = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.41',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      findProcess: () => ({ running: true, pid: 4242 }),
+      killPid: async () => ({ ok: false, error: 'Access is denied' }),
+    }),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      sleep: async () => {},
+      now: (() => {
+        let clock = 0
+        return () => {
+          clock += 1000
+          return clock
+        }
+      })(),
+    },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, 'qq-running')
+  assert.match(result.message, /无法结束/u)
+  assert.deepEqual(runs, [])
 })
 
 test('qrImagePath delegates to platform.napcatQrPath for a Windows config dir', () => {
