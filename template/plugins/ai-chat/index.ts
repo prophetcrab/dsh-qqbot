@@ -179,7 +179,7 @@ export async function downloadImages(session: any, config: Config, fetchImpl: ty
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger('ai-chat')
   const history = new Map<string, HistoryMessage[]>()
-  const pending = new Set<string>()
+  const replyQueues = new Map<string, Promise<void>>()
   const followUntil = new Map<string, number>()
   const discoveryPath = resolve(process.cwd(), config.discoveryFile)
   const statePath = resolve(process.cwd(), config.stateFile)
@@ -257,9 +257,10 @@ export function apply(ctx: Context, config: Config): void {
     const forced = mentioned || replied
     const inFollowUp = (followUntil.get(followKey(session)) ?? 0) > Date.now()
     const hasContent = content !== '' || imageUrls.length > 0
-    const randomHit = !forced && !inFollowUp && hasContent && Math.random() < probability
-    const shouldReply = !isCommand && hasContent && (forced || inFollowUp || randomHit)
-    const reason = forced ? (mentioned ? 'mention' : 'reply') : inFollowUp ? 'follow-up' : randomHit ? 'probability' : 'none'
+    const userBusy = replyQueues.has(followKey(session))
+    const randomHit = !forced && !inFollowUp && !userBusy && hasContent && Math.random() < probability
+    const shouldReply = !isCommand && hasContent && (forced || inFollowUp || userBusy || randomHit)
+    const reason = forced ? (mentioned ? 'mention' : 'reply') : inFollowUp ? 'follow-up' : userBusy ? 'queued' : randomHit ? 'probability' : 'none'
 
     state.lastInbound = {
       at: new Date().toISOString(),
@@ -284,21 +285,30 @@ export function apply(ctx: Context, config: Config): void {
       return next()
     }
 
-    if (pending.has(key)) {
-      await session.send('上一条还在思考中，稍等一下～')
-      return
-    }
+    const userKey = followKey(session)
+    await enqueueReply(userKey, () => processReply({ session, key, name, content, imageUrls }))
+    return
+  })
 
+  /** Run a task after this person's previous reply attempt, without blocking others. */
+  function enqueueReply(userKey: string, task: () => Promise<void>): Promise<void> {
+    const previous = replyQueues.get(userKey) ?? Promise.resolve()
+    const next = previous.then(task, task).finally(() => {
+      if (replyQueues.get(userKey) === next) replyQueues.delete(userKey)
+    })
+    replyQueues.set(userKey, next)
+    return next
+  }
+
+  async function processReply({ session, key, name, content, imageUrls }: any): Promise<void> {
     const prompt = content !== '' ? content : '（对方发送了图片但没有文字）'
     const endpoint = endpointOf()
     if (endpoint === null) {
       await session.send('AI 还没有连接上 DSH（请在 DSH 面板确认 AI 状态，或重启 Koishi）')
       return
     }
-
     const current: HistoryMessage = { role: 'user', name, text: prompt }
     const messages = buildRequestMessages(key, current)
-    pending.add(key)
     try {
       const images = imageUrls.length > 0 ? await downloadImages(session, config) : []
       const controller = new AbortController()
@@ -348,8 +358,6 @@ export function apply(ctx: Context, config: Config): void {
       state.lastReply = { at: new Date().toISOString(), ok: false, error: message.slice(0, 200) }
       persistState()
       await session.send(`AI 调用失败：${message.slice(0, 200)}`)
-    } finally {
-      pending.delete(key)
     }
-  })
+  }
 }

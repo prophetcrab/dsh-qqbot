@@ -164,3 +164,42 @@ test('splitReply 按长度拆分长回复', () => {
   const parts = aiChat.splitReply('a'.repeat(2500), 1000)
   assert.deepEqual(parts.map((p) => p.length), [1000, 1000, 500])
 })
+
+
+/** Replace fetch with a delayed endpoint-only implementation for concurrency tests. */
+function installDelayedFetch(delayMs: number): any[] {
+  const calls: any[] = []
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes('/qqbot/ai/chat')) return { ok: false, status: 404, json: async () => null } as any
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    calls.push(JSON.parse(init.body))
+    return { ok: true, status: 200, json: async () => ({ ok: true, reply: '并发回复' }) } as any
+  }) as typeof fetch
+  return calls
+}
+
+test('不同人的消息并发处理，不再出现“上一条还在处理”', async (t) => {
+  const { app } = await setup(t, { replyProbability: 1 })
+  const calls = installDelayedFetch(80)
+  const [first, second] = await Promise.all([
+    app.mock.client(USER, GROUP).receive('我是 A'),
+    app.mock.client(USER_B, GROUP).receive('我是 B'),
+  ])
+  assert.deepEqual(first, ['并发回复'])
+  assert.deepEqual(second, ['并发回复'])
+  assert.equal(calls.length, 2)
+  assert.ok(![...first, ...second].some((reply) => String(reply).includes('上一条')))
+})
+
+test('同一个人连续消息按队列顺序处理，但不会提示上一条正在处理', async (t) => {
+  const { app } = await setup(t, { replyProbability: 1 })
+  const calls = installDelayedFetch(60)
+  const [first, second] = await Promise.all([
+    app.mock.client(USER, GROUP).receive('第一句'),
+    app.mock.client(USER, GROUP).receive('第二句'),
+  ])
+  assert.deepEqual(first, ['并发回复'])
+  assert.deepEqual(second, ['并发回复'])
+  assert.equal(calls.length, 2)
+  assert.ok(![...first, ...second].some((reply) => String(reply).includes('上一条')))
+})
