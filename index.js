@@ -433,6 +433,10 @@ export async function apply(ctx, config) {
         ...(typeof body.userId === 'string' ? { userId: body.userId } : {}),
         ...(typeof body.userName === 'string' ? { userName: body.userName } : {}),
         ...(typeof body.background === 'string' ? { background: body.background } : {}),
+        ...(body.mentionSelf === true ? { mentionSelf: true } : {}),
+        ...(Array.isArray(body.mentionOthers) ? { mentionOthers: body.mentionOthers } : {}),
+        ...(body.mentionAll === true ? { mentionAll: true } : {}),
+        ...(body.replyToBot === true ? { replyToBot: true } : {}),
         ...(typeof body.system === 'string' ? { system: body.system } : {}),
       })
       sendJson(res, 200, result)

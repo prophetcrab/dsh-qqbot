@@ -244,3 +244,27 @@ test('sanitizeReply: strips context labels and speaker prefixes only', () => {
   assert.equal(sanitizeReply('内容 [背景] 继续'), '内容 继续')
   assert.equal(sanitizeReply('内容【当前消息】继续'), '内容继续')
 })
+
+
+test('chat: @别人时提示模型这是对别人的消息，不要假装被点名', async () => {
+  let captured = null
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: {
+      stream: async function* (options) {
+        if (options.system?.includes('【角色设定】')) captured = options
+        yield { type: 'text-delta', index: 0, text: '可以呀' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  await ai.chat({
+    messages: [{ role: 'user', text: '@小明 晚上开黑吗' }],
+    background: '小明：今晚有空吗',
+    mentionOthers: ['小明'],
+  })
+  assert.match(captured.system, /【当前消息对象】/u)
+  assert.match(captured.system, /@ 的是 小明/u)
+  assert.match(captured.system, /不要假装被点名/u)
+})
