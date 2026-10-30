@@ -3,35 +3,41 @@
  * （`/qqbot/ai/chat`），由 DSH 复用自己已配置的模型/API Key 生成回复。
  *
  * 触发方式：
- * - 只响应 @机器人（不使用 /ai 等指令前缀）
+ * - `mention`：只响应 @机器人（默认）
+ * - `always`：目标群（权限白名单内的群）里的普通消息也自动接话
  * - 所有群消息都会进入该群的短期上下文，因此 AI 能“看到”前文
  */
 import { Context, Schema, h } from 'koishi'
-import { readFileSync, watchFile, type Stats } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, readFileSync, watchFile, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 
 export const name = 'ai-chat'
 export const inject: string[] = []
 
 export interface Config {
   enabled: boolean
+  replyMode: 'mention' | 'always'
   groupOnly: boolean
   historyLimit: number
   maxReplyChars: number
   timeoutMs: number
   endpoint: string
   discoveryFile: string
+  stateFile: string
   systemPrompt: string
 }
 
 export const Config: Schema<Config> = Schema.object({
   enabled: Schema.boolean().default(true).description('是否启用 AI 聊天'),
+  replyMode: Schema.union(['mention', 'always'] as const).default('mention')
+    .description('mention=只响应 @机器人；always=目标群内普通消息也自动回复（仍受权限白名单限制）'),
   groupOnly: Schema.boolean().default(true).description('是否只处理群聊（群内需 @机器人）'),
   historyLimit: Schema.number().default(12).min(0).max(50).description('每个群保留并发送的历史消息条数'),
   maxReplyChars: Schema.number().default(1200).min(100).max(4000).description('单条回复最大字符数（超长自动分条）'),
   timeoutMs: Schema.number().default(120000).min(5000).max(600000).description('调用 DSH AI 桥的超时时间'),
   endpoint: Schema.string().default('').description('DSH AI 桥地址；留空则读取 discoveryFile'),
   discoveryFile: Schema.string().default('data/ai.json').description('DSH 写入的 AI 桥发现文件（相对项目根目录）'),
+  stateFile: Schema.string().default('data/ai-chat-state.json').description('AI 监听/回复诊断状态文件（相对项目根目录）'),
   systemPrompt: Schema.string().default('').description('额外系统提示词；留空使用 DSH 侧默认'),
 })
 
@@ -92,6 +98,17 @@ export function apply(ctx: Context, config: Config): void {
   const history = new Map<string, HistoryMessage[]>()
   const pending = new Set<string>()
   const discoveryPath = resolve(process.cwd(), config.discoveryFile)
+  const statePath = resolve(process.cwd(), config.stateFile)
+  const state: any = { replyMode: config.replyMode, lastInbound: null, lastReply: null, updatedAt: null }
+  const persistState = (): void => {
+    try {
+      state.updatedAt = new Date().toISOString()
+      mkdirSync(dirname(statePath), { recursive: true })
+      writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+    } catch {
+      // diagnostics only
+    }
+  }
   let discovery: Discovery | null = readDiscovery(discoveryPath)
 
   // DSH 可能在 Koishi 启动后才监听端口/写入发现文件；轮询文件即可自动接上。
@@ -135,9 +152,19 @@ export function apply(ctx: Context, config: Config): void {
     const key = keyOf(session)
 
     const mentioned = hasMention(session, String(session.selfId))
-    if (!mentioned) {
+    const isCommand = content.startsWith('/')
+    const shouldReply = config.replyMode === 'always' ? (!isCommand && content !== '') : mentioned
+    state.lastInbound = {
+      at: new Date().toISOString(),
+      groupId: key,
+      text: content.slice(0, 200),
+      mentioned,
+      shouldReply,
+    }
+    persistState()
+    if (!shouldReply) {
       // 所有普通群消息都进入上下文，AI 才能理解前文。
-      if (content !== '' && !content.startsWith('/') && content.length <= 2000) {
+      if (content !== '' && !isCommand && content.length <= 2000) {
         pushHistory(key, { role: 'user', text: `${senderName(session)}：${content}` })
       }
       return next()
@@ -183,12 +210,16 @@ export function apply(ctx: Context, config: Config): void {
       if (data === null || data.ok !== true || typeof data.reply !== 'string') {
         const reason = data?.error ?? `HTTP ${response.status}`
         logger.warn('AI 回复失败：%s', reason)
+        state.lastReply = { at: new Date().toISOString(), ok: false, error: String(reason).slice(0, 200) }
+        persistState()
         await session.send(`AI 暂时不可用：${String(reason).slice(0, 200)}`)
         return
       }
       const reply = String(data.reply).trim()
       if (reply === '') return
       pushHistory(key, { role: 'assistant', text: reply })
+      state.lastReply = { at: new Date().toISOString(), ok: true, replyPreview: reply.slice(0, 200) }
+      persistState()
       for (const part of splitReply(reply, config.maxReplyChars)) {
         await session.send(part)
       }
@@ -196,6 +227,8 @@ export function apply(ctx: Context, config: Config): void {
     } catch (error: any) {
       const message = String(error?.message ?? error)
       logger.warn('AI 调用异常：%s', message)
+      state.lastReply = { at: new Date().toISOString(), ok: false, error: message.slice(0, 200) }
+      persistState()
       await session.send(`AI 调用失败：${message.slice(0, 200)}`)
     } finally {
       pending.delete(key)

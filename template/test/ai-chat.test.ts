@@ -39,7 +39,7 @@ async function setup(t: TestContext, config: Record<string, any> = {}) {
 
   const app = new App({ prefix: ['/'] })
   app.plugin(mock, { selfId: SELF_ID })
-  app.plugin(aiChat as any, { discoveryFile, ...config })
+  app.plugin(aiChat as any, { discoveryFile, stateFile: join(dir, 'ai-chat-state.json'), ...config })
   await app.start()
   t.after(async () => {
     globalThis.fetch = originalFetch
@@ -92,4 +92,13 @@ test('AI 返回错误时给出友好提示', async (t) => {
 test('splitReply 按长度拆分长回复', () => {
   const parts = aiChat.splitReply('a'.repeat(2500), 1000)
   assert.deepEqual(parts.map((p) => p.length), [1000, 1000, 500])
+})
+
+
+test('replyMode=always：目标群普通消息也会自动接话', async (t) => {
+  const { app, calls } = await setup(t, { replyMode: 'always' })
+  const replies = await app.mock.client(USER, GROUP).receive('今天群里好热闹')
+  assert.deepEqual(replies, ['这是 AI 的回复'])
+  assert.equal(calls.length, 1)
+  assert.ok(calls[0].body.messages.some((m: any) => m.text.includes('今天群里好热闹')))
 })
