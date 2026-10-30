@@ -1,0 +1,6 @@
+# QQ bot control center: NapCat/Koishi setup, lifecycle, Koishi plugin management,
+# and an extensible feature registry. Settings (projectDir, ports) have defaults
+# in lib/platform.js; override them here when your layout differs.
+- insert:
+    - id: qqbot
+      name: dsh-qqbot

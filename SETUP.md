@@ -1,0 +1,95 @@
+# 本机安装与卸载（SETUP）
+
+本文按当前这台 Mac 的实际环境编写：macOS（Apple Silicon）、DSH 桌面版 `desktop` profile、QQ + NapCat 已安装、Koishi 项目在 `~/project/qq-bot`。
+
+> 当前状态：本插件已经写入 `desktop` profile（依赖 + bundles + patch，且已 `pnpm install`）。
+> **只需完全退出 DeepSeek Harness（Cmd+Q）再重新打开**，即可在侧边栏看到「QQ 机器人」。
+> 被修改的 profile 文件已自动备份为 `package.json.bak-*` / `cordis.patch.yml.bak-*`。
+
+## 前置状态检查
+
+```bash
+# QQ.app 是否存在
+ls -d /Applications/QQ.app
+
+# NapCat 是否安装（版本号）
+cat ~/Library/Containers/com.tencent.qq/Data/Documents/napcat/package.json | head -5
+
+# Koishi 项目是否就绪
+ls ~/project/qq-bot/package.json ~/project/qq-bot/koishi.yml
+
+# 机器人是否已经在跑
+curl -s http://127.0.0.1:5140/api/qqbot/health
+```
+
+## 安装插件
+
+```bash
+cd ~/project/dsh-qqbot
+
+# 先看会改什么
+node scripts/install-profile.mjs --profile desktop --dry-run
+
+# 写入 profile 并安装依赖
+node scripts/install-profile.mjs --profile desktop --install
+```
+
+脚本会修改并备份：
+
+- `~/.dsh/profiles/desktop/package.json`（依赖 + `dsh.profile.bundles`）
+- `~/.dsh/profiles/desktop/cordis.patch.yml`（`id: qqbot` 插件行）
+
+然后 **退出并重新打开 DeepSeek Harness**。重启后左侧边栏出现「QQ 机器人」。
+
+## 首次使用
+
+1. 打开「QQ 机器人」面板
+2. 总览里确认状态：
+   - QQ：已安装
+   - NapCat：已安装（v4.x）
+   - Koishi：项目存在、依赖已安装
+3. 如果 NapCat 未安装：点「安装 NapCat」→ 在安装器里选择版本、授权「App 管理」、切换入口
+4. NapCat 安装器里点「启动 NapCat」，用手机 QQ 扫码登录机器人账号
+5. 回到面板点「写入 OneBot 配置」（自动写 `ws://127.0.0.1:5140/onebot` 并热应用）
+6. 点「一键启动全部」
+7. 状态应显示：NapCat 运行中、Koishi 运行中、机器人在线
+8. 用另一个 QQ 账号在群里发 `/echo 你好` 验证
+
+> 如果之前已经手工配置过 NapCat（本机当前就是），插件检测到已有 `koishi` 客户端后会保持幂等，不会重复添加。
+
+## 日常使用
+
+- 启动/停止：总览页「一键启动全部 / 全部停止」，或分别操作 NapCat / Koishi
+- 改 Koishi 插件：
+  - 在「插件」页启用/禁用、卸载，或输入 npm 包名安装
+  - 勾选「操作后重启 Koishi」即可生效
+  - 也可以直接用面板外的 `npm start`，插件会检测到并识别为外部运行
+- 看日志：「日志」页（Koishi 托管进程）；NapCat 日志在 NapCat WebUI
+- 让 Agent 操作：直接说「看一下 QQ 机器人状态」「帮我重启 Koishi」「安装 koishi-plugin-pics」
+
+## 卸载
+
+```bash
+cd ~/project/dsh-qqbot
+node scripts/install-profile.mjs --uninstall
+```
+
+然后重启 DSH。这会移除 profile 依赖、bundles 条目与 patch 行，但不会删除本插件目录，也不会删除机器人项目/数据。
+
+## 排错
+
+| 现象 | 处理 |
+| --- | --- |
+| 重启后没有「QQ 机器人」 | 检查 profile `package.json` 是否含依赖、bundles 是否含 `dsh-qqbot`、`cordis.patch.yml` 是否有 `id: qqbot`；查看 DSH 启动日志 |
+| DSH 启动异常 | 用备份恢复：`package.json.bak-*` / `cordis.patch.yml.bak-*`，再重启 |
+| 面板显示 NapCat 未安装但系统里有 | 检查 `~/Library/Containers/com.tencent.qq/Data/Documents/napcat` 是否存在；可在 `cordis.patch.yml` 配置 `installerDir`（仅用于安装器下载目录） |
+| 「写入 OneBot 配置」失败 | 确认 NapCat 正在运行、WebUI 端口可访问（默认 6099）；插件会退化为直接写文件，重启 NapCat 生效 |
+| 一键启动后机器人不在线 | 看状态卡的 NapCat 是否已登录、Koishi 健康检查是否通；到「日志」页看 Koishi 报错 |
+| 插件管理改完不生效 | 勾选重启，或手动重启 Koishi；`koishi.yml` 由 Koishi Loader 自动维护，插件的增删是文本级操作 |
+| 端口冲突 | 在 `cordis.patch.yml` 修改 `koishiPort` / `napcatPort`，并让 NapCat 反向 WS 指向新端口 |
+
+## 恢复/清理
+
+- DSH profile 备份：`~/.dsh/profiles/desktop/*.bak-*`（安装脚本自动生成）
+- 安装器下载目录：`~/Library/Application Support/dsh-qqbot/napcat-installer`（可删）
+- 本插件不写入 Koishi 项目以外的地方（除上述安装器目录）
