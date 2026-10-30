@@ -142,17 +142,32 @@ const FEATURES = [
 
 const LOG_LINES = ['[koishi] ready', '[koishi] bot online']
 
+const CONTACTS = {
+  ok: true,
+  selfId: '10001',
+  fetchedAt: '2026-10-30T00:00:00.000Z',
+  groups: [
+    { id: '1026855069', name: '龙图群', memberCount: 5 },
+    { id: '805836168', name: '残兽前进基地', memberCount: 1955 },
+  ],
+  friends: [
+    { id: '676512192', name: '天青色瞪眼鱼' },
+    { id: '1549439707', name: '阿光' },
+  ],
+}
+let contactsFail = false
+
 const ACCESS = {
   version: 1,
   updatedAt: '2026-10-30T00:00:00.000Z',
   inbound: {
-    groups: { mode: 'whitelist', ids: ['123456', '234567'] },
-    private: { mode: 'all', ids: [] },
+    groups: { mode: 'whitelist', ids: ['1026855069', '777777'] },
+    private: { mode: 'whitelist', ids: ['676512192'] },
     quiet: { enabled: false, prefixes: ['/'] },
   },
   outbound: {
-    groups: { mode: 'blacklist', ids: ['999999'] },
-    private: { mode: 'whitelist', ids: [] },
+    groups: { mode: 'blacklist', ids: ['805836168'] },
+    private: { mode: 'all', ids: [] },
   },
 }
 let accessSaved = null
@@ -172,6 +187,12 @@ globalThis.fetch = async (url, init) => {
       return json({ ok: true, data: accessSaved })
     }
     return json({ ok: true, data: accessSaved ?? ACCESS })
+  }
+  if (path === '/qqbot/contacts') {
+    if (contactsFail) {
+      return json({ ok: false, groups: [], friends: [], selfId: null, fetchedAt: null, error: 'Koishi 未运行（测试）' })
+    }
+    return json(CONTACTS)
   }
   if (path.startsWith('/qqbot/koishi/plugins')) return json({ ok: true, data: PLUGINS })
   if (path.startsWith('/qqbot/features')) return json({ ok: true, data: FEATURES })
@@ -307,6 +328,26 @@ const clickTestId = (tree, id) => {
   node.props.onClick()
 }
 
+// Contact rows repeat in both cards (the contract fixes the row testid), so
+// scope every lookup by the row data-scope.
+const rowIn = (tree, scope, prefix, id) => findAll(tree, (node) => node.props
+  && node.props['data-testid'] === `${prefix}-${id}`
+  && node.props['data-scope'] === scope)[0]
+const rowCheckbox = (row) => {
+  if (row === undefined) throw new Error('contact row missing')
+  const input = findAll([row], (node) => node.type === 'input' && node.props && node.props.type === 'checkbox')[0]
+  if (input === undefined) throw new Error('contact row has no checkbox')
+  return input
+}
+const toggleRow = (tree, scope, prefix, id) => {
+  rowCheckbox(rowIn(tree, scope, prefix, id)).props.onChange({ currentTarget: {} })
+}
+const changeSelect = (tree, id, value) => {
+  const node = expectTestId(tree, id)
+  if (typeof node.props.onChange !== 'function') throw new Error(`data-testid=${id} is not a select`)
+  node.props.onChange({ currentTarget: { value } })
+}
+
 // ---- mount ------------------------------------------------------------------
 let tree = await settle()
 
@@ -412,38 +453,114 @@ tree = await settle()
 for (const id of [
   'qqbot-tab-access',
   'qqbot-access-inbound-mode',
-  'qqbot-access-inbound-groups',
   'qqbot-access-outbound-mode',
-  'qqbot-access-outbound-groups',
+  'qqbot-access-inbound-private-mode',
+  'qqbot-access-outbound-private-mode',
   'qqbot-access-private-inbound',
   'qqbot-access-private-outbound',
+  'qqbot-access-inbound-groups',
+  'qqbot-access-outbound-groups',
   'qqbot-access-quiet',
   'qqbot-access-prefixes',
   'qqbot-access-save',
+  'qqbot-access-refresh-contacts',
+  'qqbot-access-inbound-groups-all',
+  'qqbot-access-inbound-groups-clear',
+  'qqbot-access-inbound-private-all',
+  'qqbot-access-inbound-private-clear',
+  'qqbot-access-outbound-groups-all',
+  'qqbot-access-outbound-groups-clear',
+  'qqbot-access-outbound-private-all',
+  'qqbot-access-outbound-private-clear',
 ]) {
   expectTestId(tree, id)
 }
 const accessText = text(expectTestId(tree, 'qqbot-panel'))
-if (!accessText.includes('接收') || !accessText.includes('发送')) throw new Error('access policy cards missing')
-if (!accessText.includes('相互独立')) throw new Error('access independence note missing')
-const inboundMode = expectTestId(tree, 'qqbot-access-inbound-mode')
-if (inboundMode.props.value !== 'whitelist') throw new Error(`loaded inbound mode wrong: ${String(inboundMode.props.value)}`)
-const inboundGroups = expectTestId(tree, 'qqbot-access-inbound-groups')
-if (!String(inboundGroups.props.value).includes('123456')) throw new Error('loaded inbound group ids missing')
-if (expectTestId(tree, 'qqbot-access-outbound-mode').props.value !== 'blacklist') throw new Error('loaded outbound mode wrong')
-if (expectTestId(tree, 'qqbot-access-private-inbound').props.checked !== true) throw new Error('loaded inbound private switch wrong')
-if (expectTestId(tree, 'qqbot-access-private-outbound').props.checked !== false) throw new Error('loaded outbound private switch wrong')
-console.log('access tab load: ok')
+for (const name of ['龙图群', '残兽前进基地', '天青色瞪眼鱼', '阿光']) {
+  if (!accessText.includes(name)) throw new Error(`contact name missing: ${name}`)
+}
+if (!accessText.includes('未在列表中') || !accessText.includes('777777')) throw new Error('policy-only group id row missing')
+if (!accessText.includes('5 人') || !accessText.includes('1955 人')) throw new Error('group member counts missing')
+for (const scope of ['inbound', 'outbound']) {
+  for (const id of ['1026855069', '805836168']) {
+    if (rowIn(tree, scope, 'qqbot-access-group', id) === undefined) throw new Error(`group row missing: ${scope}/${id}`)
+  }
+  for (const id of ['676512192', '1549439707']) {
+    if (rowIn(tree, scope, 'qqbot-access-friend', id) === undefined) throw new Error(`friend row missing: ${scope}/${id}`)
+  }
+}
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-group', '1026855069')).props.checked !== true) {
+  throw new Error('inbound group 1026855069 should start checked')
+}
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-group', '805836168')).props.checked !== false) {
+  throw new Error('inbound group 805836168 should start unchecked')
+}
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-friend', '676512192')).props.checked !== true) {
+  throw new Error('inbound friend 676512192 should start checked')
+}
+if (expectTestId(tree, 'qqbot-access-inbound-mode').props.value !== 'whitelist') throw new Error('loaded inbound group mode wrong')
+if (expectTestId(tree, 'qqbot-access-outbound-mode').props.value !== 'blacklist') throw new Error('loaded outbound group mode wrong')
+if (expectTestId(tree, 'qqbot-access-inbound-private-mode').props.value !== 'whitelist') throw new Error('loaded inbound private mode wrong')
+if (expectTestId(tree, 'qqbot-access-outbound-private-mode').props.value !== 'all') throw new Error('loaded outbound private mode wrong')
+if (rowCheckbox(rowIn(tree, 'outbound', 'qqbot-access-friend', '676512192')).props.disabled !== true) {
+  throw new Error('contact rows should be disabled while the mode is all')
+}
+if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/contacts')) {
+  throw new Error('contacts were not fetched when the access tab opened')
+}
+console.log('access contacts load: ok')
 
-// edit the draft, then save: ids are trimmed/de-duped/numeric, switches map to all/whitelist
-inboundMode.props.onChange({ currentTarget: { value: 'all' } })
+// search filters by name (and leaves the matching row selectable)
+expectTestId(tree, 'qqbot-access-inbound-groups-search').props.onChange({ currentTarget: { value: '龙图' } })
 tree = await settle()
-expectTestId(tree, 'qqbot-access-inbound-groups').props.onChange({ currentTarget: { value: '123456, 234567\n123456\nabc' } })
+if (rowIn(tree, 'inbound', 'qqbot-access-group', '1026855069') === undefined) throw new Error('search dropped the matching group')
+if (rowIn(tree, 'inbound', 'qqbot-access-group', '805836168') !== undefined) throw new Error('search kept a non-matching group')
+expectTestId(tree, 'qqbot-access-inbound-groups-search').props.onChange({ currentTarget: { value: '' } })
 tree = await settle()
-expectTestId(tree, 'qqbot-access-private-inbound').props.onChange({ currentTarget: { checked: false } })
+
+// click-to-toggle; switching the mode keeps the current selection
+toggleRow(tree, 'inbound', 'qqbot-access-group', '805836168')
 tree = await settle()
-expectTestId(tree, 'qqbot-access-private-outbound').props.onChange({ currentTarget: { checked: true } })
+toggleRow(tree, 'inbound', 'qqbot-access-group', '1026855069')
 tree = await settle()
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-group', '805836168')).props.checked !== true) throw new Error('toggling group 805836168 failed')
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-group', '1026855069')).props.checked !== false) throw new Error('toggling group 1026855069 failed')
+clickTestId(tree, 'qqbot-access-remove-inbound-777777')
+tree = await settle()
+if (findTestId(tree, 'qqbot-access-extra-inbound-777777') !== undefined) throw new Error('removed policy-only id is still listed')
+changeSelect(tree, 'qqbot-access-inbound-mode', 'blacklist')
+tree = await settle()
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-group', '805836168')).props.checked !== true) {
+  throw new Error('switching the mode cleared the checked ids')
+}
+changeSelect(tree, 'qqbot-access-inbound-mode', 'whitelist')
+tree = await settle()
+
+// private contact lists toggle the same way
+toggleRow(tree, 'inbound', 'qqbot-access-friend', '1549439707')
+tree = await settle()
+if (rowCheckbox(rowIn(tree, 'inbound', 'qqbot-access-friend', '1549439707')).props.checked !== true) {
+  throw new Error('toggling inbound friend failed')
+}
+
+// outbound: clear + select all, then switch private mode and pick a friend
+clickTestId(tree, 'qqbot-access-outbound-groups-clear')
+tree = await settle()
+if (rowCheckbox(rowIn(tree, 'outbound', 'qqbot-access-group', '805836168')).props.checked !== false) {
+  throw new Error('clear did not empty the outbound groups')
+}
+clickTestId(tree, 'qqbot-access-outbound-groups-all')
+tree = await settle()
+for (const id of ['1026855069', '805836168']) {
+  if (rowCheckbox(rowIn(tree, 'outbound', 'qqbot-access-group', id)).props.checked !== true) {
+    throw new Error(`select all missed group ${id}`)
+  }
+}
+changeSelect(tree, 'qqbot-access-outbound-private-mode', 'whitelist')
+tree = await settle()
+toggleRow(tree, 'outbound', 'qqbot-access-friend', '676512192')
+tree = await settle()
+
 expectTestId(tree, 'qqbot-access-quiet').props.onChange({ currentTarget: { checked: true } })
 tree = await settle()
 expectTestId(tree, 'qqbot-access-prefixes').props.onChange({ currentTarget: { value: '! , #   !' } })
@@ -456,24 +573,50 @@ if (accessPosts.length !== 1) throw new Error(`expected one POST /qqbot/access, 
 const accessBody = JSON.parse(String(accessPosts[0].body))
 if (accessBody.version !== 1 || typeof accessBody.updatedAt !== 'string') throw new Error('access policy version/timestamp missing')
 if (!accessBody.inbound || !accessBody.outbound || !accessBody.inbound.quiet) throw new Error('access policy sections missing')
-if (accessBody.inbound.groups.mode !== 'all') throw new Error('inbound mode not sent')
-if (JSON.stringify(accessBody.inbound.groups.ids) !== JSON.stringify(['123456', '234567'])) {
-  throw new Error(`inbound ids not sanitized: ${JSON.stringify(accessBody.inbound.groups.ids)}`)
+if (accessBody.inbound.groups.mode !== 'whitelist') throw new Error(`inbound groups mode wrong: ${accessBody.inbound.groups.mode}`)
+if (JSON.stringify(accessBody.inbound.groups.ids) !== JSON.stringify(['805836168'])) {
+  throw new Error(`inbound group ids wrong: ${JSON.stringify(accessBody.inbound.groups.ids)}`)
 }
-if (accessBody.inbound.private.mode !== 'whitelist' || accessBody.inbound.private.ids.length !== 0) {
-  throw new Error(`inbound private mapping wrong: ${JSON.stringify(accessBody.inbound.private)}`)
+if (accessBody.inbound.private.mode !== 'whitelist') throw new Error(`inbound private mode wrong: ${accessBody.inbound.private.mode}`)
+if (JSON.stringify(accessBody.inbound.private.ids) !== JSON.stringify(['676512192', '1549439707'])) {
+  throw new Error(`inbound private ids wrong: ${JSON.stringify(accessBody.inbound.private.ids)}`)
 }
-if (accessBody.outbound.private.mode !== 'all' || accessBody.outbound.private.ids.length !== 0) {
-  throw new Error(`outbound private mapping wrong: ${JSON.stringify(accessBody.outbound.private)}`)
+if (accessBody.outbound.groups.mode !== 'blacklist') throw new Error(`outbound groups mode wrong: ${accessBody.outbound.groups.mode}`)
+if (JSON.stringify(accessBody.outbound.groups.ids) !== JSON.stringify(['1026855069', '805836168'])) {
+  throw new Error(`outbound group ids wrong: ${JSON.stringify(accessBody.outbound.groups.ids)}`)
+}
+if (accessBody.outbound.private.mode !== 'whitelist' || JSON.stringify(accessBody.outbound.private.ids) !== JSON.stringify(['676512192'])) {
+  throw new Error(`outbound private wrong: ${JSON.stringify(accessBody.outbound.private)}`)
 }
 if (accessBody.inbound.quiet.enabled !== true) throw new Error('quiet flag not sent')
 if (JSON.stringify(accessBody.inbound.quiet.prefixes) !== JSON.stringify(['!', '#'])) {
   throw new Error(`prefixes not sanitized: ${JSON.stringify(accessBody.inbound.quiet.prefixes)}`)
 }
-if (accessBody.outbound.groups.mode !== 'blacklist') throw new Error('outbound mode changed unexpectedly')
 const saveBanner = findTestId(tree, 'qqbot-banner')
 if (saveBanner === undefined || !text(saveBanner).includes('权限策略已保存')) throw new Error('save banner missing')
 console.log('access save POST: ok')
+
+// contacts unavailable: error is surfaced, yet modes and save stay usable
+contactsFail = true
+const contactCallsBefore = fetchLog.filter((entry) => entry.url === '/qqbot/contacts').length
+clickTestId(tree, 'qqbot-access-refresh-contacts')
+tree = await settle()
+const contactCallsAfter = fetchLog.filter((entry) => entry.url === '/qqbot/contacts').length
+if (contactCallsAfter !== contactCallsBefore + 1) throw new Error('refresh list did not re-fetch /qqbot/contacts')
+const contactsErrorNode = findTestId(tree, 'qqbot-access-contacts-error')
+if (contactsErrorNode === undefined || !text(contactsErrorNode).includes('Koishi 未运行')) {
+  throw new Error('contacts error banner missing')
+}
+if (expectTestId(tree, 'qqbot-access-save').props.disabled === true) {
+  throw new Error('save must stay enabled when contacts are unavailable')
+}
+changeSelect(tree, 'qqbot-access-inbound-mode', 'blacklist')
+tree = await settle()
+if (expectTestId(tree, 'qqbot-access-inbound-mode').props.value !== 'blacklist') {
+  throw new Error('the mode must stay editable without contacts')
+}
+contactsFail = false
+console.log('access contacts error state: ok')
 
 // ---- locale flip ------------------------------------------------------------
 currentLang = 'en'

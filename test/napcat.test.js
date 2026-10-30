@@ -576,25 +576,54 @@ test('install opens the downloaded installer and reports failures', async () => 
 
 // ------------------------------------------------------------------- start --
 
-test('start launches QQ with an argument array and reports login', async () => {
+test('start launches NapCat with --no-sandbox and reports login', async () => {
   const runs = []
+  let launched = false
   const manager = makeManager({
     deps: {
       run: async (file, args) => {
         runs.push([file, ...args])
+        launched = true
         return { code: 0, stdout: '', stderr: '' }
       },
       now: () => 0,
     },
   })
-  manager.loginStatus = async () => ({ loggedIn: true, qq: '10001', nickname: '机器人' })
+  manager.loginStatus = async () => launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null }
 
   const result = await manager.start({ timeoutMs: 5000 })
   assert.equal(result.ok, true)
   assert.equal(result.loggedIn, true)
   assert.equal(result.qq, '10001')
-  assert.equal(result.nickname, '机器人')
-  assert.deepEqual(runs, [['/usr/bin/open', '-a', '/Applications/QQ.app']])
+  assert.deepEqual(runs, [['/usr/bin/open', '-a', '/Applications/QQ.app', '--args', '--no-sandbox']])
+})
+
+test('start does not launch a second instance when NapCat is already logged in', async () => {
+  const runs = []
+  const manager = makeManager({
+    deps: { run: async (file, args) => { runs.push([file, ...args]); return { code: 0, stdout: '', stderr: '' } } },
+  })
+  manager.loginStatus = async () => ({ loggedIn: true, qq: '10001', nickname: '机器人' })
+  const result = await manager.start()
+  assert.equal(result.ok, true)
+  assert.equal(result.alreadyRunning, true)
+  assert.deepEqual(runs, [])
+})
+
+test('start does not relaunch when NapCat is waiting for a QR scan', async () => {
+  const runs = []
+  const manager = makeManager({
+    deps: { run: async (file, args) => { runs.push([file, ...args]); return { code: 0, stdout: '', stderr: '' } } },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+  manager.webuiReachable = true
+  const result = await manager.start()
+  assert.equal(result.ok, true)
+  assert.equal(result.alreadyRunning, true)
+  assert.match(result.message, /扫码/u)
+  assert.deepEqual(runs, [])
 })
 
 test('start times out and asks the user to scan the QR code', async () => {
@@ -622,7 +651,7 @@ test('start times out and asks the user to scan the QR code', async () => {
   assert.equal(result.timedOut, true)
   assert.match(result.message, /扫码/u)
   assert.equal(sleeps.length, 3)
-  assert.equal(probes, 4)
+  assert.equal(probes, 5)
 })
 
 test('start refuses to run when QQ.app is missing', async () => {

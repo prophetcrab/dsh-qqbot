@@ -339,6 +339,7 @@ plugins:
 | GET | `/qqbot/status` | — | `{ ok:true, data: StatusSnapshot }` |
 | GET | `/qqbot/logs?source=koishi&lines=200` | — | `{ ok:true, lines:string[] }` |
 | GET/POST | `/qqbot/access` | AccessPolicy | `{ ok:true, data: AccessPolicy }` |
+| GET | `/qqbot/contacts` | — | `{ ok, groups, friends, selfId?, fetchedAt?, error? }`（代理 Koishi `/api/qqbot/contacts`） |
 | GET | `/qqbot/features` | — | `{ ok:true, data: FeatureDescriptor[] }` |
 | GET | `/qqbot/koishi/plugins` | — | `{ ok:true, data: PluginInfo[] }` |
 | POST | `/qqbot/napcat/install` | `{}` | `{ ok, appPath?, message?, error? }` |

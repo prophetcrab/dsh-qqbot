@@ -56,11 +56,12 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 19, `expected at least 19 routes, got ${routes.size}`)
+assert.ok(routes.size >= 20, `expected at least 20 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
   '/qqbot/access',
+  '/qqbot/contacts',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -112,6 +113,12 @@ try {
   assert.equal(accessBody.ok, true)
   assert.ok(['all', 'whitelist', 'blacklist'].includes(accessBody.data.inbound.groups.mode))
   assert.ok(Array.isArray(accessBody.data.inbound.groups.ids))
+
+  const contactsResponse = await fetch(`${base}/qqbot/contacts`)
+  const contactsBody = await contactsResponse.json()
+  assert.equal(typeof contactsBody.ok, 'boolean')
+  assert.ok(Array.isArray(contactsBody.groups))
+  assert.ok(Array.isArray(contactsBody.friends))
 
   const pluginsResponse = await fetch(`${base}/qqbot/koishi/plugins`)
   const pluginBody = await pluginsResponse.json()

@@ -10,6 +10,7 @@
  */
 
 import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
+import { fetchContacts } from './lib/contacts.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -158,6 +159,11 @@ export async function apply(ctx, config) {
       const body = await readBody(req)
       const policy = await serialize(() => writePolicy(file, body))
       sendJson(res, 200, { ok: true, data: policy })
+    }))
+
+    route('/qqbot/contacts', (req, res) => only(req, res, ['GET'], async () => {
+      const contacts = await fetchContacts(settings)
+      sendJson(res, 200, { ok: contacts.ok, ...contacts })
     }))
 
     route('/qqbot/logs', (req, res) => only(req, res, ['GET'], async () => {

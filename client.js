@@ -123,16 +123,30 @@ window.__ModuleLoader__.load({
       accessInboundDesc: 'Which groups and private chats the bot processes.',
       accessOutboundTitle: 'Outbound',
       accessOutboundDesc: 'Which groups and private chats the bot may send to.',
+      accessGroupPolicy: 'Group policy',
+      accessPrivatePolicy: 'Private policy',
       accessMode: 'Mode',
       accessModeAll: 'All',
       accessModeWhitelist: 'Whitelist',
       accessModeBlacklist: 'Blacklist',
-      accessGroups: 'Group IDs',
-      accessGroupsPlaceholder: 'One per line or comma separated, e.g. 123456, 234567',
-      accessGroupsModeHint: 'all = every group, whitelist = only listed, blacklist = all except listed.',
-      accessPrivate: 'Allow private chats',
-      accessPrivateOnHint: 'When on, every private chat is processed.',
-      accessPrivateOffHint: 'When off, all private chats are muted.',
+      accessModeHintAll: 'Everything is allowed; the list is disabled.',
+      accessModeHintWhitelist: 'Only checked contacts are allowed.',
+      accessModeHintBlacklist: 'Checked contacts are excluded.',
+      accessSelectAll: 'Select all',
+      accessClear: 'Clear',
+      accessSearchGroups: 'Search group name or ID',
+      accessSearchFriends: 'Search friend name or QQ',
+      accessSelected: 'selected',
+      accessEmptyGroups: 'No groups available.',
+      accessEmptyFriends: 'No friends available.',
+      accessNoMatch: 'No match.',
+      accessNotInList: 'Not in list',
+      accessRemove: 'Remove',
+      accessContactsLoading: 'Reading the contact list…',
+      accessContactsFail: 'Could not read the contact list',
+      accessRefreshContacts: 'Refresh list',
+      accessRefreshing: 'Refreshing…',
+      accessPeople: 'members',
       accessQuietTitle: 'Quiet mode',
       accessQuiet: 'In groups, only respond to command prefixes or @mentions',
       accessQuietHint: 'When on, other group messages are ignored.',
@@ -248,16 +262,30 @@ window.__ModuleLoader__.load({
       accessInboundDesc: '机器人处理哪些群与私聊的消息。',
       accessOutboundTitle: '发送',
       accessOutboundDesc: '机器人允许向哪些群与私聊发消息。',
+      accessGroupPolicy: '群聊策略',
+      accessPrivatePolicy: '私聊策略',
       accessMode: '模式',
       accessModeAll: '全部',
       accessModeWhitelist: '白名单',
       accessModeBlacklist: '黑名单',
-      accessGroups: '群号',
-      accessGroupsPlaceholder: '每行一个或逗号分隔，例如 123456, 234567',
-      accessGroupsModeHint: 'all=全部群，whitelist=仅名单内，blacklist=名单除外。',
-      accessPrivate: '允许私聊',
-      accessPrivateOnHint: '开启后所有私聊都会被处理。',
-      accessPrivateOffHint: '关闭后私聊全部静默。',
+      accessModeHintAll: '全部放行，列表已禁用。',
+      accessModeHintWhitelist: '仅勾选的联系人放行。',
+      accessModeHintBlacklist: '勾选的联系人将被排除。',
+      accessSelectAll: '全选',
+      accessClear: '清空',
+      accessSearchGroups: '搜索群名或群号',
+      accessSearchFriends: '搜索好友名或 QQ 号',
+      accessSelected: '已选',
+      accessEmptyGroups: '没有可用的群。',
+      accessEmptyFriends: '没有可用的好友。',
+      accessNoMatch: '没有匹配项。',
+      accessNotInList: '未在列表中',
+      accessRemove: '移除',
+      accessContactsLoading: '正在读取联系人…',
+      accessContactsFail: '联系人列表读取失败',
+      accessRefreshContacts: '刷新列表',
+      accessRefreshing: '刷新中…',
+      accessPeople: '人',
       accessQuietTitle: '静默模式',
       accessQuiet: '群里只响应指令前缀或 @机器人',
       accessQuietHint: '开启后群里其他消息将被忽略。',
@@ -268,7 +296,7 @@ window.__ModuleLoader__.load({
       accessSaved: '权限策略已保存。',
       accessLoading: '正在读取权限策略…',
       accessLoadFail: '权限策略读取失败',
-      accessNote: '接收与发送名单相互独立：接收白名单可避免机器人处理无关群消息，发送白名单阻止向未授权群发消息。',
+      accessNote: '接收与发送名单相互独立：接收白名单可避免机器人处理无关群消息，发送白名单阻止向未授权群发送消息。',
       actionDone: '操作完成。',
       actionFailed: '操作失败',
       working: '处理中…',
@@ -435,6 +463,33 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); }
 .qqbot-check-block { align-items: flex-start; }
 
+.qqbot-access-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.qqbot-access-section-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+  justify-content: space-between; }
+.qqbot-access-section-head .qqbot-field { flex: 0 1 220px; }
+.qqbot-access-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.qqbot-access-tools .qqbot-input { flex: 1 1 220px; min-width: 160px; }
+.qqbot-contact-list { display: flex; flex-direction: column; gap: 2px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; padding: 5px;
+  background: var(--dsw-alias-bg-base); max-height: 260px; overflow: auto; }
+.qqbot-contact-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+  border-radius: 8px; font-size: 11.5px; color: var(--dsw-alias-label-secondary); cursor: pointer; }
+.qqbot-contact-row:hover { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, transparent); }
+.qqbot-contact-row input[type="checkbox"] { accent-color: var(--dsw-alias-brand-primary); flex: none; }
+.qqbot-contact-row input[type="checkbox"]:disabled { opacity: .45; }
+.qqbot-contact-row:has(input:disabled) { cursor: default; opacity: .7; }
+.qqbot-contact-name { color: var(--dsw-alias-label-primary); min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-contact-id { color: var(--dsw-alias-label-tertiary); flex: none; }
+.qqbot-contact-meta { color: var(--dsw-alias-label-tertiary); flex: none; font-size: 10.5px; }
+.qqbot-contact-extra { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 6%, transparent);
+  cursor: default; }
+.qqbot-contact-extra .qqbot-contact-id { margin-right: auto; }
+.qqbot-contact-empty { padding: 14px; text-align: center; font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary); }
+.qqbot-badge-warn { color: var(--dsw-alias-state-warn-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1)); }
+
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
@@ -455,6 +510,8 @@ window.__ModuleLoader__.load({
     /**
      * JSON fetch wrapper. Every Host route answers `{ ok, ... }`; a transport
      * failure, a non-2xx status or `ok:false` all throw with a user-facing text.
+     * `acceptNotOk` opts out of the `ok:false` throw: /qqbot/contacts reports an
+     * unavailable bot that way while the panel must stay editable.
      */
     async function requestJson(path, options) {
       const config = options || {}
@@ -475,7 +532,9 @@ window.__ModuleLoader__.load({
         payload = null
       }
       if (!response.ok) throw new Error(payload && payload.error ? payload.error : `HTTP ${response.status}`)
-      if (payload !== null && payload.ok === false) throw new Error(payload.error ? payload.error : 'request failed')
+      if (payload !== null && payload.ok === false && config.acceptNotOk !== true) {
+        throw new Error(payload.error ? payload.error : 'request failed')
+      }
       return payload
     }
 
@@ -535,27 +594,12 @@ window.__ModuleLoader__.load({
       return ACCESS_MODES.includes(value) ? value : 'all'
     }
 
-    /** Render a policy id list into the textarea form. */
-    function idsText(ids) {
-      return Array.isArray(ids) ? ids.map((id) => String(id)).join('\n') : ''
+    /** Normalize one policy scope's ids into string form. */
+    function scopeIds(scope) {
+      return Array.isArray(scope.ids) ? scope.ids.map((id) => String(id)) : []
     }
 
-    /**
-     * Parse a textarea-style id list. Mirrors the Host parser (newlines,
-     * spaces, commas including full-width variants; 5-15 digit ids only),
-     * trims, drops non-numeric tokens and de-duplicates.
-     */
-    function parseIdList(text) {
-      if (typeof text !== 'string' || text.trim() === '') return []
-      const seen = new Set()
-      for (const part of text.split(/[\s,，、;；]+/u)) {
-        const id = part.trim()
-        if (/^\d{5,15}$/u.test(id)) seen.add(id)
-      }
-      return [...seen]
-    }
-
-    /** Parse the quiet-mode prefix input the same way, without the digit rule. */
+    /** Parse the quiet-mode prefix input: split on spaces/commas, de-duplicate. */
     function parsePrefixes(text) {
       if (typeof text !== 'string' || text.trim() === '') return []
       const seen = new Set()
@@ -567,9 +611,8 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Turn an AccessPolicy payload into the editable draft. The private-chat
-     * switches are two-state: on means `all`, off means an empty `whitelist`
-     * (which mutes every private chat).
+     * Turn an AccessPolicy payload into the editable draft. Every scope keeps
+     * its full mode and id list; selection happens through the contact lists.
      */
     function draftFromPolicy(policy) {
       const source = policy !== null && typeof policy === 'object' ? policy : {}
@@ -581,12 +624,14 @@ window.__ModuleLoader__.load({
       const outboundGroups = outbound.groups !== null && typeof outbound.groups === 'object' ? outbound.groups : {}
       const outboundPrivate = outbound.private !== null && typeof outbound.private === 'object' ? outbound.private : {}
       return {
-        inboundMode: normalizeMode(inboundGroups.mode),
-        inboundGroups: idsText(inboundGroups.ids),
-        inboundPrivate: inboundPrivate.mode === 'all',
-        outboundMode: normalizeMode(outboundGroups.mode),
-        outboundGroups: idsText(outboundGroups.ids),
-        outboundPrivate: outboundPrivate.mode === 'all',
+        inboundGroupsMode: normalizeMode(inboundGroups.mode),
+        inboundGroupIds: scopeIds(inboundGroups),
+        inboundPrivateMode: normalizeMode(inboundPrivate.mode),
+        inboundPrivateIds: scopeIds(inboundPrivate),
+        outboundGroupsMode: normalizeMode(outboundGroups.mode),
+        outboundGroupIds: scopeIds(outboundGroups),
+        outboundPrivateMode: normalizeMode(outboundPrivate.mode),
+        outboundPrivateIds: scopeIds(outboundPrivate),
         quietEnabled: quiet.enabled === true,
         prefixes: Array.isArray(quiet.prefixes) ? quiet.prefixes.map((prefix) => String(prefix)).join(' ') : '',
       }
@@ -632,6 +677,15 @@ window.__ModuleLoader__.load({
       const [accessError, setAccessError] = React.useState(null)
       const [accessWarning, setAccessWarning] = React.useState(null)
       const [accessDraft, setAccessDraft] = React.useState(null)
+      const [contacts, setContacts] = React.useState(null)
+      const [contactsPhase, setContactsPhase] = React.useState('idle')
+      const [contactsError, setContactsError] = React.useState(null)
+      const [accessQuery, setAccessQuery] = React.useState({
+        inboundGroups: '',
+        inboundPrivate: '',
+        outboundGroups: '',
+        outboundPrivate: '',
+      })
 
       const busyOf = (key) => busy[key] === true
 
@@ -706,6 +760,35 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /**
+       * Read the bot's groups and friends. `ok:false` (Koishi down or the bot
+       * offline) is not a panel failure: it leaves the lists empty and shows
+       * the reason, while modes and save stay usable.
+       */
+      const loadContacts = async () => {
+        setContactsPhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/contacts', { acceptNotOk: true })
+          const list = payload !== null && typeof payload === 'object' ? payload : {}
+          setContacts({
+            groups: Array.isArray(list.groups) ? list.groups : [],
+            friends: Array.isArray(list.friends) ? list.friends : [],
+            selfId: typeof list.selfId === 'string' ? list.selfId : null,
+            fetchedAt: typeof list.fetchedAt === 'string' ? list.fetchedAt : null,
+          })
+          if (list.ok === true) {
+            setContactsError(null)
+          } else {
+            setContactsError(typeof list.error === 'string' && list.error !== '' ? list.error : t('accessContactsFail'))
+          }
+          setContactsPhase('ready')
+        } catch (error) {
+          setContacts({ groups: [], friends: [], selfId: null, fetchedAt: null })
+          setContactsError(messageOf(error))
+          setContactsPhase('ready')
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -722,10 +805,11 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => {
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
+        if (tab === 'access' && contactsPhase === 'idle') loadContacts()
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, accessPhase, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, accessPhase, contactsPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // ------------------------------------------------------------ mutation --
       /**
@@ -793,13 +877,13 @@ window.__ModuleLoader__.load({
           version: 1,
           updatedAt: new Date().toISOString(),
           inbound: {
-            groups: { mode: draft.inboundMode, ids: parseIdList(draft.inboundGroups) },
-            private: { mode: draft.inboundPrivate ? 'all' : 'whitelist', ids: [] },
+            groups: { mode: draft.inboundGroupsMode, ids: draft.inboundGroupIds },
+            private: { mode: draft.inboundPrivateMode, ids: draft.inboundPrivateIds },
             quiet: { enabled: draft.quietEnabled === true, prefixes: parsePrefixes(draft.prefixes) },
           },
           outbound: {
-            groups: { mode: draft.outboundMode, ids: parseIdList(draft.outboundGroups) },
-            private: { mode: draft.outboundPrivate ? 'all' : 'whitelist', ids: [] },
+            groups: { mode: draft.outboundGroupsMode, ids: draft.outboundGroupIds },
+            private: { mode: draft.outboundPrivateMode, ids: draft.outboundPrivateIds },
           },
         }
         runPost('access-save', '/qqbot/access', policy, loadAccess, t('accessSaved'))
@@ -1197,53 +1281,182 @@ window.__ModuleLoader__.load({
         }
 
         const draft = accessDraft
+        const contactGroups = contacts !== null && Array.isArray(contacts.groups) ? contacts.groups : []
+        const contactFriends = contacts !== null && Array.isArray(contacts.friends) ? contacts.friends : []
         const updateDraft = (patch) => {
           setAccessDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
         }
+        const updateQuery = (key, value) => {
+          setAccessQuery((previous) => ({ ...previous, [key]: value }))
+        }
+        const toggleId = (field, id) => {
+          setAccessDraft((previous) => {
+            if (previous === null) return previous
+            const list = previous[field]
+            return { ...previous, [field]: list.includes(id) ? list.filter((item) => item !== id) : [...list, id] }
+          })
+        }
+        const selectAllIds = (config) => {
+          setAccessDraft((previous) => {
+            if (previous === null) return previous
+            const all = (config.kind === 'group' ? contactGroups : contactFriends).map((item) => String(item.id))
+            const ids = [...previous[config.idsField]]
+            for (const id of all) if (!ids.includes(id)) ids.push(id)
+            return { ...previous, [config.idsField]: ids }
+          })
+        }
+        const clearIds = (config) => updateDraft({ [config.idsField]: [] })
         const modeOptions = [
           h('option', { key: 'all', value: 'all' }, t('accessModeAll')),
           h('option', { key: 'whitelist', value: 'whitelist' }, t('accessModeWhitelist')),
           h('option', { key: 'blacklist', value: 'blacklist' }, t('accessModeBlacklist')),
         ]
-        const modeId = (scope) => `qqbot-access-${scope}-mode`
-        const groupsId = (scope) => `qqbot-access-${scope}-groups`
-        const privateId = (scope) => `qqbot-access-private-${scope}`
+        const modeHint = (mode) => mode === 'all'
+          ? t('accessModeHintAll')
+          : mode === 'blacklist' ? t('accessModeHintBlacklist') : t('accessModeHintWhitelist')
 
-        const scopeCard = (scope, title, description, mode, groups, privateOn, onMode, onGroups, onPrivate) => h('section', { className: 'qqbot-card' },
+        const segment = (config) => {
+          const mode = draft[config.modeField]
+          const ids = draft[config.idsField]
+          const query = (accessQuery[config.searchKey] || '').trim().toLowerCase()
+          const contactItems = config.kind === 'group' ? contactGroups : contactFriends
+          const matching = query === ''
+            ? contactItems
+            : contactItems.filter((item) => String(item.name || '').toLowerCase().includes(query) || String(item.id).includes(query))
+          const known = new Set(contactItems.map((item) => String(item.id)))
+          const extras = ids.filter((id) => !known.has(id)).filter((id) => query === '' || id.includes(query))
+          const disabled = mode === 'all'
+          const showEmpty = matching.length === 0 && extras.length === 0
+          const emptyText = contactItems.length === 0 && query === ''
+            ? t(config.kind === 'group' ? 'accessEmptyGroups' : 'accessEmptyFriends')
+            : t('accessNoMatch')
+          return h('div', { className: 'qqbot-access-section', key: config.searchKey },
+            h('div', { className: 'qqbot-access-section-head' },
+              h('div', { className: 'qqbot-field', 'data-testid': config.legacyTestId || undefined },
+                h('label', { className: 'qqbot-field-label', htmlFor: config.modeTestId },
+                  t(config.kind === 'group' ? 'accessGroupPolicy' : 'accessPrivatePolicy')),
+                h('select', {
+                  id: config.modeTestId,
+                  className: 'qqbot-select',
+                  'data-testid': config.modeTestId,
+                  value: mode,
+                  onChange: (event) => { updateDraft({ [config.modeField]: event.currentTarget.value }) },
+                }, ...modeOptions)),
+              h('div', { className: 'qqbot-btns' },
+                h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn',
+                  'data-testid': config.allTestId,
+                  'aria-label': t('accessSelectAll'),
+                  disabled,
+                  onClick: () => { selectAllIds(config) },
+                }, t('accessSelectAll')),
+                h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn',
+                  'data-testid': config.clearTestId,
+                  'aria-label': t('accessClear'),
+                  disabled,
+                  onClick: () => { clearIds(config) },
+                }, t('accessClear')))),
+            h('div', { className: 'qqbot-access-tools' },
+              h('input', {
+                className: 'qqbot-input',
+                type: 'text',
+                value: accessQuery[config.searchKey],
+                placeholder: t(config.kind === 'group' ? 'accessSearchGroups' : 'accessSearchFriends'),
+                'aria-label': t(config.kind === 'group' ? 'accessSearchGroups' : 'accessSearchFriends'),
+                'data-testid': config.searchTestId,
+                onChange: (event) => { updateQuery(config.searchKey, event.currentTarget.value) },
+              }),
+              h('span', { className: 'qqbot-card-sub' }, `${ids.length} ${t('accessSelected')}`)),
+            h('p', { className: 'qqbot-hint' }, modeHint(mode)),
+            h('div', { className: 'qqbot-contact-list', 'data-testid': config.listTestId },
+              ...matching.map((item) => h('label', {
+                key: `${config.kind}-${item.id}`,
+                className: 'qqbot-contact-row',
+                'data-testid': `${config.rowPrefix}-${item.id}`,
+                'data-scope': config.scope,
+              },
+                h('input', {
+                  type: 'checkbox',
+                  checked: ids.includes(String(item.id)),
+                  disabled,
+                  onChange: () => { toggleId(config.idsField, String(item.id)) },
+                }),
+                h('span', { className: 'qqbot-contact-name' }, item.name || String(item.id)),
+                h('span', { className: 'qqbot-contact-id qqbot-mono' }, `(${item.id})`),
+                config.kind === 'group' && item.memberCount
+                  ? h('span', { className: 'qqbot-contact-meta' }, `· ${item.memberCount} ${t('accessPeople')}`)
+                  : null)),
+              ...extras.map((id) => h('div', {
+                key: `extra-${id}`,
+                className: 'qqbot-contact-row qqbot-contact-extra',
+                'data-testid': `qqbot-access-extra-${config.scope}-${id}`,
+                'data-scope': config.scope,
+              },
+                h('span', { className: 'qqbot-badge qqbot-badge-warn' }, t('accessNotInList')),
+                h('span', { className: 'qqbot-contact-id qqbot-mono' }, `(${id})`),
+                h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn',
+                  'data-testid': `qqbot-access-remove-${config.scope}-${id}`,
+                  'aria-label': `${t('accessRemove')} ${id}`,
+                  onClick: () => { toggleId(config.idsField, id) },
+                }, t('accessRemove')))),
+              showEmpty ? h('div', { className: 'qqbot-contact-empty' }, emptyText) : null))
+        }
+
+        const inboundGroups = {
+          scope: 'inbound', kind: 'group', searchKey: 'inboundGroups',
+          modeField: 'inboundGroupsMode', idsField: 'inboundGroupIds',
+          modeTestId: 'qqbot-access-inbound-mode',
+          listTestId: 'qqbot-access-inbound-groups',
+          allTestId: 'qqbot-access-inbound-groups-all',
+          clearTestId: 'qqbot-access-inbound-groups-clear',
+          searchTestId: 'qqbot-access-inbound-groups-search',
+          rowPrefix: 'qqbot-access-group',
+        }
+        const inboundPrivate = {
+          scope: 'inbound', kind: 'friend', searchKey: 'inboundPrivate',
+          modeField: 'inboundPrivateMode', idsField: 'inboundPrivateIds',
+          modeTestId: 'qqbot-access-inbound-private-mode',
+          legacyTestId: 'qqbot-access-private-inbound',
+          listTestId: 'qqbot-access-inbound-private',
+          allTestId: 'qqbot-access-inbound-private-all',
+          clearTestId: 'qqbot-access-inbound-private-clear',
+          searchTestId: 'qqbot-access-inbound-private-search',
+          rowPrefix: 'qqbot-access-friend',
+        }
+        const outboundGroups = {
+          scope: 'outbound', kind: 'group', searchKey: 'outboundGroups',
+          modeField: 'outboundGroupsMode', idsField: 'outboundGroupIds',
+          modeTestId: 'qqbot-access-outbound-mode',
+          listTestId: 'qqbot-access-outbound-groups',
+          allTestId: 'qqbot-access-outbound-groups-all',
+          clearTestId: 'qqbot-access-outbound-groups-clear',
+          searchTestId: 'qqbot-access-outbound-groups-search',
+          rowPrefix: 'qqbot-access-group',
+        }
+        const outboundPrivate = {
+          scope: 'outbound', kind: 'friend', searchKey: 'outboundPrivate',
+          modeField: 'outboundPrivateMode', idsField: 'outboundPrivateIds',
+          modeTestId: 'qqbot-access-outbound-private-mode',
+          legacyTestId: 'qqbot-access-private-outbound',
+          listTestId: 'qqbot-access-outbound-private',
+          allTestId: 'qqbot-access-outbound-private-all',
+          clearTestId: 'qqbot-access-outbound-private-clear',
+          searchTestId: 'qqbot-access-outbound-private-search',
+          rowPrefix: 'qqbot-access-friend',
+        }
+
+        const accessCard = (title, description, groupConfig, privateConfig) => h('section', { className: 'qqbot-card' },
           h('div', { className: 'qqbot-card-head' },
             h('h2', { className: 'qqbot-card-title' }, title),
             h('span', { className: 'qqbot-card-sub' }, description)),
           h('div', { className: 'qqbot-form' },
-            h('div', { className: 'qqbot-field' },
-              h('label', { className: 'qqbot-field-label', htmlFor: modeId(scope) }, t('accessMode')),
-              h('select', {
-                id: modeId(scope),
-                className: 'qqbot-select',
-                'data-testid': modeId(scope),
-                value: mode,
-                onChange: (event) => { onMode(event.currentTarget.value) },
-              }, ...modeOptions)),
-            h('div', { className: 'qqbot-field' },
-              h('label', { className: 'qqbot-field-label', htmlFor: groupsId(scope) }, t('accessGroups')),
-              h('textarea', {
-                id: groupsId(scope),
-                className: 'qqbot-area',
-                'data-testid': groupsId(scope),
-                rows: 3,
-                value: groups,
-                placeholder: t('accessGroupsPlaceholder'),
-                onChange: (event) => { onGroups(event.currentTarget.value) },
-              }),
-              h('p', { className: 'qqbot-hint' }, t('accessGroupsModeHint'))),
-            h('label', { className: 'qqbot-check qqbot-check-block' },
-              h('input', {
-                type: 'checkbox',
-                'data-testid': privateId(scope),
-                checked: privateOn,
-                onChange: (event) => { onPrivate(event.currentTarget.checked) },
-              }),
-              t('accessPrivate')),
-            h('p', { className: 'qqbot-hint' }, privateOn ? t('accessPrivateOnHint') : t('accessPrivateOffHint'))))
+            segment(groupConfig),
+            segment(privateConfig)))
 
         const prefixChips = parsePrefixes(draft.prefixes)
         const quietCard = h('section', { className: 'qqbot-card' },
@@ -1274,46 +1487,63 @@ window.__ModuleLoader__.load({
                 ? h('p', { className: 'qqbot-hint' }, t('accessPrefixesHint'))
                 : h('div', { className: 'qqbot-chips' }, ...prefixChips.map((prefix) => h('span', { key: prefix, className: 'qqbot-chip' }, prefix))))))
 
+        const contactsLabel = contacts === null
+          ? t('accessContactsLoading')
+          : `${t('updated')} ${contacts.fetchedAt ? formatTime(contacts.fetchedAt) : '—'}${contacts.selfId ? ` · ${contacts.selfId}` : ''}`
+        const toolbar = h('div', { className: 'qqbot-toolbar' },
+          h('div', { className: 'qqbot-toolbar-left' },
+            h('h2', { className: 'qqbot-card-title' }, t('accessTitle')),
+            h('span', { className: 'qqbot-card-sub' }, contactsLabel)),
+          h('div', { className: 'qqbot-toolbar-right' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-access-refresh-contacts',
+              'aria-label': t('accessRefreshContacts'),
+              disabled: contactsPhase === 'loading',
+              onClick: () => { loadContacts() },
+            }, contactsPhase === 'loading' ? t('accessRefreshing') : t('accessRefreshContacts')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-access-refresh',
+              'aria-label': t('refresh'),
+              disabled: accessPhase === 'loading',
+              onClick: () => { loadAccess() },
+            }, t('refresh')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-access-save',
+              'aria-label': t('accessSave'),
+              'aria-busy': busyOf('access-save') ? 'true' : undefined,
+              disabled: busyOf('access-save') || accessPhase === 'loading',
+              onClick: saveAccess,
+            }, busyOf('access-save') ? t('working') : t('accessSave'))))
+
         return h('div', { className: 'qqbot-stack' },
-          h('div', { className: 'qqbot-toolbar' },
-            h('div', { className: 'qqbot-toolbar-left' },
-              h('h2', { className: 'qqbot-card-title' }, t('accessTitle'))),
-            h('div', { className: 'qqbot-toolbar-right' },
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn',
-                'data-testid': 'qqbot-access-refresh',
-                'aria-label': t('refresh'),
-                disabled: accessPhase === 'loading',
-                onClick: () => { loadAccess() },
-              }, t('refresh')),
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn qqbot-btn-primary',
-                'data-testid': 'qqbot-access-save',
-                'aria-label': t('accessSave'),
-                'aria-busy': busyOf('access-save') ? 'true' : undefined,
-                disabled: busyOf('access-save') || accessPhase === 'loading',
-                onClick: saveAccess,
-              }, busyOf('access-save') ? t('working') : t('accessSave')))),
+          toolbar,
+          contactsError !== null
+            ? h('div', {
+              className: 'qqbot-banner qqbot-banner-error',
+              role: 'alert',
+              'data-testid': 'qqbot-access-contacts-error',
+            }, contactsError)
+            : null,
+          contactsPhase === 'loading' && contacts === null
+            ? h('div', { className: 'qqbot-empty', role: 'status' }, t('accessContactsLoading'))
+            : null,
           accessError !== null
             ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert' }, `${t('accessLoadFail')}: ${accessError}`)
             : null,
           accessWarning !== null ? h('p', { className: 'qqbot-warn' }, accessWarning) : null,
           h('div', { className: 'qqbot-grid' },
-            scopeCard('inbound', t('accessInboundTitle'), t('accessInboundDesc'),
-              draft.inboundMode, draft.inboundGroups, draft.inboundPrivate,
-              (value) => updateDraft({ inboundMode: value }),
-              (value) => updateDraft({ inboundGroups: value }),
-              (value) => updateDraft({ inboundPrivate: value })),
-            scopeCard('outbound', t('accessOutboundTitle'), t('accessOutboundDesc'),
-              draft.outboundMode, draft.outboundGroups, draft.outboundPrivate,
-              (value) => updateDraft({ outboundMode: value }),
-              (value) => updateDraft({ outboundGroups: value }),
-              (value) => updateDraft({ outboundPrivate: value }))),
+            accessCard(t('accessInboundTitle'), t('accessInboundDesc'), inboundGroups, inboundPrivate),
+            accessCard(t('accessOutboundTitle'), t('accessOutboundDesc'), outboundGroups, outboundPrivate)),
           quietCard,
           h('p', { className: 'qqbot-note' }, t('accessNote')))
       }
+
 
       // ----------------------------------------------------------------- logs --
       const renderLogs = () => {
