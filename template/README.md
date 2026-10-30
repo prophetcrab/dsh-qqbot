@@ -17,6 +17,7 @@
   - Web 控制台 + 沙盒（http://localhost:5140）
   - `npm run mock:qq`：假 QQ 客户端，模拟 NapCat 反向 WS，可在终端直接聊天
   - `npm test`：mock 适配器测试 + 真实 OneBot WS 协议端到端测试
+  - 监控消息流：只记录权限白名单目标群的入站消息，同时记录机器人发送的消息（direction=in/out）
 - **TypeScript**：严格模式类型检查，`npm run typecheck`
 
 ## 目录结构

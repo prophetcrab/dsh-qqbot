@@ -96,6 +96,7 @@ node scripts/install-profile.mjs --profile desktop --install
 ## 日常使用
 
 - 启动/停止：总览页「一键启动全部 / 全部停止」，或分别操作 NapCat / Koishi
+- 消息监控：「消息」页同时显示目标群收到的消息（接收）和机器人发出的消息（发送）；非白名单群不会显示
 - 改 Koishi 插件：
   - 在「插件」页启用/禁用、卸载，或输入 npm 包名安装
   - 勾选「操作后重启 Koishi」即可生效

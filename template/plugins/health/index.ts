@@ -1,4 +1,6 @@
 import { Context, Schema } from 'koishi'
+import { existsSync, readFileSync, unwatchFile, watchFile } from 'node:fs'
+import { resolve } from 'node:path'
 
 export const name = 'health'
 export const inject = ['server', 'qqbot']
@@ -12,13 +14,13 @@ export const DEFAULT_MESSAGES_PATH = '/api/qqbot/messages'
 /** 单次查询最多返回的消息条数。 */
 export const MAX_QUERY_MESSAGES = 200
 
-/** 一条入站消息记录（/api/qqbot/messages 的数组元素）。 */
+/** 一条入站/出站消息记录（/api/qqbot/messages 的数组元素）。 */
 export interface MessageRecord {
   /** 自增序号 */
   id: number
   /** ISO 时间字符串 */
   time: string
-  direction: 'in'
+  direction: 'in' | 'out'
   scene: 'group' | 'private'
   /** 群聊为群号，私聊为 userId */
   targetId: string
@@ -32,8 +34,8 @@ export interface MessageRecord {
   messageId?: string
 }
 
-/** 不含缓冲区生成字段（id/time/direction）的消息内容。 */
-export type MessagePayload = Omit<MessageRecord, 'id' | 'time' | 'direction'>
+/** 不含缓冲区生成字段（id/time）的消息内容；direction 默认 in。 */
+export type MessagePayload = Omit<MessageRecord, 'id' | 'time' | 'direction'> & { direction?: 'in' | 'out' }
 
 /** 内存环形消息缓冲。 */
 export interface MessageBuffer {
@@ -158,10 +160,12 @@ export function createMessageBuffer(limit: number = DEFAULT_MESSAGE_LIMIT): Mess
  * 群聊 scene=group（targetId/groupId 取 guildId || channelId），私聊 scene=private
  * （targetId=userId）；content 为空时回落到 describeElements。
  */
-export function messageFromSession(session: any): MessagePayload {
+export function messageFromSession(session: any, direction: 'in' | 'out' = 'in'): MessagePayload {
   const channelId = session?.channelId !== undefined && session?.channelId !== null ? String(session.channelId) : ''
   const guildId = session?.guildId !== undefined && session?.guildId !== null && session.guildId !== '' ? String(session.guildId) : undefined
-  const userId = session?.userId !== undefined && session?.userId !== null ? String(session.userId) : ''
+  const userId = direction === 'out'
+    ? String(session?.selfId ?? session?.userId ?? '')
+    : (session?.userId !== undefined && session?.userId !== null ? String(session.userId) : '')
 
   const isDirect = session?.isDirect === true || (guildId === undefined && channelId.startsWith('private:'))
   const scene: MessageRecord['scene'] = isDirect ? 'private' : 'group'
@@ -170,14 +174,16 @@ export function messageFromSession(session: any): MessagePayload {
   const rawContent = typeof session?.content === 'string' ? session.content : ''
   const content = rawContent.trim() === '' ? describeElements(session?.elements) : rawContent
 
-  const payload: MessagePayload = { scene, targetId, userId, content }
+  const payload: MessagePayload = { scene, targetId, userId, content, direction }
 
   if (scene === 'group') payload.groupId = guildId ?? channelId
   const rawMessageId = session?.messageId
   if (rawMessageId !== undefined && rawMessageId !== null && String(rawMessageId) !== '') {
     payload.messageId = String(rawMessageId)
   }
-  const userName = session?.user?.name || session?.username
+  const userName = direction === 'out'
+    ? (session?.bot?.user?.name || session?.username || '机器人')
+    : (session?.user?.name || session?.username)
   if (userName !== undefined && userName !== null && String(userName) !== '') {
     payload.userName = String(userName)
   }
@@ -193,6 +199,8 @@ export interface Config {
   messagesPath: string
   /** 内存中保留的最近消息条数上限 */
   messageLimit: number
+  /** 权限策略文件：用于只记录白名单目标群的消息 */
+  accessFile: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -205,6 +213,9 @@ export const Config: Schema<Config> = Schema.object({
     .default(DEFAULT_MESSAGE_LIMIT)
     .min(1)
     .description('内存中保留的最近消息条数上限'),
+  accessFile: Schema.string()
+    .default('data/access.json')
+    .description('权限策略文件；配置白名单时只把目标群的消息记录到监控面板'),
 })
 
 /**
@@ -227,17 +238,74 @@ export const Config: Schema<Config> = Schema.object({
  *     "updatedAt": "..."
  *   }
  *
- * `messages` 按时间正序（旧 -> 新）返回最近 `limit` 条；total 为插件启动以来收到
- * 的消息总数（包含已被环形缓冲裁剪的）。可用于进程守护、状态页与 DSH 消息流面板。
+ * `messages` 按时间正序（旧 -> 新）返回最近 `limit` 条（direction 为 in/out）；total
+ * 为插件启动以来记录的消息总数（包含已被环形缓冲裁剪的）。可用于进程守护、状态页与 DSH 消息流面板。
  */
+function sessionGroupId(session: any): string {
+  const guildId = session?.guildId !== undefined && session?.guildId !== null && session.guildId !== '' ? String(session.guildId) : ''
+  const channelId = session?.channelId !== undefined && session?.channelId !== null ? String(session.channelId) : ''
+  return guildId !== '' ? guildId : channelId
+}
+
+function loadAccessPolicy(path: string): any {
+  try {
+    if (!existsSync(path)) return null
+    const parsed = JSON.parse(readFileSync(path, 'utf8'))
+    return parsed !== null && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
 export function apply(ctx: Context, config: Config) {
   const messages = createMessageBuffer(config.messageLimit)
+  const accessPath = resolve(process.cwd(), config.accessFile)
+  let policy: any = loadAccessPolicy(accessPath)
 
-  // internal/session 在中间件之前触发，因此被权限插件拦截的消息也会被记录。
+  const reloadPolicy = () => {
+    policy = loadAccessPolicy(accessPath)
+  }
+  if (typeof (ctx as any).effect === 'function') {
+    ;(ctx as any).effect(() => {
+      watchFile(accessPath, { interval: 1000 }, reloadPolicy)
+      return () => {
+        unwatchFile(accessPath, reloadPolicy)
+      }
+    })
+  }
+
+  const monitored = (section: any, id: string): boolean => {
+    if (section === null || section === undefined) return true
+    const ids = Array.isArray(section.ids) ? section.ids.map((item: any) => String(item)) : []
+    if (section.mode === 'whitelist') return ids.includes(id)
+    if (section.mode === 'blacklist') return !ids.includes(id)
+    return true
+  }
+  const inboundAllowed = (session: any): boolean => {
+    if (policy === null) return true
+    const direct = session?.isDirect === true || (session?.guildId === undefined && String(session?.channelId ?? '').startsWith('private:'))
+    if (direct) return monitored(policy.inbound?.private, String(session?.userId ?? ''))
+    return monitored(policy.inbound?.groups, sessionGroupId(session))
+  }
+  const outboundAllowed = (session: any): boolean => {
+    if (policy === null) return true
+    const direct = session?.isDirect === true || (session?.guildId === undefined && String(session?.channelId ?? '').startsWith('private:'))
+    if (direct) return monitored(policy.outbound?.private, String(session?.userId ?? session?.selfId ?? ''))
+    return monitored(policy.outbound?.groups, sessionGroupId(session))
+  }
+
+  // internal/session 在中间件之前触发；这里按权限策略过滤，只记录目标群消息。
   ctx.on('internal/session', (session) => {
     const type = (session as { type?: string } | null)?.type
     if (type !== 'message' && type !== 'message-created') return
-    messages.push(messageFromSession(session))
+    if (!inboundAllowed(session)) return
+    messages.push(messageFromSession(session, 'in'))
+  })
+
+  // before-send 在真正发送前触发；记录机器人发出的消息（回复、指令结果等）。
+  ctx.on('before-send', (session) => {
+    if (!outboundAllowed(session)) return
+    messages.push(messageFromSession(session, 'out'))
   })
 
   // 群/好友列表：供控制中心做「点击式」权限管理
@@ -268,7 +336,7 @@ export function apply(ctx: Context, config: Config) {
     }
   })
 
-  // 最近入站消息：供 DSH 面板展示实时消息流
+  // 最近入站/出站消息：供 DSH 面板展示实时消息流
   ctx.server.get(config.messagesPath, (koa) => {
     const limit = clampMessageLimit(koa.query?.limit)
     koa.body = {

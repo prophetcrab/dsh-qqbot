@@ -83,7 +83,7 @@ test('AI 返回错误时给出友好提示', async (t) => {
     ok: false,
     status: 500,
     json: async () => ({ ok: false, error: '模型返回错误：AUTH' }),
-  })) as typeof fetch
+  })) as any
   const replies = await app.mock.client(USER, GROUP).receive(`<at id="${SELF_ID}"/> 在吗`)
   assert.equal(replies.length, 1)
   assert.match(replies[0], /AI 暂时不可用/u)

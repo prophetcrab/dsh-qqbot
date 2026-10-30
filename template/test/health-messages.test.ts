@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   Config,
@@ -19,6 +22,7 @@ function makeConfig(overrides: Record<string, any> = {}): any {
     contactsPath: '/api/qqbot/contacts',
     messagesPath: DEFAULT_MESSAGES_PATH,
     messageLimit: DEFAULT_MESSAGE_LIMIT,
+    accessFile: join(tmpdir(), 'qqbot-health-missing-access.json'),
     ...overrides,
   }
 }
@@ -52,7 +56,10 @@ function createFakeContext() {
   const emitSession = (session: any) => {
     for (const handler of listeners.get('internal/session') ?? []) handler(session)
   }
-  return { ctx, routes, emitSession }
+  const emitBeforeSend = (session: any) => {
+    for (const handler of listeners.get('before-send') ?? []) handler(session)
+  }
+  return { ctx, routes, emitSession, emitBeforeSend }
 }
 
 function fakeSession(overrides: Record<string, any> = {}): any {
@@ -163,6 +170,7 @@ test('messageFromSession：群聊映射 scene/groupId/targetId/userName', () => 
     userName: 'Alice',
     content: '/echo hi',
     messageId: 'm1',
+    direction: 'in',
   })
 
   // userName 回退到 session.username
@@ -320,4 +328,47 @@ test('apply 接线：/api/qqbot/health 与 /api/qqbot/contacts 行为不变', as
     groups: [],
     friends: [],
   })
+})
+
+
+test('messageFromSession：出站消息记为 out，sender 为机器人', () => {
+  const payload = messageFromSession({
+    isDirect: false,
+    guildId: '1026855069',
+    channelId: '1026855069',
+    selfId: '676512192',
+    content: '收到',
+    bot: { user: { name: '机器人昵称' } },
+  }, 'out')
+  assert.equal(payload.direction, 'out')
+  assert.equal(payload.userId, '676512192')
+  assert.equal(payload.userName, '机器人昵称')
+  assert.equal(payload.groupId, '1026855069')
+  assert.equal(payload.content, '收到')
+})
+
+test('apply：只记录权限白名单目标群的入站 + 出站消息', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'qqbot-health-access-'))
+  const accessFile = join(dir, 'access.json')
+  writeFileSync(accessFile, JSON.stringify({
+    version: 1,
+    inbound: { groups: { mode: 'whitelist', ids: ['1026855069'] }, private: { mode: 'all', ids: [] }, quiet: { enabled: false, prefixes: ['/'] } },
+    outbound: { groups: { mode: 'whitelist', ids: ['1026855069'] }, private: { mode: 'all', ids: [] } },
+  }))
+  const { ctx, routes, emitSession, emitBeforeSend } = createFakeContext()
+  apply(ctx as any, makeConfig({ accessFile }))
+  emitSession(fakeSession({ guildId: '1026855069', channelId: '1026855069', content: '你好' }))
+  emitSession(fakeSession({ guildId: '999999', channelId: '999999', content: '不该出现' }))
+  emitBeforeSend(fakeSession({ guildId: '1026855069', channelId: '1026855069', content: '收到', userId: undefined, selfId: '10000' }))
+  emitBeforeSend(fakeSession({ guildId: '999999', channelId: '999999', content: '不该出现', userId: undefined, selfId: '10000' }))
+  const handler = routes.get(DEFAULT_MESSAGES_PATH)!
+  const koa: any = { query: {} }
+  handler(koa)
+  const body = koa.body
+  assert.equal(body.messages.length, 2)
+  assert.equal(body.messages[0].direction, 'in')
+  assert.equal(body.messages[0].content, '你好')
+  assert.equal(body.messages[1].direction, 'out')
+  assert.equal(body.messages[1].content, '收到')
+  rmSync(dir, { recursive: true, force: true })
 })
