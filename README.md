@@ -6,11 +6,11 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 
 ## 功能
 
-- **一键化安装 / 配置**
-  - 检测 QQ.app、NapCat、Koishi 项目、运行状态、登录状态
-  - 下载并打开官方 NapCat macOS 安装器（授权、扫码由用户完成，其余自动）
+- **一键化安装 / 配置（运行时全部收拢在 qq-bot）**
+  - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建，缺少依赖时自动 `npm install`
+  - 下载并打开官方 NapCat macOS 安装器（仅系统授权与扫码需要用户点一下）
   - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
-  - 自动安装 Koishi 项目依赖
+  - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
 - **一键启动 / 停止（无需终端）**
   - NapCat（QQ）、Koishi（`npm start`）分别控制，或一键全启/全停
   - NapCat 登录二维码直接显示在面板里，扫码即登录；支持刷新二维码
@@ -56,6 +56,8 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 
 ## 安装
 
+> 运行时依赖统一放在 `~/project/qq-bot`：Koishi 源码、`node_modules`、`data`、`logs`、`runtime/napcat-installer`。DSH 插件本身只负责安装/控制，不再需要你手动创建项目或装依赖。
+
 ### 方式一：安装脚本（推荐）
 
 ```bash
@@ -69,7 +71,7 @@ node scripts/install-profile.mjs --profile desktop --install
 2. 把 `dsh-qqbot` 加入 `dsh.profile.bundles`
 3. 在 `cordis.patch.yml` 追加插件行（`id: qqbot`）
 4. 备份被修改的文件，并执行 `pnpm install`
-5. **需要退出并重新打开 DeepSeek Harness 才会加载**
+5. 重启/热加载 DeepSeek Harness 后，插件首次激活会自动准备 `~/project/qq-bot` 运行环境
 
 可用 `--dry-run` 先看改动；`--uninstall` 移除。
 
@@ -131,9 +133,10 @@ node scripts/install-profile.mjs --profile desktop --install
 | `koishiPort` | `5140` | Koishi HTTP/控制台/反向 WS 端口 |
 | `napcatPort` | `6099` | NapCat WebUI 端口（用于读配置/登录状态） |
 | `reversePath` | `/onebot` | 反向 WS 路径 |
-| `installerDir` | `~/Library/Application Support/dsh-qqbot/napcat-installer` | 下载安装器的目录 |
+| `installerDir` | `<projectDir>/runtime/napcat-installer` | NapCat 安装器缓存（也在 qq-bot 内） |
 | `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
+| `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
 | `logLines` | `200` | 日志/状态返回的行数上限 |
 
 ## 扩展：注册自己的功能
@@ -180,6 +183,7 @@ dsh-qqbot/
 │   ├── access.js             # 权限策略读写/归一化（data/access.json）
 │   ├── contacts.js           # 群/好友列表代理（Koishi /api/qqbot/contacts）
 │   ├── messages.js           # 消息流代理（Koishi /api/qqbot/messages）
+│   ├── setup.js              # 环境自举：模板建项目 + 自动 npm install
 │   ├── features.js           # FeatureRegistry
 │   └── features/             # 内置 Feature（含 access）
 ├── scripts/
@@ -187,6 +191,7 @@ dsh-qqbot/
 │   ├── smoke-host.mjs        # Host 冒烟
 │   └── smoke-client.mjs      # 客户端渲染冒烟
 ├── test/                     # node:test 单元测试
+├── template/                 # 内置 Koishi 项目模板（首次安装时复制到 qq-bot）
 ├── locale/                   # 插件市场显示文案
 ├── cordis.patch.yml          # bundle patch
 └── SETUP.md                  # 本机安装/卸载/排错
@@ -205,8 +210,8 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 73/73 通过（NapCat 24、Koishi 31、平台/Feature 5、权限 7、群友列表 3、消息 3）
-- Host 冒烟：24 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
+- 单元测试 81/81 通过（NapCat 24、Koishi 31、平台/Feature 5、权限 7、群友列表 3、消息 3、环境自举 8）
+- Host 冒烟：27 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
 

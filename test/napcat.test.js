@@ -27,7 +27,7 @@ function makeSettings(overrides = {}) {
   return resolveSettings({
     koishiPort: 5140,
     reversePath: '/onebot',
-    installerDir: join(tmpdir(), 'dsh-qqbot-test-installer-missing'),
+    installerDir: join(tmpdir(), `dsh-qqbot-test-installer-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     ...overrides,
   })
 }
@@ -535,6 +535,8 @@ test('downloadInstaller turns a failed GitHub request into a structured error', 
   const manager = makeManager({
     deps: {
       http: async () => ({ ok: false, status: 500, data: null }),
+      // Disable the system-curl fallback so the test never touches the network.
+      run: async () => ({ code: 1, stdout: '', stderr: 'no network' }),
     },
   })
   const result = await manager.downloadInstaller()

@@ -186,6 +186,50 @@ window.__ModuleLoader__.load({
       messagesDirectionIn: 'Received',
       messagesDirectionOut: 'Sent',
       messagesUnknownSource: 'Unknown',
+      setupTitle: 'Runtime setup',
+      setupSubtitle: 'Create the Koishi project and install its dependencies without a terminal.',
+      setupProject: 'Koishi project',
+      setupCreated: 'Created',
+      setupMissing: 'Not created',
+      setupDeps: 'Dependencies',
+      setupInstalled: 'Installed',
+      setupNotInstalled: 'Not installed',
+      setupInstalling: 'Installing…',
+      setupTemplate: 'Template',
+      setupAvailable: 'Available',
+      setupMissingTemplate: 'Missing',
+      setupNapcat: 'NapCat',
+      setupOneBot: 'OneBot config',
+      setupConfigured: 'Written',
+      setupPending: 'Pending',
+      setupInstall: 'Install Koishi runtime',
+      setupReinstall: 'Reinstall runtime',
+      setupFull: 'One-click install and configure',
+      setupNapcatInstall: 'Install NapCat',
+      setupReady: 'Runtime is ready',
+      setupExpand: 'Show details',
+      setupCollapse: 'Collapse',
+      setupInstallingHint: 'Installing dependencies… this can take a minute. Logs refresh every 2 seconds.',
+      setupLogs: 'Install logs',
+      setupLogsEmpty: 'Waiting for output…',
+      setupInstallDone: 'Koishi runtime installed.',
+      setupFullDone: 'Setup finished.',
+      setupNapcatDone: 'NapCat installer opened.',
+      setupLoadFail: 'Could not load the setup state',
+      setupUnknown: 'Unknown',
+      setupNode: 'Node',
+      setupPackage: 'Package',
+      setupDepsCount: 'dependencies',
+      setupLastInstall: 'Last install',
+      setupInstallOk: 'ok',
+      setupInstallFail: 'failed',
+      setupStepProject: 'Create Koishi project',
+      setupStepDeps: 'Install dependencies',
+      setupStepNapcatInstall: 'Install NapCat',
+      setupStepKoishiStart: 'Start Koishi',
+      setupStepConfigure: 'Write OneBot config',
+      setupStepNapcatStart: 'Start NapCat',
+      setupStepOther: 'Step',
       actionDone: 'Done.',
       actionFailed: 'Action failed',
       working: 'Working…',
@@ -353,6 +397,50 @@ window.__ModuleLoader__.load({
       messagesDirectionIn: '接收',
       messagesDirectionOut: '发送',
       messagesUnknownSource: '未知',
+      setupTitle: '环境安装',
+      setupSubtitle: '无需终端：自动创建 Koishi 项目并安装依赖。',
+      setupProject: 'Koishi 项目',
+      setupCreated: '已创建',
+      setupMissing: '未创建',
+      setupDeps: '依赖',
+      setupInstalled: '已安装',
+      setupNotInstalled: '未安装',
+      setupInstalling: '安装中…',
+      setupTemplate: '模板',
+      setupAvailable: '可用',
+      setupMissingTemplate: '缺失',
+      setupNapcat: 'NapCat',
+      setupOneBot: 'OneBot 配置',
+      setupConfigured: '已写入',
+      setupPending: '待写入',
+      setupInstall: '安装 Koishi 环境',
+      setupReinstall: '重新安装环境',
+      setupFull: '一键安装并配置',
+      setupNapcatInstall: '安装 NapCat',
+      setupReady: '运行环境已就绪',
+      setupExpand: '展开详情',
+      setupCollapse: '收起',
+      setupInstallingHint: '正在安装依赖…可能需要一分钟，日志每 2 秒刷新。',
+      setupLogs: '安装日志',
+      setupLogsEmpty: '等待输出…',
+      setupInstallDone: 'Koishi 环境安装完成。',
+      setupFullDone: '一键安装完成。',
+      setupNapcatDone: 'NapCat 安装器已打开。',
+      setupLoadFail: '环境状态读取失败',
+      setupUnknown: '未知',
+      setupNode: 'Node',
+      setupPackage: '包',
+      setupDepsCount: '个依赖',
+      setupLastInstall: '上次安装',
+      setupInstallOk: '成功',
+      setupInstallFail: '失败',
+      setupStepProject: '创建 Koishi 项目',
+      setupStepDeps: '安装依赖',
+      setupStepNapcatInstall: '安装 NapCat',
+      setupStepKoishiStart: '启动 Koishi',
+      setupStepConfigure: '写入 OneBot 配置',
+      setupStepNapcatStart: '启动 NapCat',
+      setupStepOther: '步骤',
       actionDone: '操作完成。',
       actionFailed: '操作失败',
       working: '处理中…',
@@ -573,6 +661,20 @@ window.__ModuleLoader__.load({
 .qqbot-message-content { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-primary);
   white-space: pre-wrap; overflow-wrap: anywhere; }
 
+.qqbot-setup-summary { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11.5px; line-height: 1.5; }
+.qqbot-setup-item { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.qqbot-setup-label { color: var(--dsw-alias-label-tertiary); flex: none; }
+.qqbot-setup-value { color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.qqbot-setup-logs { max-height: 220px; font-size: 11px; }
+.qqbot-setup-steps { display: flex; flex-direction: column; gap: 4px; }
+.qqbot-setup-step { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; line-height: 1.5; }
+.qqbot-setup-step-icon { flex: none; width: 14px; text-align: center; font-weight: 500; }
+.qqbot-setup-step.is-ok .qqbot-setup-step-icon { color: var(--dsw-alias-state-success-primary); }
+.qqbot-setup-step.is-bad .qqbot-setup-step-icon { color: var(--dsw-alias-state-error-primary); }
+.qqbot-setup-step.is-skip .qqbot-setup-step-icon { color: var(--dsw-alias-label-tertiary); }
+.qqbot-setup-step-name { flex: none; color: var(--dsw-alias-label-primary); }
+.qqbot-setup-step-message { color: var(--dsw-alias-label-tertiary); min-width: 0; overflow-wrap: anywhere; }
+
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
@@ -671,6 +773,16 @@ window.__ModuleLoader__.load({
 
     /** Scope modes accepted by the Host access policy. */
     const ACCESS_MODES = ['all', 'whitelist', 'blacklist']
+
+    /** Locale keys for the `/qqbot/setup/full` step ids. */
+    const SETUP_STEP_KEYS = {
+      'koishi-project': 'setupStepProject',
+      'koishi-deps': 'setupStepDeps',
+      'napcat-install': 'setupStepNapcatInstall',
+      'koishi-start': 'setupStepKoishiStart',
+      'napcat-configure': 'setupStepConfigure',
+      'napcat-start': 'setupStepNapcatStart',
+    }
 
     /** Fall back to `all` for unknown/missing modes. */
     function normalizeMode(value) {
@@ -778,12 +890,21 @@ window.__ModuleLoader__.load({
       const [messagesError, setMessagesError] = React.useState(null)
       const [messagesFilter, setMessagesFilter] = React.useState('all')
       const [messagesUpdatedAt, setMessagesUpdatedAt] = React.useState(null)
+      const [setupInfo, setSetupInfo] = React.useState(null)
+      const [setupPhase, setSetupPhase] = React.useState('idle')
+      const [setupError, setSetupError] = React.useState(null)
+      const [setupLogs, setSetupLogs] = React.useState([])
+      const [setupSteps, setSetupSteps] = React.useState(null)
+      const [setupResultMsg, setSetupResultMsg] = React.useState(null)
+      const [setupPolling, setSetupPolling] = React.useState(false)
+      const [setupExpanded, setSetupExpanded] = React.useState(true)
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
       const loggedInRef = React.useRef(false)
       const loginPollRef = React.useRef({ busy: false, loggedIn: false })
       const messagesPollRef = React.useRef(false)
+      const setupActionRef = React.useRef(false)
       tabRef.current = tab
 
       const busyOf = (key) => busy[key] === true
@@ -941,6 +1062,32 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /**
+       * Runtime setup snapshot. While the Host reports `installing` the panel
+       * keeps polling until the install task finishes, then shows the log tail
+       * and the ready state.
+       */
+      const loadSetup = async () => {
+        try {
+          const payload = await requestJson('/qqbot/setup')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object') throw new Error('unexpected payload')
+          setSetupInfo(data)
+          setSetupLogs(Array.isArray(data.logs) ? data.logs : [])
+          setSetupError(null)
+          setSetupPhase('ready')
+          if (data.installing === true) {
+            setSetupPolling(true)
+          } else if (setupActionRef.current !== true) {
+            setSetupPolling(false)
+          }
+        } catch (error) {
+          setSetupError(messageOf(error))
+          setSetupPhase('error')
+          setSetupPolling(false)
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -948,6 +1095,7 @@ window.__ModuleLoader__.load({
         const tick = () => { if (!disposed) loadStatus() }
         tick()
         loadAccess()
+        loadSetup()
         const timer = setInterval(tick, POLL_MS)
         return () => {
           disposed = true
@@ -970,13 +1118,18 @@ window.__ModuleLoader__.load({
        * Run one JSON POST behind a per-action busy flag. Success and failure
        * both land in the banner; `after` refreshes whatever the action touched.
        */
-      const runPost = async (key, path, body, after, successText) => {
-        if (busyOf(key)) return
+      const runPost = async (key, path, body, after, successText, extraOptions) => {
+        if (busyOf(key)) return null
         setBusy((previous) => ({ ...previous, [key]: true }))
         setBanner(null)
+        let result = null
         try {
-          await requestJson(path, { method: 'POST', body: body || {} })
-          setBanner({ kind: 'ok', text: successText || t('actionDone') })
+          result = await requestJson(path, { method: 'POST', body: body || {}, ...(extraOptions || {}) })
+          if (result !== null && result.ok === false) {
+            setBanner({ kind: 'error', text: `${t('actionFailed')}: ${result.message || result.error || ''}` })
+          } else {
+            setBanner({ kind: 'ok', text: successText || t('actionDone') })
+          }
           if (typeof after === 'function') await after()
         } catch (error) {
           setBanner({ kind: 'error', text: `${t('actionFailed')}: ${messageOf(error)}` })
@@ -987,6 +1140,7 @@ window.__ModuleLoader__.load({
             return next
           })
         }
+        return result
       }
 
       const refreshAfterPluginChange = async () => {
@@ -1051,6 +1205,60 @@ window.__ModuleLoader__.load({
         }, t('loginRefreshed'))
       }
 
+      /**
+       * Install/repair the Koishi runtime. The POST can run for tens of
+       * seconds, so polling starts immediately and stops when it settles (or
+       * when a poll reports `installing:false` and no action is in flight).
+       */
+      const installKoishiEnv = () => {
+        if (busyOf('setup-install')) return
+        setupActionRef.current = true
+        setSetupPolling(true)
+        setSetupSteps(null)
+        setSetupResultMsg(null)
+        setSetupExpanded(true)
+        runPost('setup-install', '/qqbot/setup/koishi', {}, async () => {
+          await loadSetup()
+          await loadStatus()
+        }, t('setupInstallDone')).then((result) => {
+          if (result !== null && result.ok !== false) setSetupExpanded(false)
+        }).finally(() => {
+          setupActionRef.current = false
+          setSetupPolling(false)
+          loadSetup()
+        })
+      }
+
+      const runSetupFull = () => {
+        if (busyOf('setup-full')) return
+        setupActionRef.current = true
+        setSetupPolling(true)
+        setSetupSteps(null)
+        setSetupResultMsg(null)
+        setSetupExpanded(true)
+        runPost('setup-full', '/qqbot/setup/full', {}, async () => {
+          await loadSetup()
+          await loadStatus()
+          await loadContacts()
+        }, t('setupFullDone'), { acceptNotOk: true }).then((result) => {
+          if (result !== null && typeof result === 'object') {
+            setSetupSteps(Array.isArray(result.steps) ? result.steps : [])
+            setSetupResultMsg(typeof result.message === 'string' ? result.message : null)
+          }
+        }).finally(() => {
+          setupActionRef.current = false
+          setSetupPolling(false)
+          loadSetup()
+        })
+      }
+
+      const installSetupNapcat = () => {
+        runPost('setup-napcat', '/qqbot/napcat/install', {}, async () => {
+          await loadSetup()
+          await loadStatus()
+        }, t('setupNapcatDone'))
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -1103,6 +1311,19 @@ window.__ModuleLoader__.load({
           clearInterval(timer)
         }
       }, [])
+
+      // Setup polling: keep reading /qqbot/setup while an install is running.
+      React.useEffect(() => {
+        if (!setupPolling) return undefined
+        let disposed = false
+        const tick = () => { if (!disposed) loadSetup() }
+        tick()
+        const timer = setInterval(tick, 2000)
+        return () => {
+          disposed = true
+          clearInterval(timer)
+        }
+      }, [setupPolling])
 
       // ------------------------------------------------------------ fragments --
       const row = (label, value, tone, mono) => h('div', { key: label, className: 'qqbot-row-item' },
@@ -1192,6 +1413,152 @@ window.__ModuleLoader__.load({
         : null
 
       // ------------------------------------------------------------- overview --
+      // ------------------------------------------------------------- setup card --
+      const renderSetupCard = () => {
+        const data = setupInfo
+        const installing = (data !== null && data.installing === true)
+          || busyOf('setup-install')
+          || busyOf('setup-full')
+        const ready = data !== null
+          && data.projectExists === true
+          && data.hasPackageJson === true
+          && data.hasNodeModules === true
+        const templateAvailable = data !== null && data.templateAvailable === true
+        const projectCreated = data !== null && data.projectExists === true && data.hasPackageJson === true
+        const statusItems = data === null
+          ? [{ key: 'loading', label: t('setupTitle'), value: setupPhase === 'error' ? t('setupUnknown') : t('loading') }]
+          : [
+            { key: 'project', label: t('setupProject'), value: `${projectCreated ? t('setupCreated') : t('setupMissing')} · ${data.projectDir || '—'}` },
+            { key: 'deps', label: t('setupDeps'), value: installing ? t('setupInstalling') : data.hasNodeModules === true ? t('setupInstalled') : t('setupNotInstalled') },
+            { key: 'template', label: t('setupTemplate'), value: templateAvailable ? t('setupAvailable') : t('setupMissingTemplate') },
+            { key: 'napcat', label: t('setupNapcat'), value: napcatInstalled ? t('stInstalled') : t('stMissing') },
+            { key: 'onebot', label: t('setupOneBot'), value: napcat.configApplied === true ? t('setupConfigured') : t('setupPending') },
+          ]
+        const summary = h('div', { className: 'qqbot-setup-summary', 'data-testid': 'qqbot-setup-status' },
+          ...statusItems.map((item) => h('span', { key: item.key, className: 'qqbot-setup-item' },
+            h('span', { className: 'qqbot-setup-label' }, `${item.label} `),
+            h('span', { className: 'qqbot-setup-value' }, item.value))))
+
+        // Compact row once everything is installed: keep the card, hide the noise.
+        if (data !== null && ready && !installing && !setupExpanded) {
+          return h('section', { className: 'qqbot-card qqbot-setup-card', 'data-testid': 'qqbot-setup-card' },
+            h('div', { className: 'qqbot-card-head' },
+              h('h2', { className: 'qqbot-card-title' }, t('setupTitle')),
+              h('span', { className: 'qqbot-card-sub', 'data-testid': 'qqbot-setup-status' }, t('setupReady'))),
+            h('div', { className: 'qqbot-btns' },
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-setup-refresh',
+                'aria-label': t('refresh'),
+                onClick: () => { loadSetup() },
+              }, t('refresh')),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-setup-install',
+                'aria-label': t('setupReinstall'),
+                'aria-busy': busyOf('setup-install') ? 'true' : undefined,
+                disabled: busyOf('setup-install'),
+                onClick: installKoishiEnv,
+              }, busyOf('setup-install') ? t('working') : t('setupReinstall')),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-setup-expand',
+                'aria-label': t('setupExpand'),
+                onClick: () => { setSetupExpanded(true) },
+              }, t('setupExpand'))))
+        }
+
+        const details = []
+        if (data !== null) {
+          if (typeof data.nodeVersion === 'string' && data.nodeVersion !== '') {
+            details.push(row(t('setupNode'), data.nodeVersion, null, true))
+          }
+          if (data.packageJson !== null && typeof data.packageJson === 'object') {
+            const dependencyCount = Number(data.packageJson.dependencyCount)
+            details.push(row(t('setupPackage'),
+              `${data.packageJson.name || '—'}${data.packageJson.version ? ` v${data.packageJson.version}` : ''} · ${Number.isFinite(dependencyCount) ? dependencyCount : 0} ${t('setupDepsCount')}`,
+              null, true))
+          }
+          if (data.lastInstall !== null && typeof data.lastInstall === 'object') {
+            details.push(row(t('setupLastInstall'),
+              `${data.lastInstall.ok === true ? t('setupInstallOk') : t('setupInstallFail')} · ${formatTime(data.lastInstall.finishedAt)}`,
+              data.lastInstall.ok === true ? 'ok' : 'bad'))
+          }
+        }
+
+        return h('section', { className: 'qqbot-card qqbot-setup-card', 'data-testid': 'qqbot-setup-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('setupTitle')),
+            h('span', { className: 'qqbot-card-sub' }, ready ? t('setupReady') : t('setupSubtitle'))),
+          summary,
+          details.length > 0 ? h('div', { className: 'qqbot-rows qqbot-setup-details' }, ...details) : null,
+          h('div', { className: 'qqbot-btns' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-setup-install',
+              'aria-label': ready ? t('setupReinstall') : t('setupInstall'),
+              'aria-busy': busyOf('setup-install') ? 'true' : undefined,
+              disabled: installing,
+              onClick: installKoishiEnv,
+            }, busyOf('setup-install') ? t('working') : ready ? t('setupReinstall') : t('setupInstall')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-setup-full',
+              'aria-label': t('setupFull'),
+              'aria-busy': busyOf('setup-full') ? 'true' : undefined,
+              disabled: installing,
+              onClick: runSetupFull,
+            }, busyOf('setup-full') ? t('working') : t('setupFull')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-setup-refresh',
+              'aria-label': t('refresh'),
+              onClick: () => { loadSetup() },
+            }, t('refresh')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-setup-napcat',
+              'aria-label': t('setupNapcatInstall'),
+              'aria-busy': busyOf('setup-napcat') ? 'true' : undefined,
+              disabled: installing || napcatInstalled || busyOf('setup-napcat'),
+              onClick: installSetupNapcat,
+            }, napcatInstalled ? t('stInstalled') : t('setupNapcatInstall')),
+            ready ? h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-setup-collapse',
+              'aria-label': t('setupCollapse'),
+              onClick: () => { setSetupExpanded(false) },
+            }, t('setupCollapse')) : null),
+          installing ? h('p', { className: 'qqbot-hint' }, t('setupInstallingHint')) : null,
+          setupError !== null
+            ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert' }, `${t('setupLoadFail')}: ${setupError}`)
+            : null,
+          installing || setupLogs.length > 0
+            ? h('pre', { className: 'qqbot-pre qqbot-setup-logs', 'data-testid': 'qqbot-setup-logs', 'aria-label': t('setupLogs') },
+              setupLogs.length > 0 ? setupLogs.join('\n') : t('setupLogsEmpty'))
+            : null,
+          setupResultMsg !== null ? h('p', { className: 'qqbot-hint' }, setupResultMsg) : null,
+          setupSteps !== null && setupSteps.length > 0
+            ? h('div', { className: 'qqbot-setup-steps' },
+              ...setupSteps.map((step, index) => h('div', {
+                key: `${step.step || 'step'}-${index}`,
+                className: `qqbot-setup-step${step.ok === false ? ' is-bad' : step.skipped === true ? ' is-skip' : ' is-ok'}`,
+                'data-testid': 'qqbot-setup-step',
+              },
+                h('span', { className: 'qqbot-setup-step-icon' }, step.ok === false ? '✗' : step.skipped === true ? '–' : '✓'),
+                h('span', { className: 'qqbot-setup-step-name' }, t(SETUP_STEP_KEYS[step.step] || 'setupStepOther')),
+                h('span', { className: 'qqbot-setup-step-message' }, typeof step.message === 'string' ? step.message : ''))))
+            : null)
+      }
+
       // ------------------------------------------------------------- login card --
       const renderLoginCard = () => {
         if (!hasSnapshot || napcatLoggedIn) return null
@@ -1237,7 +1604,7 @@ window.__ModuleLoader__.load({
                 : h('img', {
                   className: 'qqbot-login-qr',
                   'data-testid': 'qqbot-login-qr',
-                  src: `/qqbot/napcat/qr?t=${qrTicket}`,
+                  src: `/qqbot/napcat/qr?t=${encodeURIComponent(String((info && info.qrUpdatedAt) || qrTicket))}`,
                   alt: t('loginTitle'),
                   width: 240,
                   height: 240,
@@ -1331,6 +1698,7 @@ window.__ModuleLoader__.load({
         return h('div', { className: 'qqbot-stack' },
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
           renderLoginCard(),
+          renderSetupCard(),
           h('section', { className: 'qqbot-card' },
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),

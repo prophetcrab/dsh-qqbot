@@ -56,7 +56,7 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 24, `expected at least 24 routes, got ${routes.size}`)
+assert.ok(routes.size >= 27, `expected at least 27 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
@@ -65,6 +65,9 @@ for (const required of [
   '/qqbot/napcat/login',
   '/qqbot/napcat/qr',
   '/qqbot/messages',
+  '/qqbot/setup',
+  '/qqbot/setup/koishi',
+  '/qqbot/setup/full',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -122,6 +125,13 @@ try {
   assert.equal(typeof contactsBody.ok, 'boolean')
   assert.ok(Array.isArray(contactsBody.groups))
   assert.ok(Array.isArray(contactsBody.friends))
+
+  const setupResponse = await fetch(`${base}/qqbot/setup`)
+  const setupBody = await setupResponse.json()
+  assert.equal(setupBody.ok, true)
+  assert.equal(typeof setupBody.data.projectDir, 'string')
+  assert.equal(typeof setupBody.data.hasNodeModules, 'boolean')
+  assert.equal(typeof setupBody.data.templateAvailable, 'boolean')
 
   const loginResponse = await fetch(`${base}/qqbot/napcat/login`)
   const loginBody = await loginResponse.json()

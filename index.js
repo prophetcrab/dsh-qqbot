@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises'
 import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
 import { fetchContacts } from './lib/contacts.js'
 import { fetchMessages } from './lib/messages.js'
+import { SetupManager } from './lib/setup.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -49,6 +50,7 @@ export async function apply(ctx, config) {
   const napcat = new NapcatManager({ settings, logger: ctx.logger('qqbot/napcat') })
   const koishi = new KoishiManager({ settings, logger: ctx.logger('qqbot/koishi') })
   const plugins = new KoishiPluginsManager({ koishi, settings, logger: ctx.logger('qqbot/plugins') })
+  const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
 
   const registry = new FeatureRegistry({
     settings,
@@ -68,6 +70,28 @@ export async function apply(ctx, config) {
     queue = run.then(() => undefined, () => undefined)
     return run
   }
+
+  // First-run bootstrap: scaffold the bundled Koishi project, install its
+  // dependencies, prepare the NapCat installer and apply the OneBot config.
+  // Never blocks plugin activation; every step is retryable from the panel.
+  void (async () => {
+    try {
+      const boot = await setup.autoBootstrap()
+      if (boot?.ok === false) logger.warn('自动安装 Koishi 运行环境失败：%s', boot.message ?? boot.error ?? 'unknown')
+      const state = await napcat.status()
+      if (state.installed !== true) {
+        const downloaded = await napcat.downloadInstaller()
+        if (downloaded.ok === true) logger.info('NapCat 安装器已自动下载，等待打开安装器')
+        else logger.warn('自动下载 NapCat 安装器失败：%s', downloaded.message ?? downloaded.error ?? 'unknown')
+      } else if (state.configApplied !== true) {
+        const configured = await napcat.configure()
+        if (configured.ok === true) logger.info('已自动写入 NapCat OneBot 配置')
+        else logger.warn('自动写入 NapCat OneBot 配置失败：%s', configured.message ?? configured.error ?? 'unknown')
+      }
+    } catch (error) {
+      logger.warn('首次运行自动配置失败：%s', String(error?.message ?? error))
+    }
+  })()
 
   /** Aggregate everything the panel needs in one round trip. */
   const statusSnapshot = async () => {
@@ -195,6 +219,19 @@ export async function apply(ctx, config) {
       const limit = clampInt(urlParam(req, 'limit'), 50, 1, 200)
       const feed = await fetchMessages(settings, { limit })
       sendJson(res, 200, { ok: feed.ok, data: feed, ...(feed.ok ? {} : { error: feed.error }) })
+    }))
+
+    route('/qqbot/setup', (req, res) => only(req, res, ['GET'], async () => {
+      sendJson(res, 200, { ok: true, data: await setup.status() })
+    }))
+
+    route('/qqbot/setup/koishi', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      sendJson(res, 200, await serialize(() => setup.installDeps({ force: body.force === true })))
+    }))
+
+    route('/qqbot/setup/full', (req, res) => only(req, res, ['POST'], async () => {
+      sendJson(res, 200, await serialize(() => runFullSetup({ setup, napcat, koishi, settings, logger })))
     }))
 
     route('/qqbot/logs', (req, res) => only(req, res, ['GET'], async () => {
@@ -450,6 +487,69 @@ export async function apply(ctx, config) {
   })
 
   logger.info(`QQ bot control center ready; koishi=${settings.projectDir} napcat=${settings.napcatPort}`)
+}
+
+/**
+ * One-click environment setup: scaffold Koishi, install dependencies, install
+ * NapCat (downloads + opens the official macOS installer), apply the OneBot WS
+ * config, then start both services. GUI-only steps (macOS App Management and QQ
+ * QR scan) stay with the user; everything else is automated.
+ *
+ * @param {{ setup: SetupManager, napcat: object, koishi: object, settings: object, logger: object }} deps
+ */
+async function runFullSetup({ setup, napcat, koishi, settings, logger }) {
+  const steps = []
+  const push = (step, result) => {
+    const ok = result?.ok !== false
+    steps.push({ step, ok, message: result?.message ?? result?.error ?? '', data: result?.data })
+    return ok
+  }
+
+  push('koishi-project', await setup.ensureProject())
+  const deps = await setup.installDeps()
+  push('koishi-deps', deps)
+
+  const napcatBefore = await napcat.status()
+  if (napcatBefore.installed !== true) {
+    push('napcat-install', await napcat.install())
+  } else {
+    steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `NapCat 已安装（${napcatBefore.version ?? '未知版本'}）` })
+  }
+
+  const napcatAfter = await napcat.status()
+  if (napcatAfter.installed === true) {
+    push('napcat-configure', await napcat.configure())
+  } else {
+    steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '等待 NapCat 安装器完成安装' })
+  }
+
+  const login = await napcat.loginState().catch(() => null)
+  if (login?.loggedIn === true && typeof login.qq === 'string' && login.qq !== '') {
+    const synced = await setup.setKoishiSelfId(login.qq)
+    push('koishi-selfid', {
+      ok: synced.ok,
+      message: synced.changed ? `已同步 QQ ${login.qq} 到 Koishi 配置` : 'Koishi selfId 已匹配',
+    })
+  }
+
+  push('koishi-start', await koishi.start())
+  if (napcatAfter.installed === true) {
+    push('napcat-start', await napcat.start())
+  } else {
+    steps.push({ step: 'napcat-start', ok: true, skipped: true, message: '等待 NapCat 安装完成' })
+  }
+  return {
+    ok: steps.every((step) => step.ok !== false),
+    steps,
+    ready: deps.ok === true || deps.alreadyInstalled === true,
+    napcatInstalled: napcatAfter.installed === true,
+    loggedIn: login?.loggedIn === true,
+    message: napcatAfter.installed !== true
+      ? 'Koishi 已就绪；NapCat 安装器已打开，完成安装后再点一次「一键安装并配置」'
+      : login?.loggedIn === true
+        ? '环境已就绪，机器人已登录'
+        : '环境已就绪；请用手机扫描二维码登录 QQ',
+  }
 }
 
 // --------------------------------------------------------------- utilities --

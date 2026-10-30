@@ -203,6 +203,10 @@ const MESSAGE_FIXTURE = [
 ]
 let messagesData = MESSAGE_FIXTURE.slice()
 
+let setupInstalled = false
+let setupInstalling = false
+let resolveSetupInstall = null
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -222,6 +226,57 @@ globalThis.fetch = async (url, init) => {
       })
     }
     return json({ ok: true, data: STATUS })
+  }
+  if (path === '/qqbot/setup') {
+    return json({
+      ok: true,
+      data: {
+        projectDir: '~/project/qq-bot',
+        runtimeDir: '~/project/qq-bot/runtime',
+        templateDir: '/opt/dsh-qqbot/template',
+        templateAvailable: true,
+        projectExists: setupInstalled,
+        hasPackageJson: setupInstalled,
+        hasNodeModules: setupInstalled,
+        hasKoishiYml: setupInstalled,
+        packageJson: setupInstalled ? { name: 'qq-bot', version: '0.1.0', dependencyCount: 3 } : null,
+        nodeVersion: 'v24.0.0',
+        installing: setupInstalling,
+        lastInstall: setupInstalled
+          ? { ok: true, code: 0, startedAt: '2026-10-30T10:00:00.000Z', finishedAt: '2026-10-30T10:00:10.000Z' }
+          : null,
+        logs: setupInstalled
+          ? ['> npm install', 'added 120 packages']
+          : setupInstalling ? ['> npm install', 'installing…'] : [],
+      },
+    })
+  }
+  if (path === '/qqbot/setup/koishi') {
+    setupInstalling = true
+    return new Promise((resolve) => {
+      resolveSetupInstall = () => {
+        setupInstalling = false
+        setupInstalled = true
+        resolve(json({ ok: true, code: 0, message: '依赖安装完成', logs: ['added 120 packages'] }))
+      }
+    })
+  }
+  if (path === '/qqbot/setup/full') {
+    return json({
+      ok: true,
+      steps: [
+        { step: 'koishi-project', ok: true, skipped: true, message: '项目已存在' },
+        { step: 'koishi-deps', ok: true, skipped: true, message: '依赖已安装' },
+        { step: 'napcat-install', ok: true, message: '安装器已打开' },
+        { step: 'koishi-start', ok: true, message: '已启动' },
+        { step: 'napcat-configure', ok: true, message: '登录配置已写入' },
+        { step: 'napcat-start', ok: true, message: '已启动' },
+      ],
+      ready: true,
+      napcatInstalled: true,
+      loggedIn: false,
+      message: '环境已就绪；请用手机扫描二维码登录 QQ',
+    })
   }
   if (path === '/qqbot/napcat/login') {
     return json({ ok: true, data: loginStage === 'loggedIn' ? LOGIN_DONE : LOGIN_WAITING })
@@ -443,6 +498,60 @@ const qrSrc = String(expectTestId(tree, 'qqbot-login-qr').props.src)
 if (!qrSrc.startsWith('/qqbot/napcat/qr?t=')) throw new Error(`login QR src wrong: ${qrSrc}`)
 expectTestId(tree, 'qqbot-login-refresh')
 console.log('login card: ok')
+
+// ---- runtime setup card -----------------------------------------------------
+expectTestId(tree, 'qqbot-setup-card')
+const setupStatusText = text(expectTestId(tree, 'qqbot-setup-status'))
+if (!setupStatusText.includes('未创建')) throw new Error('setup card should report a missing Koishi project')
+if (!setupStatusText.includes('~/project/qq-bot')) throw new Error('setup card should show the project dir')
+if (!setupStatusText.includes('未安装')) throw new Error('setup card should report missing dependencies')
+expectTestId(tree, 'qqbot-setup-install')
+expectTestId(tree, 'qqbot-setup-full')
+expectTestId(tree, 'qqbot-setup-refresh')
+expectTestId(tree, 'qqbot-setup-napcat')
+console.log('setup card: ok')
+
+// install Koishi: the POST stays pending, so the card must show installing state
+clickTestId(tree, 'qqbot-setup-install')
+tree = await settle()
+if (fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/setup/koishi').length !== 1) {
+  throw new Error('setup install did not POST /qqbot/setup/koishi')
+}
+expectTestId(tree, 'qqbot-setup-logs')
+if (!text(expectTestId(tree, 'qqbot-setup-logs')).includes('npm install')) throw new Error('setup logs are not shown while installing')
+if (expectTestId(tree, 'qqbot-setup-install').props.disabled !== true) throw new Error('install button must disable while installing')
+if (expectTestId(tree, 'qqbot-setup-full').props.disabled !== true) throw new Error('full setup must disable while installing')
+if (!text(expectTestId(tree, 'qqbot-setup-status')).includes('安装中')) throw new Error('setup status should show the installing state')
+console.log('setup installing state: ok')
+
+// finish the pending install -> card collapses into the ready row
+resolveSetupInstall()
+tree = await settle()
+expectTestId(tree, 'qqbot-setup-card')
+if (!text(expectTestId(tree, 'qqbot-setup-status')).includes('运行环境已就绪')) {
+  throw new Error('setup card should report ready after the install')
+}
+expectTestId(tree, 'qqbot-setup-install')
+expectTestId(tree, 'qqbot-setup-refresh')
+console.log('setup install flow: ok')
+
+// expand, then run the one-click full setup and render its steps
+clickTestId(tree, 'qqbot-setup-expand')
+tree = await settle()
+expectTestId(tree, 'qqbot-setup-full')
+clickTestId(tree, 'qqbot-setup-full')
+tree = await settle()
+if (fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/setup/full').length !== 1) {
+  throw new Error('full setup did not POST /qqbot/setup/full')
+}
+const setupSteps = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-setup-step')
+if (setupSteps.length !== 6) throw new Error(`expected 6 setup steps, got ${setupSteps.length}`)
+const setupStepsText = setupSteps.map((node) => text(node)).join(' | ')
+for (const needle of ['创建 Koishi 项目', '安装依赖', '安装 NapCat', '写入 OneBot 配置', '安装器已打开']) {
+  if (!setupStepsText.includes(needle)) throw new Error(`setup step copy missing: ${needle}`)
+}
+if (findTestId(tree, 'qqbot-banner') === undefined) throw new Error('setup result banner missing')
+console.log('setup full flow: ok')
 
 // ---- action: start everything -> POST JSON ----------------------------------
 clickTestId(tree, 'qqbot-action-all-start')

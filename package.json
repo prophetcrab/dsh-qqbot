@@ -33,6 +33,7 @@
     "index.js",
     "client.js",
     "scripts",
+    "template",
     "lib",
     "cordis.patch.yml",
     "locale/*.json",
