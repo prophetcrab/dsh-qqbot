@@ -29,10 +29,12 @@ test('normalizeMessages: keeps text roles, drops empties and caps history', () =
     { role: 'system', text: 'ignored' },
     { role: 'user', text: '   ' },
   ])
-  assert.deepEqual(messages, [
-    { role: 'user', content: [{ type: 'text', text: '你好' }] },
-    { role: 'assistant', content: [{ type: 'text', text: '在的' }] },
-  ])
+  assert.equal(messages.length, 2)
+  assert.deepEqual(messages[0], { role: 'user', content: [{ type: 'text', text: '你好' }] })
+  assert.equal(messages[1].role, 'assistant')
+  assert.equal(messages[1].content[0].text, '在的')
+  assert.equal(messages[1].source.provider, 'deepseek-account')
+  assert.equal(typeof messages[1].id, 'string')
 })
 
 test('chat: streams text-delta chunks and uses harness default selection', async () => {
