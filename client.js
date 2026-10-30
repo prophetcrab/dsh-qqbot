@@ -150,6 +150,26 @@ window.__ModuleLoader__.load({
       aiSettingsBatchWindow: 'Batch window (ms)',
       aiSettingsBatchMax: 'Max batch wait (ms)',
       aiSettingsBatchHint: '0 disables message batching.',
+      fullPromptTitle: 'Full prompt preview',
+      fullPromptRefresh: 'Refresh prompt',
+      fullPromptLoading: 'Loading the last prompt…',
+      fullPromptEmpty: 'No AI request has been sent yet. Trigger one and check again.',
+      fullPromptError: 'Could not load the last prompt',
+      fullPromptShow: 'Expand',
+      fullPromptHide: 'Collapse',
+      fullPromptTime: 'Time',
+      fullPromptGroup: 'Group',
+      fullPromptUser: 'User',
+      fullPromptMentions: 'Mentions',
+      fullPromptMentionSelf: '@self',
+      fullPromptMentionAll: '@all',
+      fullPromptReplyToBot: 'Reply to bot',
+      fullPromptImages: 'Images',
+      fullPromptSystem: 'System prompt',
+      fullPromptMessages: 'Messages',
+      fullPromptNoMessages: 'No messages.',
+      fullPromptYes: 'yes',
+      fullPromptNo: 'no',
       aiSettingsSave: 'Save settings',
       aiSettingsSaved: 'AI settings saved.',
       aiSettingsReset: 'Restore defaults',
@@ -459,6 +479,26 @@ window.__ModuleLoader__.load({
       aiSettingsBatchWindow: '合并等待 (ms)',
       aiSettingsBatchMax: '合并最长等待 (ms)',
       aiSettingsBatchHint: '0 表示关闭合并。',
+      fullPromptTitle: '完整提示词',
+      fullPromptRefresh: '刷新提示词',
+      fullPromptLoading: '正在读取最近一次提示词…',
+      fullPromptEmpty: '还没有发送过 AI 请求，先触发一次 AI 后再查看。',
+      fullPromptError: '提示词读取失败',
+      fullPromptShow: '展开',
+      fullPromptHide: '收起',
+      fullPromptTime: '时间',
+      fullPromptGroup: '群',
+      fullPromptUser: '用户',
+      fullPromptMentions: '提及',
+      fullPromptMentionSelf: '@自己',
+      fullPromptMentionAll: '@全体',
+      fullPromptReplyToBot: '回复机器人',
+      fullPromptImages: '图片',
+      fullPromptSystem: '系统提示词',
+      fullPromptMessages: '消息',
+      fullPromptNoMessages: '暂无消息。',
+      fullPromptYes: '是',
+      fullPromptNo: '否',
       aiSettingsSave: '保存设置',
       aiSettingsSaved: 'AI 设置已保存。',
       aiSettingsReset: '恢复默认',
@@ -926,6 +966,17 @@ window.__ModuleLoader__.load({
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qqbot-persona-preset-row .qqbot-btns { flex: none; }
 
+.qqbot-full-prompt-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11.5px;
+  color: var(--dsw-alias-label-secondary); }
+.qqbot-full-prompt-meta span { color: var(--dsw-alias-label-secondary); }
+.qqbot-full-prompt-system { max-height: 360px; min-height: 60px; }
+.qqbot-full-prompt-messages { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-full-prompt-message { border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+  padding: 8px 10px; background: var(--dsw-alias-bg-base); }
+.qqbot-full-prompt-message-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.qqbot-full-prompt-message-text { font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+  overflow-wrap: anywhere; color: var(--dsw-alias-label-primary); }
+
 @media (max-width: 860px) {
   .qqbot-ai-settings-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-profiles-layout { grid-template-columns: minmax(0, 1fr); }
@@ -1296,6 +1347,8 @@ window.__ModuleLoader__.load({
       const [personaPresetsError, setPersonaPresetsError] = React.useState(null)
       const [personaPresetsPath, setPersonaPresetsPath] = React.useState(null)
       const [personaPresetName, setPersonaPresetName] = React.useState('')
+      const [lastPromptState, setLastPromptState] = React.useState({ phase: 'idle', prompt: null, error: null })
+      const [fullPromptOpen, setFullPromptOpen] = React.useState(true)
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
@@ -1566,6 +1619,22 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Most recent full prompt sent to the model (AI tab preview card). */
+      const loadLastPrompt = async () => {
+        setLastPromptState((previous) => ({ ...previous, phase: 'loading', error: null }))
+        try {
+          const payload = await requestJson('/qqbot/ai/last-prompt')
+          const data = payload && payload.data
+          setLastPromptState({
+            phase: 'ready',
+            prompt: data !== null && typeof data === 'object' && data.prompt !== undefined ? data.prompt : null,
+            error: null,
+          })
+        } catch (error) {
+          setLastPromptState((previous) => ({ ...previous, phase: 'error', error: messageOf(error) }))
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -1586,12 +1655,13 @@ window.__ModuleLoader__.load({
         if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
         if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
         if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
+        if (tab === 'ai' && lastPromptState.phase === 'idle') loadLastPrompt()
         if (tab === 'messages' && messagesPhase === 'idle') loadMessages()
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, lastPromptState.phase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // 每次进入消息/权限页都重新拉一次群列表，并每 30 秒自动刷新，避免新加群不可见。
       React.useEffect(() => {
@@ -2722,9 +2792,97 @@ window.__ModuleLoader__.load({
           profilesPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, profilesPath) : null)
       }
 
+      const renderFullPromptCard = () => {
+        const state = lastPromptState
+        const prompt = state.prompt
+        const loading = state.phase === 'loading'
+        const messages = prompt !== null && prompt !== undefined && Array.isArray(prompt.messages) ? prompt.messages : []
+        const mentionParts = []
+        if (prompt !== null && prompt !== undefined) {
+          if (prompt.mentionSelf === true) mentionParts.push(t('fullPromptMentionSelf'))
+          if (Array.isArray(prompt.mentionOthers) && prompt.mentionOthers.length > 0) {
+            mentionParts.push(`@${prompt.mentionOthers.map((item) => String(item)).join(' @')}`)
+          }
+          if (prompt.mentionAll === true) mentionParts.push(t('fullPromptMentionAll'))
+        }
+        const meta = prompt === null || prompt === undefined ? null : h('div', {
+          className: 'qqbot-full-prompt-meta',
+          'data-testid': 'qqbot-full-prompt-meta',
+        },
+          h('span', null, `${t('fullPromptTime')} ${formatTime(prompt.at) || '—'}`),
+          h('span', null, `${prompt.provider || '—'}/${prompt.model || '—'}`),
+          h('span', null, `${t('fullPromptGroup')} ${prompt.groupId || '—'}`),
+          h('span', null, `${t('fullPromptUser')} ${prompt.userName || prompt.userId || '—'}`),
+          h('span', null, `${t('fullPromptMentions')} ${mentionParts.length > 0 ? mentionParts.join(' · ') : '—'}`),
+          h('span', null, `${t('fullPromptReplyToBot')} ${prompt.replyToBot === true ? t('fullPromptYes') : t('fullPromptNo')}`),
+          h('span', null, `${t('fullPromptImages')} ${Number(prompt.imageCount) || 0}`),
+          prompt.maxTokens !== undefined && prompt.maxTokens !== null ? h('span', null, `maxTokens ${prompt.maxTokens}`) : null,
+          prompt.temperature !== undefined && prompt.temperature !== null ? h('span', null, `temperature ${prompt.temperature}`) : null)
+        const body = prompt === null || prompt === undefined
+          ? null
+          : (fullPromptOpen
+            ? h('div', { className: 'qqbot-stack' },
+              h('span', { className: 'qqbot-field-label' }, t('fullPromptSystem')),
+              h('pre', {
+                className: 'qqbot-pre qqbot-full-prompt-system',
+                'data-testid': 'qqbot-full-prompt-system',
+              }, typeof prompt.system === 'string' ? prompt.system : ''),
+              h('span', { className: 'qqbot-field-label' }, t('fullPromptMessages')),
+              h('div', { className: 'qqbot-full-prompt-messages', 'data-testid': 'qqbot-full-prompt-messages' },
+                messages.length === 0
+                  ? h('p', { className: 'qqbot-hint' }, t('fullPromptNoMessages'))
+                  : null,
+                ...messages.map((message, index) => h('div', {
+                  key: `full-prompt-message-${index}`,
+                  className: 'qqbot-full-prompt-message',
+                  'data-testid': 'qqbot-full-prompt-message',
+                },
+                  h('div', { className: 'qqbot-full-prompt-message-head' },
+                    h('span', { className: 'qqbot-badge' }, message.role || 'user'),
+                    Number(message.imageCount) > 0
+                      ? h('span', { className: 'qqbot-card-sub' }, `${t('fullPromptImages')} ${message.imageCount}`)
+                      : null),
+                  h('div', { className: 'qqbot-full-prompt-message-text' },
+                    typeof message.text === 'string' ? message.text : '')))))
+            : null)
+        return h('section', { className: 'qqbot-card qqbot-full-prompt-card', 'data-testid': 'qqbot-full-prompt-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('fullPromptTitle')),
+            h('div', { className: 'qqbot-btns' },
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-full-prompt-refresh',
+                'aria-label': t('fullPromptRefresh'),
+                disabled: loading,
+                onClick: () => { loadLastPrompt() },
+              }, loading ? t('working') : t('refresh')),
+              prompt !== null && prompt !== undefined
+                ? h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn',
+                  'data-testid': 'qqbot-full-prompt-toggle',
+                  'aria-label': fullPromptOpen ? t('fullPromptHide') : t('fullPromptShow'),
+                  onClick: () => { setFullPromptOpen((previous) => !previous) },
+                }, fullPromptOpen ? t('fullPromptHide') : t('fullPromptShow'))
+                : null)),
+          state.error !== null
+            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-full-prompt-error' }, `${t('fullPromptError')}: ${state.error}`)
+            : null,
+          state.phase === 'loading' && prompt === null && state.error === null
+            ? h('p', { className: 'qqbot-hint' }, t('fullPromptLoading'))
+            : null,
+          prompt === null && state.error === null && state.phase !== 'loading' && state.phase !== 'idle'
+            ? h('div', { className: 'qqbot-empty' }, t('fullPromptEmpty'))
+            : null,
+          meta,
+          body)
+      }
+
       const renderAiTab = () => h('div', { className: 'qqbot-stack' },
         renderAiCard(),
         renderAiSettingsCard(),
+        renderFullPromptCard(),
         renderPersonaCard(),
         renderProfilesCard())
 

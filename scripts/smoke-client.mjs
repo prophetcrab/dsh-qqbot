@@ -303,6 +303,28 @@ const PERSONA_PRESET = {
 }
 let personaPresetsState = [PERSONA_PRESET]
 
+const LAST_PROMPT = {
+  at: '2026-10-30T15:00:00.000Z',
+  provider: 'deepseek-account',
+  model: 'deepseek-flash',
+  groupId: '1026855069',
+  userId: '20000',
+  userName: '小明',
+  mentionSelf: false,
+  mentionOthers: ['小红'],
+  mentionAll: false,
+  replyToBot: false,
+  system: '【角色设定】\n名称：群友小助手\n\n【用户画像】\n昵称：小明\n\n【最近群聊背景】\n大家聊了周末计划',
+  messages: [
+    { role: 'user', text: '@小红 晚上开黑吗', imageCount: 0 },
+    { role: 'assistant', text: '好呀，八点见！', imageCount: 0 },
+  ],
+  imageCount: 1,
+  maxTokens: 800,
+  temperature: 0.7,
+}
+let lastPromptData = LAST_PROMPT
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -325,6 +347,9 @@ globalThis.fetch = async (url, init) => {
   }
   if (path === '/qqbot/ai/chat') {
     return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
+  }
+  if (path === '/qqbot/ai/last-prompt') {
+    return json({ ok: true, data: { prompt: lastPromptData } })
   }
   if (path === '/qqbot/ai/settings') {
     if (method === 'POST') {
@@ -904,6 +929,36 @@ if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 
   throw new Error('probability draft not refreshed after save')
 }
 console.log('ai settings: ok')
+
+// ---- full prompt preview ----------------------------------------------------
+expectTestId(tree, 'qqbot-full-prompt-card')
+expectTestId(tree, 'qqbot-full-prompt-refresh')
+const promptMeta = text(expectTestId(tree, 'qqbot-full-prompt-meta'))
+for (const needle of ['deepseek-account/deepseek-flash', '1026855069', '小明', '@小红', '800', '0.7']) {
+  if (!promptMeta.includes(needle)) throw new Error(`full prompt meta missing: ${needle}`)
+}
+const promptSystem = text(expectTestId(tree, 'qqbot-full-prompt-system'))
+if (!promptSystem.includes('【角色设定】') || !promptSystem.includes('【用户画像】')) {
+  throw new Error('full prompt system text missing')
+}
+const promptMessages = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-full-prompt-message')
+if (promptMessages.length !== 2) throw new Error(`expected 2 prompt messages, got ${promptMessages.length}`)
+if (!text(promptMessages[0]).includes('@小红 晚上开黑吗') || !text(promptMessages[0]).includes('user')) {
+  throw new Error('full prompt first message wrong')
+}
+if (!text(promptMessages[1]).includes('好呀，八点见！')) throw new Error('full prompt second message wrong')
+console.log('full prompt: ok')
+
+lastPromptData = null
+clickTestId(tree, 'qqbot-full-prompt-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('还没有发送过 AI 请求')) {
+  throw new Error('full prompt empty state missing')
+}
+console.log('full prompt empty: ok')
+lastPromptData = LAST_PROMPT
+clickTestId(tree, 'qqbot-full-prompt-refresh')
+tree = await settle()
 
 // ---- member profiles --------------------------------------------------------
 expectTestId(tree, 'qqbot-profiles-card')

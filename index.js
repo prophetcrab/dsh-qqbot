@@ -419,6 +419,10 @@ export async function apply(ctx, config) {
       sendJson(res, 200, { ok: deleted, data: { deleted, path: profilesPath } })
     }))
 
+    route('/qqbot/ai/last-prompt', (req, res) => only(req, res, ['GET'], async () => {
+      sendJson(res, 200, { ok: true, data: { prompt: ai.lastPromptSnapshot() } })
+    }))
+
     route('/qqbot/ai/status', (req, res) => only(req, res, ['GET'], async () => {
       sendJson(res, 200, { ok: true, data: { ...ai.status(), endpoint: await ensureAiEndpoint() } })
     }))

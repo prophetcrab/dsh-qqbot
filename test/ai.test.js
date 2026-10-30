@@ -268,3 +268,33 @@ test('chat: @别人时提示模型这是对别人的消息，不要假装被点�
   assert.match(captured.system, /@ 的是 小明/u)
   assert.match(captured.system, /不要假装被点名/u)
 })
+
+
+test('chat: records the last full prompt for the panel preview', async () => {
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: {
+      stream: async function* () {
+        yield { type: 'text-delta', index: 0, text: '好' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  await ai.chat({
+    messages: [{ role: 'user', text: '@小明 在吗' }],
+    background: '小明：在的',
+    mentionOthers: ['小明'],
+    groupId: 'g1',
+    userId: '20000',
+    userName: '测试用户',
+  })
+  const snapshot = ai.lastPromptSnapshot()
+  assert.equal(snapshot.provider, 'p')
+  assert.equal(snapshot.groupId, 'g1')
+  assert.deepEqual(snapshot.mentionOthers, ['小明'])
+  assert.match(snapshot.system, /【角色设定】/u)
+  assert.match(snapshot.system, /【当前消息对象】/u)
+  assert.equal(snapshot.messages.length, 1)
+  assert.equal(snapshot.messages[0].text, '@小明 在吗')
+})
