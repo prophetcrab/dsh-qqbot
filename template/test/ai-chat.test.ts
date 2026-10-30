@@ -56,6 +56,7 @@ async function setup(t: TestContext, config: Record<string, any> = {}, runtimeSe
     settingsFile,
     stateFile: join(dir, 'ai-chat-state.json'),
     replyProbability: 0,
+    batchWindowMs: 0,
     ...config,
   })
   await app.start()
@@ -224,4 +225,38 @@ test('sanitizeReplyText: 清掉回复开头的上下文标签', () => {
   assert.equal(aiChat.sanitizeReplyText('[背景] AI：你好'), '你好')
   assert.equal(aiChat.sanitizeReplyText('[当前消息] 小明：你好'), '你好')
   assert.equal(aiChat.sanitizeReplyText('正常回复 [图片]'), '正常回复 [图片]')
+})
+
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+test('同一个人连续消息合并为一次回复（批量窗口）', async (t) => {
+  const { app, calls } = await setup(t, { replyProbability: 1, batchWindowMs: 80, batchMaxWaitMs: 300 })
+  await app.mock.client(USER, GROUP).receive('第一句')
+  await app.mock.client(USER, GROUP).receive('第二句')
+  await app.mock.client(USER, GROUP).receive('第三句')
+  await sleep(180)
+  assert.equal(calls.length, 1)
+  assert.match(calls[0].body.messages[0].text, /第一句/u)
+  assert.match(calls[0].body.messages[0].text, /第二句/u)
+  assert.match(calls[0].body.messages[0].text, /第三句/u)
+})
+
+test('@触发后连续补充消息也只回复一次', async (t) => {
+  const { app, calls } = await setup(t, { replyProbability: 0, batchWindowMs: 80, batchMaxWaitMs: 300 })
+  await app.mock.client(USER, GROUP).receive(`<at id="${SELF_ID}"/> 第一句`)
+  await app.mock.client(USER, GROUP).receive('第二句补充')
+  await sleep(180)
+  assert.equal(calls.length, 1)
+  assert.match(calls[0].body.messages[0].text, /第二句补充/u)
+})
+
+test('不同人的批量消息互不合并', async (t) => {
+  const { app, calls } = await setup(t, { replyProbability: 1, batchWindowMs: 80, batchMaxWaitMs: 300 })
+  await app.mock.client(USER, GROUP).receive('A 的消息')
+  await app.mock.client(USER_B, GROUP).receive('B 的消息')
+  await sleep(180)
+  assert.equal(calls.length, 2)
 })

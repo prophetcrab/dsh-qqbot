@@ -18,6 +18,8 @@ export interface Config {
   enabled: boolean
   replyProbability: number
   followUpMinutes: number
+  batchWindowMs: number
+  batchMaxWaitMs: number
   groupOnly: boolean
   historyLimit: number
   maxReplyChars: number
@@ -37,6 +39,10 @@ export const Config: Schema<Config> = Schema.object({
     .description('未被 @ / 回复 时的随机回复概率（0~1）'),
   followUpMinutes: Schema.number().default(3).min(0).max(60)
     .description('回复某人后，多少分钟内继续回复此人的消息'),
+  batchWindowMs: Schema.number().default(2500).min(0).max(10000)
+    .description('同一个人连续消息的合并等待时间（毫秒），0 表示不合并'),
+  batchMaxWaitMs: Schema.number().default(10000).min(0).max(30000)
+    .description('连续消息最多等待多久就必须回复一次（毫秒）'),
   groupOnly: Schema.boolean().default(true).description('是否只处理群聊'),
   historyLimit: Schema.number().default(100).min(0).max(200)
     .description('向上保留并发送的群聊背景消息条数（最多 100 条）'),
@@ -226,6 +232,16 @@ export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger('ai-chat')
   const history = new Map<string, HistoryMessage[]>()
   const replyQueues = new Map<string, Promise<void>>()
+  interface PendingBatch {
+    texts: string[]
+    imageUrls: string[]
+    lastSession: any
+    key: string
+    name: string
+    firstAt: number
+    timer: any
+  }
+  const batches = new Map<string, PendingBatch>()
   const followUntil = new Map<string, number>()
   const discoveryPath = resolve(process.cwd(), config.discoveryFile)
   const statePath = resolve(process.cwd(), config.stateFile)
@@ -289,6 +305,39 @@ export function apply(ctx: Context, config: Config): void {
       .join('\n')
   }
 
+  const scheduleBatch = (userKey: string): void => {
+    const batch = batches.get(userKey)
+    if (batch === undefined) return
+    clearTimeout(batch.timer)
+    const now = Date.now()
+    const windowMs = Math.max(0, Number(config.batchWindowMs) || 0)
+    const maxWaitMs = Math.max(windowMs, Number(config.batchMaxWaitMs) || 0)
+    const deadline = Math.min(now + windowMs, batch.firstAt + maxWaitMs)
+    if (deadline <= now) {
+      flushBatch(userKey)
+      return
+    }
+    batch.timer = setTimeout(() => { flushBatch(userKey) }, deadline - now)
+    batch.timer.unref?.()
+  }
+
+  const flushBatch = (userKey: string): void => {
+    const batch = batches.get(userKey)
+    if (batch === undefined) return
+    clearTimeout(batch.timer)
+    batches.delete(userKey)
+    if (batch.texts.length === 0 && batch.imageUrls.length === 0) return
+    const content = batch.texts.join('\n')
+    void enqueueReply(userKey, () => processReply({
+      session: batch.lastSession,
+      key: batch.key,
+      name: batch.name,
+      content: content !== '' ? content : '（对方发送了图片但没有文字）',
+      imageUrls: batch.imageUrls,
+      texts: batch.texts.length > 0 ? batch.texts : ['（对方发送了图片但没有文字）'],
+    }))
+  }
+
   ctx.middleware(async (session, next) => {
     if (!runtime.enabled) return next()
     if (session.userId === session.selfId) return next()
@@ -302,6 +351,17 @@ export function apply(ctx: Context, config: Config): void {
     const name = senderName(session)
     const isCommand = content.startsWith('/')
     const imageUrls = collectImageUrls(session, config.imageLimit)
+    const userKey = followKey(session)
+    const activeBatch = batches.get(userKey)
+    if (!isCommand && activeBatch !== undefined && (content !== '' || imageUrls.length > 0)) {
+      if (content !== '') activeBatch.texts.push(content)
+      for (const url of imageUrls) if (!activeBatch.imageUrls.includes(url)) activeBatch.imageUrls.push(url)
+      activeBatch.imageUrls = activeBatch.imageUrls.slice(0, config.imageLimit)
+      activeBatch.lastSession = session
+      activeBatch.name = name
+      scheduleBatch(userKey)
+      return
+    }
 
     const mentioned = hasMention(session, String(session.selfId))
     const replied = isReplyToSelf(session, String(session.selfId))
@@ -336,8 +396,20 @@ export function apply(ctx: Context, config: Config): void {
       return next()
     }
 
-    const userKey = followKey(session)
-    await enqueueReply(userKey, () => processReply({ session, key, name, content, imageUrls }))
+    if (Math.max(0, Number(config.batchWindowMs) || 0) > 0) {
+      batches.set(userKey, {
+        texts: content !== '' ? [content] : [],
+        imageUrls: [...imageUrls],
+        lastSession: session,
+        key,
+        name,
+        firstAt: Date.now(),
+        timer: null,
+      })
+      scheduleBatch(userKey)
+      return
+    }
+    await enqueueReply(userKey, () => processReply({ session, key, name, content, imageUrls, texts: [content] }))
     return
   })
 
@@ -351,7 +423,7 @@ export function apply(ctx: Context, config: Config): void {
     return next
   }
 
-  async function processReply({ session, key, name, content, imageUrls }: any): Promise<void> {
+  async function processReply({ session, key, name, content, imageUrls, texts }: any): Promise<void> {
     const prompt = content !== '' ? content : '（对方发送了图片但没有文字）'
     const endpoint = endpointOf()
     if (endpoint === null) {
@@ -398,7 +470,8 @@ export function apply(ctx: Context, config: Config): void {
       if (reply === '') return
       const followMs = runtime.followUpMinutes * 60 * 1000
       if (followMs > 0) followUntil.set(followKey(session), Date.now() + followMs)
-      pushHistory(key, current)
+      const historyTexts = Array.isArray(texts) && texts.length > 0 ? texts : [current.text]
+      for (const text of historyTexts) pushHistory(key, { role: 'user', name, text })
       pushHistory(key, { role: 'assistant', text: reply })
       state.lastReply = { at: new Date().toISOString(), ok: true, replyPreview: reply.slice(0, 200), followUpUntil: followUntil.get(followKey(session)) ?? null }
       persistState()

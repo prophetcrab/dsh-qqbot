@@ -123,6 +123,7 @@ node scripts/install-profile.mjs --profile desktop --install
 - provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
 - 端点自动写入 `qq-bot/data/ai.json`，Koishi 的 `ai-chat` 插件启动时读取；DSH 端口变化后文件会更新。
 - 触发规则：**@机器人** 或 **回复机器人** 必定回复；其他消息按 `replyProbability` 概率回复；对某人回复后 `followUpMinutes`（默认 3）分钟内继续回复此人。
+- **连续消息合并**：同一个人在一小段时间内连续发多条（默认约 2.5 秒静默、最多 10 秒）会合并成一次 AI 请求，只回复一次；不同人互不影响。
 - 上下文：群聊最多向上取 **100 条**作为背景，并明确要求只针对**当前消息**回复；背景仅用于理解话题/语气。
 - **长期记忆**：按 (群, QQ) 自动维护人物画像，每次回复后后台更新；下一条回复作为系统提示词**第二段**注入。
 - **读图**：当前消息里的图片由 Koishi 下载，经 DSH attachment 服务作为多模态图片送入模型。
@@ -147,6 +148,8 @@ node scripts/install-profile.mjs --profile desktop --install
   replyProbability: 0.15   # 未被 @/回复 时的随机回复概率
   followUpMinutes: 3       # 回复某人后继续跟进该人的分钟数
   historyLimit: 100        # 背景上下文最多 100 条
+  batchWindowMs: 2500      # 同一人连续消息合并等待（0=关闭）
+  batchMaxWaitMs: 10000    # 连续消息最多等待多久
 ```
 
 人设卡保存在 `qq-bot/data/persona.json`；人物画像保存在 `qq-bot/data/profiles.json`（按 `群号:QQ号` 分条），也可直接编辑这些文件：
