@@ -202,6 +202,7 @@ export async function apply(ctx, config) {
         koishiPort: settings.koishiPort,
         napcatPort: settings.napcatPort,
         reversePath: settings.reversePath,
+        launchHidden: settings.launchHidden,
       },
       qq,
       ai: aiStatus,

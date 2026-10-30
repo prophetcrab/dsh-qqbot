@@ -212,6 +212,7 @@ node scripts/install-profile.mjs --profile desktop --install
 | `installerDir` | `<projectDir>/runtime/napcat-installer` | NapCat 安装器缓存（也在 qq-bot 内） |
 | `qqPath` | 空 | 覆盖 QQ 安装路径（Windows 非标准安装时使用） |
 | `napcatDir` | 空 | 覆盖 NapCat 安装目录（Windows OneKey/Shell 或 Linux 手动安装时使用） |
+| `launchHidden` | `true` | Windows 提权后以隐藏控制台窗口方式启动 NapCat；排障时可设为 `false` 显示控制台 |
 | `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
 | `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |

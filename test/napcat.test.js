@@ -22,7 +22,9 @@ import { maskToken, sha256Hex } from '../lib/util.js'
 
 const noopLogger = { info() {}, warn() {}, error() {} }
 
-/** Resolved settings pointing at a throw-away installer directory. */
+/** Resolved settings pointing at a throw-away installer directory.
+ * Windows launch tests use a visible console by default; the hidden-launch
+ * case opts into `launchHidden: true` explicitly. */
 function makeSettings(overrides = {}) {
   return resolveSettings({
     koishiPort: 5140,
@@ -30,6 +32,7 @@ function makeSettings(overrides = {}) {
     // These cases exercise the GitHub download path; the offline payload has
     // its own suite (test/offline.test.js).
     offlineInstall: false,
+    launchHidden: false,
     installerDir: join(tmpdir(), `dsh-qqbot-test-installer-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     ...overrides,
   })
@@ -927,6 +930,65 @@ test('start on Windows launches napcat.bat from the detected install dir', async
     args: ['/c', 'start', '', join(installDir, 'napcat.bat')],
     options: { cwd: installDir, timeoutMs: 20_000 },
   }])
+})
+
+test('start on Windows launches NapCat through the hidden helper by default', async (t) => {
+  const root = await makeTempDir(t)
+  const installDir = join(root, 'NapCat.4.18.42.Shell')
+  const qqRoot = join(root, 'QQNT')
+  await mkdir(installDir, { recursive: true })
+  await mkdir(qqRoot, { recursive: true })
+  await writeFile(join(installDir, 'napcat.bat'), '@echo off\r\n')
+  await writeFile(join(installDir, 'loadNapCat.js'), "console.log('napcat loader')\n")
+  const qqExe = join(qqRoot, 'QQ.exe')
+  await writeFile(qqExe, '')
+
+  const runs = []
+  let launched = false
+  const manager = makeManager({
+    settings: makeSettings({ launchHidden: true }),
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.42',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      detectQq: () => ({ installed: true, path: qqExe, version: null }),
+      findProcess: () => ({ running: false, pid: null }),
+    }),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        launched = true
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      sleep: async () => {},
+      now: (() => {
+        let clock = 0
+        return () => {
+          clock += 1000
+          return clock
+        }
+      })(),
+    },
+  })
+  manager.loginStatus = async () => (launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, true)
+  assert.deepEqual(runs.map((entry) => entry.file), ['powershell.exe'])
+  const scriptPath = runs[0].args[runs[0].args.length - 1]
+  assert.equal(scriptPath, join(installDir, 'launch-napcat-hidden.ps1'))
+  const script = await readFile(scriptPath, 'utf8')
+  assert.match(script, /Start-Process/u)
+  assert.match(script, /-Verb RunAs/u)
+  assert.match(script, /-WindowStyle Hidden/u)
+  assert.match(script, /napcat\.bat/u)
 })
 
 test('start on Windows falls back to QQ.exe --no-sandbox for OneKey-style patched QQ', async (t) => {
