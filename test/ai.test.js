@@ -395,3 +395,40 @@ test('chat: backgroundImages are sent as a separate background image message', a
   })
   assert.equal(ai.lastPromptSnapshot().backgroundImageCount, 1)
 })
+
+
+test('chat: quoted message text and image are prioritized as reply context', async () => {
+  let captured = null
+  const saved = []
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    attachments: {
+      saveImages: async (inputs) => {
+        saved.push(...inputs)
+        return inputs.map((_, index) => ({ attachmentId: `quote-${index}`, mediaType: inputs[index].mediaType, bytes: 4, width: 1, height: 1 }))
+      },
+    },
+    llm: {
+      stream: async function* (options) {
+        captured = options
+        yield { type: 'text-delta', index: 0, text: '这张图是蓝色的' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({
+    messages: [{ role: 'user', text: '@你 分析一下这张图' }],
+    quote: { userName: '小明', text: '', imageCount: 1 },
+    quotedImages: [{ mediaType: 'image/png', data: Buffer.from([1, 2, 3, 4]).toString('base64') }],
+    mentionSelf: true,
+  })
+  assert.equal(result.ok, true)
+  assert.match(captured.system, /【当前消息引用的内容】/u)
+  assert.match(captured.system, /发送者：小明/u)
+  assert.match(captured.system, /优先针对被引用的那条消息/u)
+  const first = captured.messages[0]
+  assert.match(first.content[0].text, /【引用消息中的图片】/u)
+  assert.equal(first.content[1].type, 'image')
+  assert.equal(ai.lastPromptSnapshot().quotedImageCount, 1)
+})

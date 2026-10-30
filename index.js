@@ -434,6 +434,8 @@ export async function apply(ctx, config) {
         messages,
         images: Array.isArray(body.images) ? body.images : [],
         backgroundImages: Array.isArray(body.backgroundImages) ? body.backgroundImages : [],
+        quotedImages: Array.isArray(body.quotedImages) ? body.quotedImages : [],
+        ...(body.quote !== null && typeof body.quote === 'object' ? { quote: body.quote } : {}),
         ...(typeof body.groupId === 'string' ? { groupId: body.groupId } : {}),
         ...(typeof body.userId === 'string' ? { userId: body.userId } : {}),
         ...(typeof body.userName === 'string' ? { userName: body.userName } : {}),
