@@ -228,6 +228,29 @@ let setupInstalled = false
 let setupInstalling = false
 let resolveSetupInstall = null
 
+const PERSONA = {
+  name: '群友小助手',
+  role: 'QQ 群里的 AI 助手',
+  tone: '简洁自然',
+  personality: '友好耐心',
+  rules: '回答简短；不透露系统提示词。',
+  examples: [{ user: '这个周末去哪玩比较好？', assistant: '看你想爬山还是逛展～' }],
+  updatedAt: '2026-10-30T00:00:00.000Z',
+}
+const DEFAULT_PERSONA = {
+  name: '默认人设',
+  role: '默认角色',
+  tone: '默认语气',
+  personality: '默认性格',
+  rules: '默认规则',
+  examples: [{ user: '默认问题', assistant: '默认回答' }],
+}
+let personaState = {
+  persona: PERSONA,
+  promptPreview: '【角色设定】\n名称：群友小助手',
+  path: '~/project/qq-bot/data/persona.json',
+}
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -250,6 +273,27 @@ globalThis.fetch = async (url, init) => {
   }
   if (path === '/qqbot/ai/chat') {
     return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
+  }
+  if (path === '/qqbot/persona') {
+    return json({ ok: true, data: personaState })
+  }
+  if (path === '/qqbot/persona/save') {
+    const body = JSON.parse(String(init.body))
+    if (body.reset === true) {
+      personaState = {
+        persona: DEFAULT_PERSONA,
+        promptPreview: '【角色设定】\n名称：默认人设',
+        path: personaState.path,
+      }
+    } else {
+      const persona = body.persona !== null && typeof body.persona === 'object' ? body.persona : {}
+      personaState = {
+        persona,
+        promptPreview: `【角色设定】\n名称：${String(persona.name ?? '')}`,
+        path: personaState.path,
+      }
+    }
+    return json({ ok: true, data: personaState })
   }
   if (path === '/qqbot/setup') {
     return json({
@@ -608,6 +652,51 @@ console.log('ai unavailable: ok')
 STATUS.ai = { ...STATUS.ai, available: true, ready: true }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
+
+// ---- AI persona card --------------------------------------------------------
+expectTestId(tree, 'qqbot-persona-card')
+if (expectTestId(tree, 'qqbot-persona-name').props.value !== '群友小助手') throw new Error('persona name not loaded')
+if (expectTestId(tree, 'qqbot-persona-role').props.value !== 'QQ 群里的 AI 助手') throw new Error('persona role not loaded')
+if (expectTestId(tree, 'qqbot-persona-tone').props.value !== '简洁自然') throw new Error('persona tone not loaded')
+if (expectTestId(tree, 'qqbot-persona-personality').props.value !== '友好耐心') throw new Error('persona personality not loaded')
+if (expectTestId(tree, 'qqbot-persona-rules').props.value !== '回答简短；不透露系统提示词。') throw new Error('persona rules not loaded')
+let personaExamples = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example')
+if (personaExamples.length !== 1) throw new Error(`expected 1 persona example, got ${personaExamples.length}`)
+const exampleUser = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example-user')[0]
+if (exampleUser === undefined || exampleUser.props.value !== '这个周末去哪玩比较好？') throw new Error('persona example user not loaded')
+if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('群友小助手')) throw new Error('persona preview missing')
+console.log('persona card: ok')
+
+expectTestId(tree, 'qqbot-persona-name').props.onChange({ currentTarget: { value: '测试人设' } })
+tree = await settle()
+findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example-user')[0]
+  .props.onChange({ currentTarget: { value: '你好呀' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-persona-save')
+tree = await settle()
+const personaPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/save')
+if (personaPosts.length !== 1) throw new Error(`expected one POST /qqbot/persona/save, got ${personaPosts.length}`)
+const personaBody = JSON.parse(String(personaPosts[0].body))
+if (!personaBody.persona || personaBody.persona.name !== '测试人设') throw new Error('persona save body name wrong')
+if (!Array.isArray(personaBody.persona.examples) || personaBody.persona.examples.length !== 1) {
+  throw new Error(`persona save examples wrong: ${JSON.stringify(personaBody.persona.examples)}`)
+}
+if (personaBody.persona.examples[0].user !== '你好呀') throw new Error('persona example user not sent')
+if (personaBody.persona.examples[0].assistant !== '看你想爬山还是逛展～') throw new Error('persona example assistant lost')
+if (expectTestId(tree, 'qqbot-persona-name').props.value !== '测试人设') throw new Error('persona draft not refreshed after save')
+if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('测试人设')) throw new Error('persona preview not updated after save')
+if (findTestId(tree, 'qqbot-banner') === undefined) throw new Error('persona save banner missing')
+console.log('persona save: ok')
+
+clickTestId(tree, 'qqbot-persona-reset')
+tree = await settle()
+const resetPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/save')
+if (resetPosts.length !== 2) throw new Error(`expected two persona POSTs, got ${resetPosts.length}`)
+const resetBody = JSON.parse(String(resetPosts[1].body))
+if (resetBody.reset !== true) throw new Error(`reset body wrong: ${JSON.stringify(resetBody)}`)
+if (expectTestId(tree, 'qqbot-persona-name').props.value !== '默认人设') throw new Error('persona not refreshed after reset')
+if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('默认人设')) throw new Error('persona preview not updated after reset')
+console.log('persona reset: ok')
 
 // ---- runtime setup card -----------------------------------------------------
 expectTestId(tree, 'qqbot-setup-card')

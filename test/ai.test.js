@@ -94,3 +94,37 @@ test('chat: terminal error finish becomes a structured failure', async () => {
   assert.equal(result.code, 'AUTH')
   assert.match(result.error, /bad key/u)
 })
+
+
+test('chat: persona card is the first system segment, extra prompt follows', async () => {
+  let captured = null
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: {
+      stream: async function* (options) {
+        captured = options
+        yield { type: 'text-delta', index: 0, text: '好' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({
+    ctx: { get: (name) => map[name] ?? null },
+    settings,
+    logger,
+    personaLoader: async () => ({
+      name: '猫娘',
+      role: '群里的猫娘助手',
+      tone: '软萌',
+      personality: '好奇',
+      rules: '句尾带喵',
+      examples: [{ user: '你好', assistant: '你好喵' }],
+    }),
+  })
+  await ai.chat({ messages: [{ role: 'user', text: 'hi' }], system: '额外规则：不要刷屏' })
+  assert.ok(captured.system.startsWith('【角色设定】'))
+  assert.match(captured.system, /名称：猫娘/u)
+  assert.match(captured.system, /【对话示例】/u)
+  assert.match(captured.system, /额外规则：不要刷屏/u)
+  assert.ok(captured.system.indexOf('【角色设定】') < captured.system.indexOf('额外规则'))
+})

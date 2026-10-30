@@ -102,6 +102,31 @@ window.__ModuleLoader__.load({
       aiTest: 'Test AI',
       aiTestFailed: 'AI test failed',
       aiReply: 'Reply',
+      personaTitle: 'AI persona card',
+      personaSubtitle: 'Used as the first segment of the AI system prompt.',
+      personaName: 'Name',
+      personaRole: 'Role',
+      personaTone: 'Tone',
+      personaPersonality: 'Personality',
+      personaRules: 'Rules',
+      personaExamples: 'Few-shot examples',
+      personaExampleUser: 'User says',
+      personaExampleAssistant: 'Assistant replies',
+      personaAddExample: 'Add example',
+      personaRemoveExample: 'Remove',
+      personaMaxExamples: 'Up to 8 examples.',
+      personaNoExamples: 'No examples yet.',
+      personaSave: 'Save persona',
+      personaSaved: 'Persona saved.',
+      personaSaving: 'Saving…',
+      personaReset: 'Restore defaults',
+      personaResetDone: 'Persona restored to defaults.',
+      personaSaveFail: 'Could not save the persona',
+      personaLoadFail: 'Could not load the persona',
+      personaLoading: 'Loading persona…',
+      personaPreview: 'Prompt preview',
+      personaPreviewShow: 'Show',
+      personaPreviewHide: 'Hide',
       pluginsTitle: 'Koishi plugins',
       pluginsEmpty: 'No plugin was found in koishi.yml.',
       plName: 'Name',
@@ -332,6 +357,31 @@ window.__ModuleLoader__.load({
       aiTest: '测试 AI',
       aiTestFailed: 'AI 测试失败',
       aiReply: '回复',
+      personaTitle: 'AI 人设卡',
+      personaSubtitle: '作为 AI 回复的系统提示词第一段。',
+      personaName: '名称',
+      personaRole: '角色',
+      personaTone: '语气',
+      personaPersonality: '性格',
+      personaRules: '行为准则',
+      personaExamples: '对话示例',
+      personaExampleUser: '用户',
+      personaExampleAssistant: '助手',
+      personaAddExample: '添加示例',
+      personaRemoveExample: '删除',
+      personaMaxExamples: '最多 8 条示例。',
+      personaNoExamples: '还没有示例。',
+      personaSave: '保存人设',
+      personaSaved: '人设已保存。',
+      personaSaving: '保存中…',
+      personaReset: '恢复默认',
+      personaResetDone: '人设已恢复默认。',
+      personaSaveFail: '人设保存失败',
+      personaLoadFail: '人设读取失败',
+      personaLoading: '正在读取人设…',
+      personaPreview: '提示词预览',
+      personaPreviewShow: '展开',
+      personaPreviewHide: '收起',
       pluginsTitle: 'Koishi 插件',
       pluginsEmpty: 'koishi.yml 里没有检测到插件。',
       plName: '名称',
@@ -726,6 +776,17 @@ window.__ModuleLoader__.load({
 .qqbot-ai-reply-wrap { display: flex; flex-direction: column; gap: 6px; }
 .qqbot-ai-reply { max-height: 220px; }
 
+.qqbot-persona-examples { display: flex; flex-direction: column; gap: 8px; }
+.qqbot-persona-example { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 70%, transparent); }
+.qqbot-persona-example-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qqbot-persona-example-head .qqbot-btn { font-size: 11px; padding: 3px 9px; }
+.qqbot-persona-area { min-height: 60px; }
+.qqbot-persona-preview-wrap { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-persona-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qqbot-persona-preview { max-height: 240px; }
+
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
@@ -827,6 +888,41 @@ window.__ModuleLoader__.load({
 
     /** Fixed smoke-style prompt used by the panel's AI self-test. */
     const AI_TEST_PROMPT = '请只回复：AI 面板测试成功'
+
+    /** The persona card supports at most 8 few-shot examples. */
+    const MAX_PERSONA_EXAMPLES = 8
+
+    /** Normalize a persona payload into the editable draft. */
+    function draftFromPersona(persona) {
+      const source = persona !== null && typeof persona === 'object' ? persona : {}
+      const text = (value) => (typeof value === 'string' ? value : '')
+      const examples = Array.isArray(source.examples)
+        ? source.examples
+          .filter((item) => item !== null && typeof item === 'object')
+          .slice(0, MAX_PERSONA_EXAMPLES)
+          .map((item) => ({ user: text(item.user), assistant: text(item.assistant) }))
+        : []
+      return {
+        name: text(source.name),
+        role: text(source.role),
+        tone: text(source.tone),
+        personality: text(source.personality),
+        rules: text(source.rules),
+        examples,
+      }
+    }
+
+    /** Persona JSON sent to POST /qqbot/persona/save (normalized by the Host). */
+    function personaBody(draft) {
+      return {
+        name: draft.name,
+        role: draft.role,
+        tone: draft.tone,
+        personality: draft.personality,
+        rules: draft.rules,
+        examples: draft.examples.map((example) => ({ user: example.user, assistant: example.assistant })),
+      }
+    }
 
     /** Locale keys for the `/qqbot/setup/full` step ids. */
     const SETUP_STEP_KEYS = {
@@ -954,6 +1050,12 @@ window.__ModuleLoader__.load({
       const [setupExpanded, setSetupExpanded] = React.useState(true)
       const [aiReply, setAiReply] = React.useState(null)
       const [aiError, setAiError] = React.useState(null)
+      const [personaDraft, setPersonaDraft] = React.useState(null)
+      const [personaPreview, setPersonaPreview] = React.useState('')
+      const [personaPath, setPersonaPath] = React.useState(null)
+      const [personaPhase, setPersonaPhase] = React.useState('idle')
+      const [personaError, setPersonaError] = React.useState(null)
+      const [personaPreviewOpen, setPersonaPreviewOpen] = React.useState(true)
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
@@ -1144,6 +1246,26 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Read the AI persona card once on mount; save/reset re-read it. */
+      const loadPersona = async () => {
+        setPersonaPhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/persona')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object' || data.persona === null || typeof data.persona !== 'object') {
+            throw new Error('unexpected payload')
+          }
+          setPersonaDraft(draftFromPersona(data.persona))
+          setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
+          setPersonaPath(typeof data.path === 'string' ? data.path : null)
+          setPersonaError(null)
+          setPersonaPhase('ready')
+        } catch (error) {
+          setPersonaError(messageOf(error))
+          setPersonaPhase('error')
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -1152,6 +1274,7 @@ window.__ModuleLoader__.load({
         tick()
         loadAccess()
         loadSetup()
+        loadPersona()
         const timer = setInterval(tick, POLL_MS)
         return () => {
           disposed = true
@@ -1350,6 +1473,73 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const applyPersonaPayload = (result) => {
+        const data = result && result.data
+        if (data === null || typeof data !== 'object' || data.persona === null || typeof data.persona !== 'object') return false
+        setPersonaDraft(draftFromPersona(data.persona))
+        setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
+        setPersonaPath(typeof data.path === 'string' ? data.path : null)
+        setPersonaError(null)
+        setPersonaPhase('ready')
+        return true
+      }
+
+      const savePersona = async () => {
+        if (personaDraft === null || busyOf('persona-save')) return
+        setBusy((previous) => ({ ...previous, 'persona-save': true }))
+        setPersonaError(null)
+        try {
+          const result = await requestJson('/qqbot/persona/save', {
+            method: 'POST',
+            body: { persona: personaBody(personaDraft) },
+            acceptNotOk: true,
+          })
+          if (result !== null && result.ok === true && applyPersonaPayload(result)) {
+            setBanner({ kind: 'ok', text: t('personaSaved') })
+          } else {
+            setPersonaError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('personaSaveFail'))
+          }
+        } catch (error) {
+          setPersonaError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['persona-save']
+            return next
+          })
+        }
+      }
+
+      const resetPersona = async () => {
+        if (busyOf('persona-reset')) return
+        setBusy((previous) => ({ ...previous, 'persona-reset': true }))
+        setPersonaError(null)
+        try {
+          const result = await requestJson('/qqbot/persona/save', {
+            method: 'POST',
+            body: { reset: true },
+            acceptNotOk: true,
+          })
+          if (result !== null && result.ok === true && applyPersonaPayload(result)) {
+            setBanner({ kind: 'ok', text: t('personaResetDone') })
+          } else {
+            setPersonaError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('personaSaveFail'))
+          }
+        } catch (error) {
+          setPersonaError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['persona-reset']
+            return next
+          })
+        }
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -1538,6 +1728,151 @@ window.__ModuleLoader__.load({
         : null
 
       // ------------------------------------------------------------- overview --
+      // ----------------------------------------------------------------- persona --
+      const renderPersonaCard = () => {
+        const draft = personaDraft
+        const saving = busyOf('persona-save')
+        const resetting = busyOf('persona-reset')
+        const busy = saving || resetting
+        const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+        const updateExample = (index, fieldName, value) => {
+          setPersonaDraft((previous) => {
+            if (previous === null) return previous
+            const examples = previous.examples.map((example, current) => current === index ? { ...example, [fieldName]: value } : example)
+            return { ...previous, examples }
+          })
+        }
+        const addExample = () => {
+          setPersonaDraft((previous) => {
+            if (previous === null || previous.examples.length >= MAX_PERSONA_EXAMPLES) return previous
+            return { ...previous, examples: [...previous.examples, { user: '', assistant: '' }] }
+          })
+        }
+        const removeExample = (index) => {
+          setPersonaDraft((previous) => {
+            if (previous === null) return previous
+            return { ...previous, examples: previous.examples.filter((unused, current) => current !== index) }
+          })
+        }
+        const field = (testid, id, label, value, onChange, multiline) => h('div', { className: 'qqbot-field' },
+          h('label', { className: 'qqbot-field-label', htmlFor: id }, label),
+          multiline
+            ? h('textarea', {
+              id,
+              className: 'qqbot-area qqbot-persona-area',
+              'data-testid': testid,
+              rows: 3,
+              value,
+              onChange: (event) => { onChange(event.currentTarget.value) },
+            })
+            : h('input', {
+              id,
+              className: 'qqbot-input',
+              type: 'text',
+              'data-testid': testid,
+              value,
+              onChange: (event) => { onChange(event.currentTarget.value) },
+            }))
+
+        const head = h('div', { className: 'qqbot-card-head' },
+          h('h2', { className: 'qqbot-card-title' }, t('personaTitle')),
+          h('span', { className: 'qqbot-card-sub' }, t('personaSubtitle')))
+
+        if (draft === null) {
+          return h('section', { className: 'qqbot-card qqbot-persona-card', 'data-testid': 'qqbot-persona-card' },
+            head,
+            personaPhase === 'error'
+              ? h('div', { className: 'qqbot-empty' },
+                h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-error' }, `${t('personaLoadFail')}${personaError !== null ? `: ${personaError}` : ''}`),
+                h('button', { type: 'button', className: 'qqbot-btn', 'aria-label': t('retry'), onClick: () => { loadPersona() } }, t('retry')))
+              : h('div', { className: 'qqbot-empty', role: 'status' }, t('personaLoading')))
+        }
+
+        const examples = draft.examples.map((example, index) => h('div', {
+          key: `persona-example-${index}`,
+          className: 'qqbot-persona-example',
+          'data-testid': 'qqbot-persona-example',
+          'data-index': String(index),
+        },
+          h('div', { className: 'qqbot-persona-example-head' },
+            h('span', { className: 'qqbot-field-label' }, `${t('personaExamples')} ${index + 1}`),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-persona-example-remove',
+              'aria-label': t('personaRemoveExample'),
+              disabled: busy,
+              onClick: () => { removeExample(index) },
+            }, t('personaRemoveExample'))),
+          field('qqbot-persona-example-user', `qqbot-persona-example-user-${index}`, t('personaExampleUser'), example.user,
+            (value) => { updateExample(index, 'user', value) }, true),
+          field('qqbot-persona-example-assistant', `qqbot-persona-example-assistant-${index}`, t('personaExampleAssistant'), example.assistant,
+            (value) => { updateExample(index, 'assistant', value) }, true)))
+
+        const previewBlock = personaPreview === ''
+          ? null
+          : h('div', { className: 'qqbot-persona-preview-wrap' },
+            h('div', { className: 'qqbot-persona-preview-head' },
+              h('span', { className: 'qqbot-field-label' }, t('personaPreview')),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-persona-preview-toggle',
+                'aria-label': personaPreviewOpen ? t('personaPreviewHide') : t('personaPreviewShow'),
+                onClick: () => { setPersonaPreviewOpen((previous) => !previous) },
+              }, personaPreviewOpen ? t('personaPreviewHide') : t('personaPreviewShow'))),
+            personaPreviewOpen
+              ? h('pre', { className: 'qqbot-pre qqbot-persona-preview', 'data-testid': 'qqbot-persona-preview' }, personaPreview)
+              : null)
+
+        return h('section', { className: 'qqbot-card qqbot-persona-card', 'data-testid': 'qqbot-persona-card' },
+          head,
+          h('div', { className: 'qqbot-form' },
+            field('qqbot-persona-name', 'qqbot-persona-name', t('personaName'), draft.name, (value) => { updateDraft({ name: value }) }),
+            field('qqbot-persona-role', 'qqbot-persona-role', t('personaRole'), draft.role, (value) => { updateDraft({ role: value }) }),
+            field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
+            field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
+            field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true)),
+          h('div', { className: 'qqbot-persona-examples' },
+            h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
+            examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,
+            ...examples,
+            h('div', { className: 'qqbot-btns' },
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-persona-example-add',
+                'aria-label': t('personaAddExample'),
+                disabled: busy || draft.examples.length >= MAX_PERSONA_EXAMPLES,
+                onClick: addExample,
+              }, t('personaAddExample')),
+              h('span', { className: 'qqbot-hint' }, t('personaMaxExamples')))),
+          h('div', { className: 'qqbot-btns' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-persona-save',
+              'aria-label': t('personaSave'),
+              'aria-busy': saving ? 'true' : undefined,
+              disabled: busy,
+              onClick: () => { savePersona() },
+            }, saving ? t('personaSaving') : t('personaSave')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-persona-reset',
+              'aria-label': t('personaReset'),
+              'aria-busy': resetting ? 'true' : undefined,
+              disabled: busy,
+              onClick: () => { resetPersona() },
+            }, resetting ? t('working') : t('personaReset'))),
+          personaError !== null && personaPhase === 'ready'
+            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-error' }, personaError)
+            : null,
+          previewBlock,
+          personaPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, personaPath) : null)
+      }
+
       // ---------------------------------------------------------------- AI chat --
       const renderAiCard = () => {
         const ai = (snapshot && snapshot.ai) || {}
@@ -1869,6 +2204,7 @@ window.__ModuleLoader__.load({
           renderLoginCard(),
           renderSetupCard(),
           renderAiCard(),
+          renderPersonaCard(),
           h('section', { className: 'qqbot-card' },
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),

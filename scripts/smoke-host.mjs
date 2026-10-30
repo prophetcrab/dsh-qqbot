@@ -56,7 +56,7 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 29, `expected at least 29 routes, got ${routes.size}`)
+assert.ok(routes.size >= 31, `expected at least 31 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
@@ -70,6 +70,8 @@ for (const required of [
   '/qqbot/setup/full',
   '/qqbot/ai/status',
   '/qqbot/ai/chat',
+  '/qqbot/persona',
+  '/qqbot/persona/save',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -127,6 +129,13 @@ try {
   assert.equal(typeof contactsBody.ok, 'boolean')
   assert.ok(Array.isArray(contactsBody.groups))
   assert.ok(Array.isArray(contactsBody.friends))
+
+  const personaResponse = await fetch(`${base}/qqbot/persona`)
+  const personaBody = await personaResponse.json()
+  assert.equal(personaBody.ok, true)
+  assert.equal(typeof personaBody.data.persona.name, 'string')
+  assert.ok(Array.isArray(personaBody.data.persona.examples))
+  assert.match(personaBody.data.promptPreview, /【角色设定】/u)
 
   const aiStatusResponse = await fetch(`${base}/qqbot/ai/status`)
   const aiStatusBody = await aiStatusResponse.json()

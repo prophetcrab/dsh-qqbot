@@ -53,7 +53,7 @@ qq-bot/
   historyLimit: 12
 ```
 
-DSH 端会把 `data/ai.json`（端点、provider、model）写好，插件自动读取；DSH 端口变化后自动更新。
+DSH 端会把 `data/ai.json`（端点、provider、model）写好，插件自动读取；DSH 端口变化后自动更新。AI 的角色设定/语气/性格/few-shot 在 DSH 面板「AI 聊天 → 人设卡」编辑，保存为 `data/persona.json`，由 DSH 作为系统提示词第一段注入。
 
 ## 运行时目录
 

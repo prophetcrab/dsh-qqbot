@@ -9,13 +9,20 @@
  * @module dsh-qqbot
  */
 
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
 import { fetchContacts } from './lib/contacts.js'
 import { fetchMessages } from './lib/messages.js'
 import { SetupManager } from './lib/setup.js'
 import { AiChatService } from './lib/ai.js'
+import {
+  DEFAULT_PERSONA,
+  buildPersonaPrompt,
+  normalizePersona,
+  readPersonaFile,
+  writePersonaFile,
+} from './lib/persona.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -54,7 +61,8 @@ export async function apply(ctx, config) {
   const koishi = new KoishiManager({ settings, logger: ctx.logger('qqbot/koishi') })
   const plugins = new KoishiPluginsManager({ koishi, settings, logger: ctx.logger('qqbot/plugins') })
   const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
-  const ai = new AiChatService({ ctx, settings, logger: ctx.logger('qqbot/ai') })
+  const personaPath = join(settings.projectDir, 'data', 'persona.json')
+  const ai = new AiChatService({ ctx, settings, personaPath, logger: ctx.logger('qqbot/ai') })
   let lastAiDiscovery = ''
   /** Publish the local AI bridge endpoint for the Koishi ai-chat plugin. */
   const ensureAiEndpoint = async () => {
@@ -163,6 +171,7 @@ export async function apply(ctx, config) {
     })
     const aiEndpoint = await ensureAiEndpoint()
     const aiStatus = { ...ai.status(), endpoint: aiEndpoint, ready: aiEndpoint !== null }
+    const personaCard = (await readPersonaFile(personaPath)) ?? normalizePersona(DEFAULT_PERSONA)
     const bot = {
       online: koishiStatus?.online === true,
       selfId: koishiStatus?.selfId ?? null,
@@ -185,6 +194,11 @@ export async function apply(ctx, config) {
       },
       qq,
       ai: aiStatus,
+      persona: {
+        name: personaCard.name,
+        examples: personaCard.examples.length,
+        updatedAt: personaCard.updatedAt ?? null,
+      },
       napcat: napcatStatus,
       koishi: koishiStatus,
       bot,
@@ -287,6 +301,31 @@ export async function apply(ctx, config) {
       const limit = clampInt(urlParam(req, 'limit'), 50, 1, 200)
       const feed = await fetchMessages(settings, { limit })
       sendJson(res, 200, { ok: feed.ok, data: feed, ...(feed.ok ? {} : { error: feed.error }) })
+    }))
+
+    route('/qqbot/persona', (req, res) => only(req, res, ['GET'], async () => {
+      const persona = (await readPersonaFile(personaPath)) ?? normalizePersona(DEFAULT_PERSONA)
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          persona,
+          promptPreview: buildPersonaPrompt(persona),
+          path: personaPath,
+        },
+      })
+    }))
+
+    route('/qqbot/persona/save', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      if (body.reset === true) {
+        await rm(personaPath, { force: true })
+        const persona = normalizePersona(DEFAULT_PERSONA)
+        sendJson(res, 200, { ok: true, data: { persona, promptPreview: buildPersonaPrompt(persona), path: personaPath } })
+        return
+      }
+      const payload = body.persona !== null && typeof body.persona === 'object' ? body.persona : body
+      const saved = await writePersonaFile(personaPath, payload)
+      sendJson(res, 200, { ok: true, data: { persona: saved, promptPreview: buildPersonaPrompt(saved), path: personaPath } })
     }))
 
     route('/qqbot/ai/status', (req, res) => only(req, res, ['GET'], async () => {
