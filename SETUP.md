@@ -70,7 +70,7 @@ node scripts/install-profile.mjs --profile desktop --install
 机器人上线后 AI 聊天默认已启用，直接复用 DSH 当前模型（无需再填 API Key）：
 
 1. 在权限白名单里的目标群直接说话；被 @机器人 或回复机器人必定触发一次人设自检，其他消息按 `replyProbability` 概率触发；对同一人回复后 3 分钟内继续跟进；同一人连续多条消息会合并为一次回复；@别人/@全体不会被当成 @机器人，但仍可能按概率/跟进自然接话
-2. AI 会读取本群最近最多 100 条消息作为背景（只回复当前消息）；不同人的消息并发处理，同一人连续消息静默排队
+2. AI 会读取本群最近最多 100 条消息作为背景（只回复当前消息），最近背景里别人发过的图片也会作为背景图送入模型；不同人的消息并发处理，同一人连续消息静默排队
 3. 触发方式/上下文：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`replyProbability`、`followUpMinutes`、`historyLimit`、`batchWindowMs`、`batchMaxWaitMs`）
 4. 人设：DSH 面板「AI」页 →「人设卡」，编辑角色/语气/性格/行为准则/few-shot 示例并保存；它作为系统提示词第一段，保存在 `qq-bot/data/persona.json`
    - 人设卡下方可把当前人设保存成命名预设，随时加载/删除；预设保存在 `qq-bot/data/persona-presets.json`

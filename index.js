@@ -433,6 +433,7 @@ export async function apply(ctx, config) {
       const result = await ai.chat({
         messages,
         images: Array.isArray(body.images) ? body.images : [],
+        backgroundImages: Array.isArray(body.backgroundImages) ? body.backgroundImages : [],
         ...(typeof body.groupId === 'string' ? { groupId: body.groupId } : {}),
         ...(typeof body.userId === 'string' ? { userId: body.userId } : {}),
         ...(typeof body.userName === 'string' ? { userName: body.userName } : {}),

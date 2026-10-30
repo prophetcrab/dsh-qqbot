@@ -358,3 +358,40 @@ test('self-check: malformed verdict falls back to replying', async () => {
   assert.equal(result.reply, '照常回复')
   assert.equal(scripted.calls.length, 2)
 })
+
+
+test('chat: backgroundImages are sent as a separate background image message', async () => {
+  let captured = null
+  const saved = []
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    attachments: {
+      saveImages: async (inputs) => {
+        saved.push(...inputs)
+        return inputs.map((_, index) => ({ attachmentId: `bg-${index}`, mediaType: inputs[index].mediaType, bytes: 4, width: 1, height: 1 }))
+      },
+    },
+    llm: {
+      stream: async function* (options) {
+        captured = options
+        yield { type: 'text-delta', index: 0, text: '图中是红色的' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({
+    messages: [{ role: 'user', text: '分析一下刚才那张图' }],
+    backgroundImages: [{ mediaType: 'image/png', data: Buffer.from([1, 2, 3, 4]).toString('base64') }],
+  })
+  assert.equal(result.ok, true)
+  assert.equal(saved.length, 1)
+  const first = captured.messages[0]
+  assert.equal(first.role, 'user')
+  assert.match(first.content[0].text, /【背景图片】/u)
+  assert.deepEqual(first.content[1], {
+    type: 'image',
+    attachment: { attachmentId: 'bg-0', mediaType: 'image/png', bytes: 4, width: 1, height: 1 },
+  })
+  assert.equal(ai.lastPromptSnapshot().backgroundImageCount, 1)
+})
