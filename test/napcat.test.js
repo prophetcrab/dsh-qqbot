@@ -1269,6 +1269,25 @@ test('stop on Windows retries force-kill through an elevated helper when denied'
   assert.match(runs[0].join(' '), /4242/u)
 })
 
+test('stop on Windows ignores a plain desktop QQ instance', async () => {
+  const kills = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      // Only the plain QQ path would match: no NapCat helper and no NapCat flags.
+      findProcess: (pattern) => (pattern.includes('QQNT') ? { running: true, pid: 9999 } : { running: false, pid: null }),
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        return { ok: true }
+      },
+    }),
+  })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.alreadyStopped, true)
+  assert.deepEqual(kills, [])
+})
+
 test('stop on Windows escalates to force when the graceful taskkill fails', async () => {
   let clock = 0
   let alive = true
