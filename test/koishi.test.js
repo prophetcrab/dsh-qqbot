@@ -661,3 +661,25 @@ test('windows: stop 优雅停止超时后升级为 taskkill /F', async (t) => {
   assert.equal(killCalls.some((call) => call.force === true), true)
   assert.equal(killCalls.every((call) => call.pid === 4322), true)
 })
+
+
+test('startCommand: prefers the local Koishi CLI bundled with the project', async (t) => {
+  const dir = await makeProject(t)
+  await mkdir(join(dir, 'node_modules', 'koishi'), { recursive: true })
+  await writeFile(join(dir, 'node_modules', 'koishi', 'bin.js'), '', 'utf8')
+  const manager = makeManager(dir)
+  const command = manager.startCommand(dir)
+  assert.equal(command.local, true)
+  assert.equal(command.file, process.execPath)
+  assert.equal(command.args[0], join(dir, 'node_modules', 'koishi', 'bin.js'))
+  assert.deepEqual(command.args.slice(1), ['start', '-r', 'tsx/cjs'])
+  if (process.versions.electron !== undefined) assert.equal(command.env.ELECTRON_RUN_AS_NODE, '1')
+})
+
+test('startCommand: falls back to npm start without a local CLI', async (t) => {
+  const dir = await makeProject(t)
+  const manager = makeManager(dir)
+  const command = manager.startCommand(dir)
+  assert.notEqual(command.local, true)
+  assert.match(command.file, /npm/u)
+})
