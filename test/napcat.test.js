@@ -929,7 +929,15 @@ test('start on Windows launches napcat.bat from the detected install dir', async
   }])
 })
 
-test('start on Windows falls back to QQ.exe --no-sandbox without launcher scripts', async () => {
+test('start on Windows falls back to QQ.exe --no-sandbox for OneKey-style patched QQ', async (t) => {
+  const root = await makeTempDir(t)
+  const qqRoot = join(root, 'QQNT')
+  const appDir = join(qqRoot, 'versions', '9.9.31-49738', 'resources', 'app')
+  await mkdir(appDir, { recursive: true })
+  await writeFile(join(appDir, 'loadNapCat.js'), "console.log('napcat loader')\n")
+  const qqExe = join(qqRoot, 'QQ.exe')
+  await writeFile(qqExe, '')
+
   const runs = []
   let launched = false
   const manager = makeManager({
@@ -942,7 +950,7 @@ test('start on Windows falls back to QQ.exe --no-sandbox without launcher script
         accounts: [],
         webui: { port: 6099, token: null },
       }),
-      detectQq: () => ({ installed: true, path: 'C:/Program Files/Tencent/QQNT/QQ.exe', version: null }),
+      detectQq: () => ({ installed: true, path: qqExe, version: null }),
     }),
     deps: {
       run: async (file, args) => {
@@ -959,7 +967,111 @@ test('start on Windows falls back to QQ.exe --no-sandbox without launcher script
   const result = await manager.start({ timeoutMs: 5000 })
   assert.equal(result.ok, true)
   assert.equal(result.loggedIn, true)
-  assert.deepEqual(runs, [['C:/Program Files/Tencent/QQNT/QQ.exe', '--no-sandbox']])
+  assert.deepEqual(runs, [[qqExe, '--no-sandbox']])
+})
+
+test('start on Windows reports qq-not-installed when QQ is missing', async () => {
+  const runs = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectQq: () => ({ installed: false, path: null, version: null }),
+    }),
+    deps: {
+      run: async (file, args) => {
+        runs.push([file, ...args])
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, 'qq-not-installed')
+  assert.match(result.message, /未找到 QQ/u)
+  assert.deepEqual(runs, [])
+})
+
+test('start on Windows reports napcat-not-installed when NapCat is absent and QQ is unpatched', async (t) => {
+  const root = await makeTempDir(t)
+  const qqRoot = join(root, 'QQNT')
+  await mkdir(qqRoot, { recursive: true })
+  const qqExe = join(qqRoot, 'QQ.exe')
+  await writeFile(qqExe, '')
+  const runs = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: false,
+        installDir: null,
+        configDir: null,
+        version: null,
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      detectQq: () => ({ installed: true, path: qqExe, version: null }),
+    }),
+    deps: {
+      run: async (file, args) => {
+        runs.push([file, ...args])
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, 'napcat-not-installed')
+  assert.match(result.message, /未检测到 NapCat/u)
+  assert.deepEqual(runs, [])
+})
+
+test('start on Windows reports loader-missing when the loader cannot be written', async (t) => {
+  const root = await makeTempDir(t)
+  const installDir = join(root, 'NapCat.4.18.42.Shell')
+  const qqRoot = join(root, 'QQNT')
+  const appDir = join(qqRoot, 'versions', '9.9.31-49738', 'resources', 'app')
+  await mkdir(installDir, { recursive: true })
+  await mkdir(appDir, { recursive: true })
+  await writeFile(join(installDir, 'napcat.bat'), '@echo off\r\n')
+  await writeFile(join(installDir, 'loadNapCat.js'), "console.log('napcat loader')\n")
+  const qqExe = join(qqRoot, 'QQ.exe')
+  await writeFile(qqExe, '')
+  await writeFile(join(qqRoot, 'versions', '9.9.31-49738', 'resources', 'app', 'package.json'), '{}')
+
+  const runs = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.42',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      detectQq: () => ({ installed: true, path: qqExe, version: null }),
+    }),
+    deps: {
+      fs: {
+        writeFile: async () => {
+          throw new Error('EACCES: permission denied')
+        },
+      },
+      run: async (file, args) => {
+        runs.push([file, ...args])
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, 'loader-missing')
+  assert.match(result.message, /管理员/u)
+  assert.deepEqual(runs, [])
 })
 
 test('stop on Windows uses platform.killPid and waits for the process to exit', async () => {
