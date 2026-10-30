@@ -276,16 +276,21 @@ npm run check     # 全部
 
 ### 离线 Koishi 依赖
 
-- 插件内置 `template/runtime-bundles/node_modules-<platform>-<arch>.tar.gz`（当前仓库包含 `darwin-arm64`，13.8 MiB）；首次创建运行时项目时直接解压，**不需要 npm、不需要网络**；启动时优先用项目内的 `node_modules/koishi/bin.js`，因此即使机器没有 npm 也能运行。
-- 重新生成：
+- 插件内置 `template/runtime-bundles/node_modules-<platform>-<arch>.tar.gz`，当前包含 **macOS arm64** 和 **Windows x64** 两份（各约 14 MiB）。首次创建运行时项目时按 `process.platform-process.arch` 自动选择并直接解压，**不需要 npm、不需要网络**；启动时优先用项目内的 `node_modules/koishi/bin.js`，因此即使机器没有 npm 也能运行。
+- 重新生成当前平台：
   ```bash
   node scripts/bundle-runtime.mjs --source ~/project/qq-bot
   ```
-  在目标平台（Windows、Linux）上执行同一命令即可生成对应平台的包；插件会按 `process.platform-process.arch` 选择，找不到时回退 `npm install`。
+- 在任意平台交叉生成 Windows / Linux 包（需要 npm >= 10）：
+  ```bash
+  node scripts/bundle-runtime.mjs --platform win32 --arch x64 --install
+  node scripts/bundle-runtime.mjs --platform linux --arch x64 --install
+  ```
+  找不到对应平台包时回退 `npm install`。
 
 ### 已验证
 
-- 单元测试 130/130 通过（含 macOS/Windows 分支、AI 桥、人设卡与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 10、人设 5、画像 7、AI 设置 2）
+- 单元测试 131/131 通过（含 macOS/Windows 分支、AI 桥、人设卡与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 11、权限 7、群友列表 3、消息 3、Feature 2、AI 10、人设 5、画像 7、AI 设置 2）
 - Host 冒烟：35 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表

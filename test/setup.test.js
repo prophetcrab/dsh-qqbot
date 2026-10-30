@@ -226,3 +226,19 @@ test('offline bundle: ensureProject extracts bundled dependencies', async () => 
   assert.equal(result.bundled, true)
   assert.ok(existsSync(join(settings.projectDir, 'node_modules')))
 })
+
+
+test('offline bundle: selects the bundle matching the injected platform key', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  const bundleDir = join(templateDir, 'runtime-bundles')
+  await mkdir(bundleDir, { recursive: true })
+  const bundle = join(bundleDir, 'node_modules-win32-x64.tar.gz')
+  await writeFile(bundle, 'fake-win-bundle')
+  const settings = await makeSettings(root)
+  const setup = new SetupManager({ settings, logger, deps: { templateDir, bundleKey: 'win32-x64' } })
+  const status = await setup.status()
+  assert.equal(status.bundleKey, 'win32-x64')
+  assert.equal(status.bundlePath, bundle)
+  assert.equal(status.bundleAvailable, true)
+})

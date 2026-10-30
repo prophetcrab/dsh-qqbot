@@ -82,6 +82,7 @@ node scripts/install-profile.mjs --profile desktop --install
 
 1. 安装 QQNT（或使用 NapCat 一键包内置的 QQ）
 2. 安装 DSH 插件并重启，面板概览会显示「Windows」平台徽章
+   - 插件已内置 `node_modules-win32-x64` 离线包，Windows 上创建 Koishi 项目不需要 npm/网络
 3. 「一键安装并配置」会下载 `NapCat.Shell.Windows.OneKey.zip` 并运行 `NapCatInstaller.exe`
 4. 安装完成后，插件自动扫描 `NapCat*.Shell` 目录；如安装在非标准目录，在 `cordis.patch.yml` 设置：
    ```yaml
