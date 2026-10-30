@@ -1146,6 +1146,65 @@ test('start on Windows reports a failure when the running QQ cannot be closed', 
   assert.deepEqual(runs, [])
 })
 
+test('start on Windows repairs the missing QQ-side loadNapCat.js before launching', async (t) => {
+  const root = await makeTempDir(t)
+  const installDir = join(root, 'NapCat.4.18.42.Shell')
+  const qqRoot = join(root, 'QQNT')
+  const versionDir = join(qqRoot, 'versions', '9.9.31-49738')
+  const appDir = join(versionDir, 'resources', 'app')
+  await mkdir(installDir, { recursive: true })
+  await mkdir(appDir, { recursive: true })
+  await writeFile(join(installDir, 'napcat.bat'), '@echo off\r\n')
+  const loader = "const path = require('path')\nconsole.log('napcat loader')\n"
+  await writeFile(join(installDir, 'loadNapCat.js'), loader)
+  const qqExe = join(qqRoot, 'QQ.exe')
+  await writeFile(qqExe, '')
+  await writeFile(join(qqRoot, 'versions', 'config.json'), JSON.stringify({
+    baseVersion: '9.9.31-49738',
+    curVersion: '9.9.31-49738',
+  }))
+
+  const runs = []
+  let launched = false
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.42',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      detectQq: () => ({ installed: true, path: qqExe, version: null }),
+      findProcess: () => ({ running: false, pid: null }),
+    }),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        launched = true
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      sleep: async () => {},
+      now: (() => {
+        let clock = 0
+        return () => {
+          clock += 1000
+          return clock
+        }
+      })(),
+    },
+  })
+  manager.loginStatus = async () => (launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, true)
+  assert.equal(await readFile(join(appDir, 'loadNapCat.js'), 'utf8'), loader)
+  assert.deepEqual(runs.map((entry) => entry.file), ['cmd.exe'])
+})
+
 test('qrImagePath delegates to platform.napcatQrPath for a Windows config dir', () => {
   let seen = null
   const manager = makeManager({
