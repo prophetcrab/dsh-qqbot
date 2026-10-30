@@ -1301,6 +1301,7 @@ window.__ModuleLoader__.load({
       const tabRef = React.useRef(tab)
       const loggedInRef = React.useRef(false)
       const loginPollRef = React.useRef({ busy: false, loggedIn: false })
+      const contactsBusyRef = React.useRef(false)
       const messagesPollRef = React.useRef(false)
       const setupActionRef = React.useRef(false)
       tabRef.current = tab
@@ -1384,6 +1385,8 @@ window.__ModuleLoader__.load({
        * the reason, while modes and save stay usable.
        */
       const loadContacts = async () => {
+        if (contactsBusyRef.current) return
+        contactsBusyRef.current = true
         setContactsPhase('loading')
         try {
           const payload = await requestJson('/qqbot/contacts', { acceptNotOk: true })
@@ -1404,6 +1407,8 @@ window.__ModuleLoader__.load({
           setContacts({ groups: [], friends: [], selfId: null, fetchedAt: null })
           setContactsError(messageOf(error))
           setContactsPhase('ready')
+        } finally {
+          contactsBusyRef.current = false
         }
       }
 
@@ -1582,13 +1587,19 @@ window.__ModuleLoader__.load({
         if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
         if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
         if (tab === 'messages' && messagesPhase === 'idle') loadMessages()
-        if (tab === 'messages' && contactsPhase === 'idle') loadContacts()
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
-        if (tab === 'access' && contactsPhase === 'idle') loadContacts()
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
       }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
+
+      // 每次进入消息/权限页都重新拉一次群列表，并每 30 秒自动刷新，避免新加群不可见。
+      React.useEffect(() => {
+        if (tab !== 'messages' && tab !== 'access') return undefined
+        loadContacts()
+        const timer = setInterval(() => { loadContacts() }, 30000)
+        return () => { clearInterval(timer) }
+      }, [tab])
 
       // ------------------------------------------------------------ mutation --
       /**
