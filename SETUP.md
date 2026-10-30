@@ -73,7 +73,7 @@ node scripts/install-profile.mjs --profile desktop --install
 2. AI 会读取本群最近最多 100 条消息作为背景（只回复当前消息），最近背景里别人发过的图片会作为背景图送入模型；回复某条消息并 @AI 时，被引用消息的文字/图片会优先作为引用上下文
 3. 触发方式/上下文：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`replyProbability`、`followUpMinutes`、`historyLimit`、`batchWindowMs`、`batchMaxWaitMs`）
 4. 人设：DSH 面板「AI」页 →「人设卡」，编辑角色/语气/性格/行为准则/few-shot 示例并保存；它作为系统提示词第一段，保存在 `qq-bot/data/persona.json`
-   - 人设卡下方可把当前人设保存成命名预设，随时加载/删除；预设保存在 `qq-bot/data/persona-presets.json`
+   - 人设卡下方可把当前人设保存成命名预设，随时加载/删除；预设保存在 `qq-bot/data/persona-presets.json`；首次安装会从插件内置 `presets/persona-presets.json` 导入示例预设，不会覆盖已有预设
    - 「回复设置」可调概率、跟进分钟数、上下文条数、批量去抖窗口，保存后立即生效
    - 「人物画像」可查看/编辑/删除已保存的按 QQ 号画像
    - 「完整提示词」可查看最近一次实际发送给模型的完整 system + messages

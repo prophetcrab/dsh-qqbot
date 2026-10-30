@@ -242,3 +242,20 @@ test('offline bundle: selects the bundle matching the injected platform key', as
   assert.equal(status.bundlePath, bundle)
   assert.equal(status.bundleAvailable, true)
 })
+
+
+test('ensureProject: seeds shipped persona presets into data without overwriting', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  await mkdir(join(templateDir, 'presets'), { recursive: true })
+  const seed = { version: 1, presets: [{ id: 'p1', name: '预设', persona: { name: 'A' } }] }
+  await writeFile(join(templateDir, 'presets', 'persona-presets.json'), JSON.stringify(seed))
+  const settings = await makeSettings(root)
+  const setup = new SetupManager({ settings, logger, deps: { templateDir } })
+  await setup.ensureProject()
+  const target = join(settings.projectDir, 'data', 'persona-presets.json')
+  assert.equal(await readFile(target, 'utf8'), JSON.stringify(seed))
+  await writeFile(target, '{"version":1,"presets":[]}')
+  await setup.ensureProject()
+  assert.equal(await readFile(target, 'utf8'), '{"version":1,"presets":[]}')
+})
