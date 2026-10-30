@@ -251,7 +251,7 @@ let personaState = {
   path: '~/project/qq-bot/data/persona.json',
 }
 
-const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMinutes: 3, historyLimit: 100 }
+const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMinutes: 3, historyLimit: 100, batchWindowMs: 2500, batchMaxWaitMs: 10000 }
 let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
 const PROFILE_FIXTURE = [
   {
@@ -334,6 +334,8 @@ globalThis.fetch = async (url, init) => {
         replyProbability: Number(body.replyProbability) || 0,
         followUpMinutes: Number(body.followUpMinutes) || 0,
         historyLimit: Number(body.historyLimit) || 0,
+        batchWindowMs: Number(body.batchWindowMs) || 0,
+        batchMaxWaitMs: Number(body.batchMaxWaitMs) || 0,
       }
     }
     return json({ ok: true, data: { settings: aiSettingsState, defaults: AI_SETTINGS_DEFAULTS, path: '~/project/qq-bot/data/ai-settings.json' } })
@@ -877,6 +879,12 @@ expectTestId(tree, 'qqbot-ai-settings-card')
 expectTestId(tree, 'qqbot-ai-settings-enabled')
 expectTestId(tree, 'qqbot-ai-settings-followup')
 expectTestId(tree, 'qqbot-ai-settings-history')
+if (Number(expectTestId(tree, 'qqbot-ai-settings-batch-window').props.value) !== 2500) {
+  throw new Error('batch window should display 2500')
+}
+if (Number(expectTestId(tree, 'qqbot-ai-settings-batch-max').props.value) !== 10000) {
+  throw new Error('max batch wait should display 10000')
+}
 const probabilityInput = expectTestId(tree, 'qqbot-ai-settings-probability')
 if (Number(probabilityInput.props.value) !== 15) throw new Error(`probability should display 15, got ${String(probabilityInput.props.value)}`)
 probabilityInput.props.onChange({ currentTarget: { value: '40' } })
@@ -890,6 +898,8 @@ if (Math.abs(Number(settingsBody.replyProbability) - 0.4) > 1e-9) throw new Erro
 if (settingsBody.enabled !== true) throw new Error('AI enabled flag not sent')
 if (Number(settingsBody.followUpMinutes) !== 3) throw new Error('followUpMinutes not sent')
 if (Number(settingsBody.historyLimit) !== 100) throw new Error('historyLimit not sent')
+if (Number(settingsBody.batchWindowMs) !== 2500) throw new Error(`batchWindowMs not sent: ${String(settingsBody.batchWindowMs)}`)
+if (Number(settingsBody.batchMaxWaitMs) !== 10000) throw new Error(`batchMaxWaitMs not sent: ${String(settingsBody.batchMaxWaitMs)}`)
 if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 40) {
   throw new Error('probability draft not refreshed after save')
 }

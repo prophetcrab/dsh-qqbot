@@ -147,6 +147,9 @@ window.__ModuleLoader__.load({
       aiSettingsProbabilityHint: 'Percent of eligible messages the bot replies to.',
       aiSettingsFollowUp: 'Follow-up window (minutes)',
       aiSettingsHistory: 'Context messages',
+      aiSettingsBatchWindow: 'Batch window (ms)',
+      aiSettingsBatchMax: 'Max batch wait (ms)',
+      aiSettingsBatchHint: '0 disables message batching.',
       aiSettingsSave: 'Save settings',
       aiSettingsSaved: 'AI settings saved.',
       aiSettingsReset: 'Restore defaults',
@@ -453,6 +456,9 @@ window.__ModuleLoader__.load({
       aiSettingsProbabilityHint: '符合条件的消息中机器人回复的百分比。',
       aiSettingsFollowUp: '跟进窗口（分钟）',
       aiSettingsHistory: '上下文条数',
+      aiSettingsBatchWindow: '合并等待 (ms)',
+      aiSettingsBatchMax: '合并最长等待 (ms)',
+      aiSettingsBatchHint: '0 表示关闭合并。',
       aiSettingsSave: '保存设置',
       aiSettingsSaved: 'AI 设置已保存。',
       aiSettingsReset: '恢复默认',
@@ -1030,11 +1036,15 @@ window.__ModuleLoader__.load({
       const probability = Number(source.replyProbability)
       const followUp = Number(source.followUpMinutes)
       const history = Number(source.historyLimit)
+      const batchWindow = Number(source.batchWindowMs)
+      const batchMaxWait = Number(source.batchMaxWaitMs)
       return {
         enabled: source.enabled !== false,
         replyProbabilityPercent: Number.isFinite(probability) ? Math.round(probability * 10000) / 100 : 15,
         followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
         historyLimit: Number.isFinite(history) ? history : 100,
+        batchWindowMs: Number.isFinite(batchWindow) ? batchWindow : 2500,
+        batchMaxWaitMs: Number.isFinite(batchMaxWait) ? batchMaxWait : 10000,
       }
     }
 
@@ -1044,11 +1054,15 @@ window.__ModuleLoader__.load({
       const probability = Number.isFinite(percent) ? Math.min(1, Math.max(0, percent / 100)) : 0.15
       const followUp = Number(draft.followUpMinutes)
       const history = Number(draft.historyLimit)
+      const batchWindow = Number(draft.batchWindowMs)
+      const batchMaxWait = Number(draft.batchMaxWaitMs)
       return {
         enabled: draft.enabled === true,
         replyProbability: Math.round(probability * 1000) / 1000,
         followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
         historyLimit: Number.isFinite(history) ? history : 100,
+        batchWindowMs: Number.isFinite(batchWindow) ? Math.min(10000, Math.max(0, batchWindow)) : 2500,
+        batchMaxWaitMs: Number.isFinite(batchMaxWait) ? Math.min(30000, Math.max(0, batchMaxWait)) : 10000,
       }
     }
 
@@ -2536,8 +2550,15 @@ window.__ModuleLoader__.load({
                 { min: 0, max: 60, step: 1 }),
               field('qqbot-ai-settings-history', t('aiSettingsHistory'), draft.historyLimit,
                 (value) => { updateDraft({ historyLimit: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 200, step: 1 })),
-            h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint'))),
+                { min: 0, max: 200, step: 1 }),
+              field('qqbot-ai-settings-batch-window', t('aiSettingsBatchWindow'), draft.batchWindowMs,
+                (value) => { updateDraft({ batchWindowMs: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 10000, step: 100 }),
+              field('qqbot-ai-settings-batch-max', t('aiSettingsBatchMax'), draft.batchMaxWaitMs,
+                (value) => { updateDraft({ batchMaxWaitMs: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 30000, step: 100 })),
+            h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint')),
+            h('p', { className: 'qqbot-hint' }, t('aiSettingsBatchHint'))),
           h('div', { className: 'qqbot-btns' },
             h('button', {
               type: 'button',

@@ -18,7 +18,7 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
   - 健康检查（`/api/qqbot/health`）、进程状态、托管日志
 - **AI 面板**
   - 独立「AI」页：AI 状态、回复设置（概率 / 跟进分钟数 / 上下文条数）、人设卡、人物画像管理
-  - 回复概率等设置写入 `qq-bot/data/ai-settings.json`，Koishi 插件热加载，无需重启
+  - 回复概率、跟进时长、上下文条数、批量去抖窗口等设置写入 `qq-bot/data/ai-settings.json`，Koishi 插件热加载，无需重启
   - 人物画像按 `群号:QQ号` 查看/编辑/删除，保存在 `qq-bot/data/profiles.json`
 - **消息流**
   - 「消息」页实时查看机器人**收到**和**发出**的消息（接收/发送标记、发送者、来源、群名、内容、时间）
