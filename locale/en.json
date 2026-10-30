@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "QQ bot control center",
-    "description": "One-click NapCat and Koishi setup, bot lifecycle control, a Koishi plugin manager, and an extensible feature registry."
+    "description": "One-click NapCat/Koishi setup, live message monitor, group access control, and AI chat with persona cards, long-term memory, and image understanding."
   }
 }
