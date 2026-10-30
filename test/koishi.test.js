@@ -485,3 +485,179 @@ test('restart stops and starts again', async (t) => {
   assert.equal(result.ok, true)
   assert.match(result.message, /重启/u)
 })
+
+/** Fake portPid dependency: returns a fixed PID (or a function result), records calls. */
+function fakePortPid(pid) {
+  const calls = []
+  const fn = async (port) => {
+    calls.push(port)
+    return typeof pid === 'function' ? pid(port) : pid
+  }
+  fn.calls = calls
+  return fn
+}
+
+test('findPidByPort: portPid 优先于 exec，非法 PID 归一为 null', async () => {
+  const calls = []
+  const pid = await findPidByPort(TEST_PORT, {
+    portPid: async (port) => {
+      calls.push(port)
+      return 3456
+    },
+    exec: async () => {
+      throw new Error('exec must not run when portPid is provided')
+    },
+  })
+  assert.equal(pid, 3456)
+  assert.deepEqual(calls, [TEST_PORT])
+
+  assert.equal(await findPidByPort(TEST_PORT, { portPid: async () => null }), null)
+  assert.equal(await findPidByPort(TEST_PORT, { portPid: async () => 'oops' }), null)
+  assert.equal(await findPidByPort(0, { portPid: async () => {
+    throw new Error('portPid must not run for an invalid port')
+  } }), null)
+})
+
+test('windows: status 与 isPortListening 使用注入的 portPid（netstat 语义）', async (t) => {
+  const dir = await makeProject(t)
+  const openPortPid = fakePortPid(4567)
+  const manager = makeManager(dir, {
+    hostPlatform: () => 'windows',
+    portPid: openPortPid,
+    fetch: unreachable,
+  })
+
+  const status = await manager.status()
+  assert.equal(status.running, true)
+  assert.equal(status.pid, 4567)
+  assert.equal(status.managed, false)
+  assert.equal(status.online, false)
+  assert.deepEqual(openPortPid.calls, [TEST_PORT])
+  assert.equal(await manager.isPortListening(), true)
+
+  // 同时覆盖 options.deps 依赖包注入形式
+  const closedPortPid = fakePortPid(null)
+  const closed = makeManager(dir, {
+    deps: { hostPlatform: () => 'windows', portPid: closedPortPid },
+    fetch: unreachable,
+  })
+  const closedStatus = await closed.status()
+  assert.equal(closedStatus.running, false)
+  assert.equal(closedStatus.pid, null)
+  assert.deepEqual(closedPortPid.calls, [TEST_PORT])
+  assert.equal(await closed.isPortListening(), false)
+})
+
+test('windows: start 通过 cmd.exe /c npm start 启动，并把端口探测交给 portPid', async (t) => {
+  const dir = await makeProject(t)
+  const child = fakeChild(5100)
+  const spawnCalls = []
+  const portPid = fakePortPid(null)
+  let execCalls = 0
+  const manager = makeManager(dir, {
+    hostPlatform: () => 'windows',
+    portPid,
+    spawn: (file, args, options) => {
+      spawnCalls.push({ file, args, options })
+      return child
+    },
+    fetch: sequencedFetch([unreachable, unreachable, onlineHealth('10001')]),
+    exec: async () => {
+      execCalls += 1
+      return { code: 1, stdout: '', stderr: '' }
+    },
+  })
+
+  const result = await manager.start()
+  assert.equal(result.ok, true)
+  assert.equal(result.online, true)
+  assert.equal(result.pid, 5100)
+  assert.equal(spawnCalls.length, 1)
+  // Windows 不直接 spawn .cmd（EINVAL），统一走 cmd.exe /c npm ...
+  assert.equal(spawnCalls[0].file, 'cmd.exe')
+  assert.deepEqual(spawnCalls[0].args, ['/c', 'npm', 'start'])
+  assert.equal(spawnCalls[0].file.endsWith('.cmd'), false)
+  assert.equal(spawnCalls[0].options.cwd, dir)
+  assert.equal(spawnCalls[0].options.detached, true)
+  assert.deepEqual(spawnCalls[0].options.stdio, ['ignore', 'pipe', 'pipe'])
+  assert.equal(child.unrefCalled, true)
+  // Windows 下端口探测走 portPid，不再调用 lsof/exec
+  assert.deepEqual(portPid.calls, [TEST_PORT])
+  assert.equal(execCalls, 0)
+})
+
+test('windows: installDeps 通过 cmd.exe /c npm install 执行', async (t) => {
+  const dir = await makeProject(t)
+  const exec = async (file, args, options) => {
+    exec.call = { file, args, options }
+    return { code: 0, stdout: 'added 1 package', stderr: '' }
+  }
+  const manager = makeManager(dir, {
+    hostPlatform: 'windows',
+    portPid: fakePortPid(null),
+    exec,
+  })
+
+  const result = await manager.installDeps()
+  assert.equal(result.ok, true)
+  // 不直接执行 npm.cmd（Windows EINVAL），统一走 cmd.exe /c npm ...
+  assert.equal(exec.call.file, 'cmd.exe')
+  assert.deepEqual(exec.call.args, ['/c', 'npm', 'install', '--no-audit', '--no-fund'])
+  assert.equal(exec.call.file.endsWith('.cmd'), false)
+  assert.equal(exec.call.options.cwd, dir)
+})
+
+test('windows: stop 使用 killPid(taskkill) 且不使用负 PID/信号', async (t) => {
+  const dir = await makeProject(t)
+  const state = { alive: true, signals: [] }
+  const killCalls = []
+  const killPid = async (pid, options = {}) => {
+    killCalls.push({ pid, force: options.force === true })
+    state.alive = false
+    return { ok: true }
+  }
+  const manager = makeManager(dir, {
+    hostPlatform: () => 'windows',
+    portPid: fakePortPid(4321),
+    fetch: unreachable,
+    killPid,
+    processKill: (pid, signal) => {
+      state.signals.push({ pid, signal })
+      return signal === 0 ? state.alive : true
+    },
+  })
+
+  const stopped = await manager.stop()
+  assert.equal(stopped.ok, true)
+  assert.match(stopped.message, /4321/u)
+  assert.deepEqual(killCalls, [{ pid: 4321, force: false }])
+  assert.equal(killCalls.every((call) => call.pid > 0), true)
+  // 只用 0 号信号探测存活，不发送 SIGTERM/SIGKILL
+  assert.deepEqual(state.signals.map((call) => call.signal), [0])
+  assert.equal(manager.isManaged(), false)
+})
+
+test('windows: stop 优雅停止超时后升级为 taskkill /F', async (t) => {
+  const dir = await makeProject(t)
+  const state = { alive: true }
+  const killCalls = []
+  const killPid = async (pid, options = {}) => {
+    const force = options.force === true
+    killCalls.push({ pid, force })
+    if (force) state.alive = false
+    return { ok: true }
+  }
+  const manager = makeManager(dir, {
+    hostPlatform: 'windows',
+    portPid: fakePortPid(4322),
+    fetch: unreachable,
+    killPid,
+    processKill: (pid, signal) => (signal === 0 ? state.alive : true),
+  })
+
+  const stopped = await manager.stop({ gracefulTimeoutMs: 20, killTimeoutMs: 20 })
+  assert.equal(stopped.ok, true)
+  assert.equal(killCalls[0].force, false)
+  assert.equal(killCalls.some((call) => call.force === true), true)
+  assert.equal(killCalls.every((call) => call.pid === 4322), true)
+})

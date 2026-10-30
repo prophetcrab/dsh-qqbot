@@ -85,7 +85,13 @@ window.__ModuleLoader__.load({
       lblError: 'Error',
       managed: 'managed by this plugin',
       noWs: 'none configured',
-      installNapcatHint: 'The official installer opens: authorize it in the GUI, then apply the OneBot config.',
+      platformUnknown: 'Unknown platform',
+      installNapcatHintGeneric: 'The installer opens: follow the prompts, then apply the OneBot config.',
+      installNapcatHintMac: 'The macOS installer opens: allow it in System Settings → Privacy & Security → App Management, then apply the OneBot config.',
+      installNapcatHintWindows: 'Downloads and opens the Windows one-click package (NapCat.Shell.Windows.OneKey): allow NapCatInstaller.exe in the SmartScreen/firewall prompt the first time it runs.',
+      installNapcatHintUnsupported: 'Automatic NapCat installation is not supported on this platform. The Koishi runtime can still be installed.',
+      setupNapcatUnsupported: 'Not supported on this platform',
+      loginUnsupported: 'NapCat login is unavailable on this platform.',
       pluginsTitle: 'Koishi plugins',
       pluginsEmpty: 'No plugin was found in koishi.yml.',
       plName: 'Name',
@@ -296,7 +302,13 @@ window.__ModuleLoader__.load({
       lblError: '错误',
       managed: '由本插件启动',
       noWs: '未配置',
-      installNapcatHint: '会打开官方安装器：请按提示完成授权，然后写入 OneBot 配置。',
+      platformUnknown: '未知平台',
+      installNapcatHintGeneric: '会打开安装器：请按提示完成授权，然后写入 OneBot 配置。',
+      installNapcatHintMac: '会打开 macOS 安装器：请在「系统设置 → 隐私与安全性 → App 管理」允许安装器，完成授权后再写入 OneBot 配置。',
+      installNapcatHintWindows: '会下载并打开 Windows 一键安装包（NapCat.Shell.Windows.OneKey）：首次运行需在 SmartScreen/防火墙提示中允许 NapCatInstaller.exe。',
+      installNapcatHintUnsupported: '当前平台暂不支持 NapCat 自动安装。Koishi 运行环境仍可正常安装。',
+      setupNapcatUnsupported: '当前平台不支持',
+      loginUnsupported: '当前平台无法使用 NapCat 扫码登录。',
       pluginsTitle: 'Koishi 插件',
       pluginsEmpty: 'koishi.yml 里没有检测到插件。',
       plName: '名称',
@@ -462,6 +474,12 @@ window.__ModuleLoader__.load({
               var(--dsw-alias-bg-layer-1); }
 .qqbot-hero-main { min-width: 0; }
 .qqbot-hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: none; }
+.qqbot-platform-badge { display: inline-flex; align-items: center; gap: 5px; align-self: flex-end;
+  font-size: 10.5px; line-height: 1.4; padding: 3px 10px; border-radius: 999px;
+  border: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1));
+  color: var(--dsw-alias-label-secondary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, var(--dsw-alias-bg-layer-1));
+  font-variant-numeric: tabular-nums; }
 .qqbot-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--dsw-alias-brand-primary); font-weight: 500; }
 .qqbot-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dsw-alias-brand-primary);
@@ -1266,6 +1284,34 @@ window.__ModuleLoader__.load({
       const bot = (snapshot && snapshot.bot) || {}
       const qq = (snapshot && snapshot.qq) || {}
       const settings = (snapshot && snapshot.settings) || {}
+      // Host platform metadata (id/label/support flags). Older Hosts only send
+      // `isMac`, so fall back to that before declaring the platform unknown.
+      const platformInfo = snapshot && snapshot.platform !== null && typeof snapshot.platform === 'object'
+        ? snapshot.platform
+        : null
+      const rawPlatformId = platformInfo && typeof platformInfo.id === 'string' ? platformInfo.id : ''
+      const platformId = ['macos', 'windows', 'linux', 'other'].includes(rawPlatformId)
+        ? rawPlatformId
+        : platformInfo !== null && platformInfo.isMac === true ? 'macos' : 'other'
+      const platformLabel = platformInfo !== null && typeof platformInfo.label === 'string' && platformInfo.label !== ''
+        ? platformInfo.label
+        : platformInfo === null
+          ? t('platformUnknown')
+          : platformId === 'macos' ? 'macOS' : platformId === 'windows' ? 'Windows' : platformId === 'linux' ? 'Linux' : t('platformUnknown')
+      const platformArch = platformInfo !== null && typeof platformInfo.arch === 'string' ? platformInfo.arch : ''
+      const platformBadgeText = platformInfo === null
+        ? t('platformUnknown')
+        : `${platformLabel}${platformArch !== '' ? ` · ${platformArch}` : ''}`
+      const napcatSupported = platformInfo === null
+        ? true
+        : platformInfo.napcatSupported === undefined
+          ? platformId === 'macos' || platformId === 'windows'
+          : platformInfo.napcatSupported === true
+      const platformInstallHint = platformInfo === null
+        ? t('installNapcatHintGeneric')
+        : napcatSupported
+          ? platformId === 'windows' ? t('installNapcatHintWindows') : t('installNapcatHintMac')
+          : t('installNapcatHintUnsupported')
       const napcatAccounts = Array.isArray(napcat.accounts) ? napcat.accounts : []
       const wsClients = []
       for (const account of napcatAccounts) {
@@ -1348,7 +1394,8 @@ window.__ModuleLoader__.load({
           type: 'button',
           className: `qqbot-btn${tone ? ` qqbot-btn-${tone}` : ''}`,
           'data-testid': `qqbot-action-${id}`,
-          'aria-label': label,
+          'aria-label': extra.ariaLabel || label,
+          title: extra.title,
           'aria-busy': working ? 'true' : undefined,
           disabled: extra.disabled === true || working,
           onClick: handler,
@@ -1389,6 +1436,11 @@ window.__ModuleLoader__.load({
           h('h1', { className: 'qqbot-title' }, t('title')),
           h('p', { className: 'qqbot-sub' }, t('subtitle'))),
         h('div', { className: 'qqbot-hero-side' },
+          h('span', {
+            className: 'qqbot-platform-badge',
+            'data-testid': 'qqbot-platform-badge',
+            title: platformLabel,
+          }, platformBadgeText),
           h('div', { className: 'qqbot-pills' },
             pill('qqbot-pill-napcat', t('pillNapcat'), napcatText, napcatTone),
             pill('qqbot-pill-koishi', t('pillKoishi'), koishiText, koishiTone),
@@ -1525,9 +1577,10 @@ window.__ModuleLoader__.load({
               type: 'button',
               className: 'qqbot-btn',
               'data-testid': 'qqbot-setup-napcat',
-              'aria-label': t('setupNapcatInstall'),
+              'aria-label': napcatSupported ? t('setupNapcatInstall') : `${t('setupNapcatInstall')} (${t('setupNapcatUnsupported')})`,
+              title: napcatSupported ? undefined : t('setupNapcatUnsupported'),
               'aria-busy': busyOf('setup-napcat') ? 'true' : undefined,
-              disabled: installing || napcatInstalled || busyOf('setup-napcat'),
+              disabled: installing || napcatInstalled || !napcatSupported || busyOf('setup-napcat'),
               onClick: installSetupNapcat,
             }, napcatInstalled ? t('stInstalled') : t('setupNapcatInstall')),
             ready ? h('button', {
@@ -1538,6 +1591,7 @@ window.__ModuleLoader__.load({
               onClick: () => { setSetupExpanded(false) },
             }, t('setupCollapse')) : null),
           installing ? h('p', { className: 'qqbot-hint' }, t('setupInstallingHint')) : null,
+          !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null,
           setupError !== null
             ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert' }, `${t('setupLoadFail')}: ${setupError}`)
             : null,
@@ -1587,7 +1641,8 @@ window.__ModuleLoader__.load({
           h('div', { className: 'qqbot-card-head' },
             h('h2', { className: 'qqbot-card-title' }, t('loginTitle')),
             h('span', { className: 'qqbot-card-sub', 'data-testid': 'qqbot-login-phase' }, phaseText)),
-          h('p', { className: 'qqbot-hint' }, t('loginHint')),
+          h('p', { className: napcatSupported ? 'qqbot-hint' : 'qqbot-warn' },
+            napcatSupported ? t('loginHint') : t('loginUnsupported')),
           loginError !== null ? h('p', { className: 'qqbot-error' }, loginError) : null,
           qrVisible
             ? h('div', { className: 'qqbot-login-qr-wrap' },
@@ -1705,10 +1760,16 @@ window.__ModuleLoader__.load({
             h('div', { className: 'qqbot-btns' },
               actionButton('all-start', t('startAll'), 'primary', startAll),
               actionButton('all-stop', t('stopAll'), 'danger', stopAll),
-              !napcatInstalled ? actionButton('napcat-install', t('installNapcat'), null, installNapcat) : null,
+              !napcatInstalled
+                ? actionButton('napcat-install', t('installNapcat'), null, installNapcat, {
+                  disabled: !napcatSupported,
+                  title: napcatSupported ? undefined : t('setupNapcatUnsupported'),
+                  ariaLabel: napcatSupported ? t('installNapcat') : `${t('installNapcat')} (${t('setupNapcatUnsupported')})`,
+                })
+                : null,
               actionButton('napcat-configure', t('configureNapcat'), null, configureNapcat),
               koishi.depsInstalled === false ? actionButton('koishi-install-deps', t('installDeps'), null, installDeps) : null),
-            !napcatInstalled ? h('p', { className: 'qqbot-hint' }, t('installNapcatHint')) : null))
+            !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null))
       }
 
       // --------------------------------------------------------------- messages --

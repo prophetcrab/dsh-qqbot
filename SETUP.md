@@ -1,5 +1,7 @@
 # 本机安装与卸载（SETUP）
 
+> 插件支持 macOS 与 Windows：面板会自动显示平台徽章，并按平台使用对应的 NapCat 安装器、启动方式与进程管理。Linux 可运行 Koishi，但暂不支持 NapCat 自动安装。
+
 本文按当前这台 Mac 的实际环境编写：macOS（Apple Silicon）、DSH 桌面版 `desktop` profile、QQ + NapCat 已安装、Koishi 项目在 `~/project/qq-bot`。
 
 > 当前状态：本插件已经写入 `desktop` profile（依赖 + bundles + patch，且已 `pnpm install`，并已热加载）。
@@ -62,6 +64,23 @@ node scripts/install-profile.mjs --profile desktop --install
    - 列表可点「刷新列表」重新拉取；读取失败通常意味着 Koishi 未运行或机器人离线
 
 > 如果之前已经手工配置过 NapCat（本机当前就是），插件检测到已有 `koishi` 客户端后会保持幂等，不会重复添加。
+
+## Windows 安装（概要）
+
+1. 安装 QQNT（或使用 NapCat 一键包内置的 QQ）
+2. 安装 DSH 插件并重启，面板概览会显示「Windows」平台徽章
+3. 「一键安装并配置」会下载 `NapCat.Shell.Windows.OneKey.zip` 并运行 `NapCatInstaller.exe`
+4. 安装完成后，插件自动扫描 `NapCat*.Shell` 目录；如安装在非标准目录，在 `cordis.patch.yml` 设置：
+   ```yaml
+   - insert:
+       - id: qqbot
+         name: dsh-qqbot
+         config:
+           qqPath: C:\Program Files\Tencent\QQNT\QQ.exe
+           napcatDir: D:\NapCat\NapCat.4.18.41.Shell
+   ```
+5. 点「启动 NapCat」，面板显示二维码，用手机 QQ 扫码
+6. 写 OneBot 配置、启动 Koishi，流程与 macOS 相同
 
 ## 日常使用
 

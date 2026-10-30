@@ -23,6 +23,7 @@ import {
   detectNapcat,
   detectQq,
   macInfo,
+  platformInfo,
   resolveSettings,
 } from './lib/platform.js'
 
@@ -101,7 +102,10 @@ export async function apply(ctx, config) {
     ])
     const featureStatus = await registry.statusAll()
     const qq = safeDetect(() => detectQq(), { installed: false, path: null, version: null })
-    const platform = safeDetect(() => macInfo(), { isMac: process.platform === 'darwin', arch: process.arch, release: '', osVersion: null })
+    const host = safeDetect(() => macInfo(), { isMac: process.platform === 'darwin', arch: process.arch, release: '', osVersion: null })
+    const support = safeDetect(() => platformInfo(), {
+      id: 'other', label: 'Unsupported', supported: false, napcatSupported: false, koishiSupported: false,
+    })
     const bot = {
       online: koishiStatus?.online === true,
       selfId: koishiStatus?.selfId ?? null,
@@ -109,7 +113,13 @@ export async function apply(ctx, config) {
       uptime: koishiStatus?.stats?.startedAt ?? null,
     }
     return {
-      platform: { ...platform, node: process.version },
+      platform: {
+        ...support,
+        arch: host.arch,
+        release: host.release,
+        osVersion: host.osVersion,
+        node: process.version,
+      },
       settings: {
         projectDir: settings.projectDir,
         koishiPort: settings.koishiPort,
@@ -509,8 +519,11 @@ async function runFullSetup({ setup, napcat, koishi, settings, logger }) {
   const deps = await setup.installDeps()
   push('koishi-deps', deps)
 
+  const support = platformInfo()
   const napcatBefore = await napcat.status()
-  if (napcatBefore.installed !== true) {
+  if (support.napcatSupported !== true) {
+    steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `当前平台（${support.label}）暂不支持 NapCat 自动安装` })
+  } else if (napcatBefore.installed !== true) {
     push('napcat-install', await napcat.install())
   } else {
     steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `NapCat 已安装（${napcatBefore.version ?? '未知版本'}）` })
@@ -647,6 +660,7 @@ function renderStatus(snapshot) {
   const qq = snapshot?.qq ?? {}
   const bot = snapshot?.bot ?? {}
   return [
+    `平台: ${snapshot?.platform?.label ?? '未知'}${snapshot?.platform?.arch ? ` · ${snapshot.platform.arch}` : ''}${snapshot?.platform?.napcatSupported === false ? '（不支持 NapCat 自动安装）' : ''}`,
     `QQ: ${qq.installed ? `已安装${qq.version ? ` (${qq.version})` : ''}` : '未安装'}`,
     `NapCat: ${napcat.installed ? `已安装${napcat.version ? ` v${napcat.version}` : ''}` : '未安装'} · ${napcat.running ? '运行中' : '未运行'}${napcat.loggedIn ? ` · 已登录${napcat.qq ? ` ${napcat.qq}` : ''}` : ''}`,
     `Koishi: ${koishi.exists === false ? '项目不存在' : koishi.running ? `运行中${koishi.managed ? '（本插件管理）' : ''}` : '未运行'} · 端口 ${snapshot?.settings?.koishiPort ?? '?'}`,

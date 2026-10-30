@@ -61,7 +61,7 @@ const plugins = Array.isArray(packageJson.dsh?.profile?.bundles) ? packageJson.d
 const installed = Object.hasOwn(packageJson.dependencies ?? {}, PLUGIN_NAME)
 const listed = plugins.includes(PLUGIN_NAME)
 const patched = new RegExp(`^\\s*- id: ${ROW_ID}\\s*$`, 'mu').test(patchText)
-const spec = options.spec ?? `link:${pluginDir}`
+const spec = options.spec ?? `link:${pluginDir.replace(/\\/gu, '/')}`
 
 console.log(`profile: ${profileName} (${profileDir})`)
 console.log(`依赖 ${PLUGIN_NAME}: ${installed ? '已存在' : '待添加'}（${installed ? packageJson.dependencies[PLUGIN_NAME] : spec}）`)
@@ -120,7 +120,9 @@ if (!patched) {
 }
 
 if (options.install) {
-  await run('pnpm', ['install', '--no-frozen-lockfile'], profileDir)
+  const windows = process.platform === 'win32'
+  if (windows) await run('cmd.exe', ['/c', 'pnpm', 'install', '--no-frozen-lockfile'], profileDir)
+  else await run('pnpm', ['install', '--no-frozen-lockfile'], profileDir)
 }
 
 console.log('\n完成。请退出并重新打开 DeepSeek Harness，侧边栏会出现「QQ 机器人」面板。')

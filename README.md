@@ -134,6 +134,8 @@ node scripts/install-profile.mjs --profile desktop --install
 | `napcatPort` | `6099` | NapCat WebUI 端口（用于读配置/登录状态） |
 | `reversePath` | `/onebot` | 反向 WS 路径 |
 | `installerDir` | `<projectDir>/runtime/napcat-installer` | NapCat 安装器缓存（也在 qq-bot 内） |
+| `qqPath` | 空 | 覆盖 QQ 安装路径（Windows 非标准安装时使用） |
+| `napcatDir` | 空 | 覆盖 NapCat 安装目录（Windows OneKey/Shell 或 Linux 手动安装时使用） |
 | `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
 | `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
@@ -210,7 +212,7 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 81/81 通过（NapCat 24、Koishi 31、平台/Feature 5、权限 7、群友列表 3、消息 3、环境自举 8）
+- 单元测试 101/101 通过（含 macOS 与 Windows 分支：NapCat 34、Koishi 22、插件管理 15、平台 7、环境自举 8、权限 7、群友列表 3、消息 3、Feature 2）
 - Host 冒烟：27 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表

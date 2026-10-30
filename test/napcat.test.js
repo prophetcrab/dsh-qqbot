@@ -49,6 +49,26 @@ function fakePlatform(overrides = {}) {
   }
 }
 
+/** Fake platform seam fixed to Windows; overrides win. */
+function windowsPlatform(overrides = {}) {
+  return fakePlatform({
+    hostPlatform: () => 'windows',
+    detectQq: () => ({ installed: true, path: 'C:/Program Files/Tencent/QQNT/QQ.exe', version: null }),
+    detectNapcat: () => ({
+      installed: false,
+      installDir: null,
+      configDir: null,
+      version: null,
+      accounts: [],
+      webui: { port: 6099, token: null },
+    }),
+    findProcess: () => ({ running: false, pid: null }),
+    killPid: async () => ({ ok: true }),
+    napcatQrPath: () => 'C:/NapCat.Shell/cache/qrcode.png',
+    ...overrides,
+  })
+}
+
 /** Register a temp dir cleanup on the test context. */
 async function makeTempDir(t) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-napcat-'))
@@ -731,4 +751,368 @@ test('stop is a no-op when NapCat is not running', async () => {
   assert.equal(result.ok, true)
   assert.equal(result.alreadyStopped, true)
   assert.deepEqual(kills, [])
+})
+
+// ------------------------------------------------------------------ windows --
+
+test('downloadInstaller on Windows selects the NapCatQQ OneKey zip and extracts with tar', async (t) => {
+  const installerDir = await makeTempDir(t)
+  const downloads = []
+  const runs = []
+  const expectedExtractDir = join(installerDir, '4.18.41', 'extracted')
+  const http = async (url, options = {}) => {
+    assert.match(url, /api\.github\.com\/repos\/NapNeko\/NapCatQQ\/releases\/latest/u)
+    assert.equal(options.headers['user-agent'], 'dsh-qqbot')
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        tag_name: 'v4.18.41',
+        assets: [
+          { name: 'NapCat.Shell.zip', browser_download_url: 'https://example.invalid/NapCat.Shell.zip' },
+          {
+            name: 'NapCat.Shell.Windows.OneKey.zip',
+            browser_download_url: 'https://example.invalid/NapCat.Shell.Windows.OneKey.zip',
+          },
+        ],
+      },
+    }
+  }
+  const download = async (url, zipPath) => {
+    downloads.push({ url, zipPath })
+    await writeFile(zipPath, Buffer.from('fake-zip'))
+  }
+  const run = async (file, args) => {
+    runs.push([file, ...args])
+    if (file === 'tar') {
+      await mkdir(expectedExtractDir, { recursive: true })
+      await writeFile(join(expectedExtractDir, 'NapCatInstaller.exe'), '')
+    }
+    return { code: 0, stdout: '', stderr: '' }
+  }
+  const manager = makeManager({
+    settings: makeSettings({ installerDir }),
+    platform: windowsPlatform(),
+    deps: { http, download, run },
+  })
+
+  const result = await manager.downloadInstaller()
+  assert.equal(result.ok, true)
+  assert.equal(result.version, '4.18.41')
+  assert.equal(result.zipPath, join(installerDir, '4.18.41', 'NapCat.Shell.Windows.OneKey.zip'))
+  assert.equal(result.appPath, join(expectedExtractDir, 'NapCatInstaller.exe'))
+  assert.equal(downloads.length, 1)
+  assert.match(downloads[0].url, /NapCat\.Shell\.Windows\.OneKey\.zip/u)
+  assert.deepEqual(runs[0], ['tar', '-xf', result.zipPath, '-C', expectedExtractDir])
+
+  const status = await manager.status()
+  assert.deepEqual(status.installer, { downloaded: true, appPath: result.appPath, version: '4.18.41' })
+})
+
+test('downloadInstaller on Windows falls back to PowerShell Expand-Archive', async (t) => {
+  const installerDir = await makeTempDir(t)
+  const runs = []
+  const expectedExtractDir = join(installerDir, '4.18.41', 'extracted')
+  const expectedZipPath = join(installerDir, '4.18.41', 'NapCat.Shell.Windows.OneKey.zip')
+  const http = async () => ({
+    ok: true,
+    status: 200,
+    data: {
+      tag_name: 'v4.18.41',
+      assets: [{ name: 'NapCat.Shell.Windows.OneKey.zip', browser_download_url: 'https://example.invalid/onekey.zip' }],
+    },
+  })
+  const download = async (url, zipPath) => {
+    await writeFile(zipPath, Buffer.from('fake-zip'))
+  }
+  const run = async (file, args) => {
+    runs.push({ file, args })
+    if (file === 'tar') return { code: 1, stdout: '', stderr: 'tar not found' }
+    if (file === 'powershell.exe') {
+      await writeFile(join(expectedExtractDir, 'NapCatInstaller.exe'), '')
+      return { code: 0, stdout: '', stderr: '' }
+    }
+    return { code: 0, stdout: '', stderr: '' }
+  }
+  const manager = makeManager({
+    settings: makeSettings({ installerDir }),
+    platform: windowsPlatform(),
+    deps: { http, download, run },
+  })
+
+  const result = await manager.downloadInstaller()
+  assert.equal(result.ok, true)
+  assert.deepEqual(runs.map((entry) => entry.file), ['tar', 'powershell.exe'])
+  const powershell = runs[1]
+  assert.deepEqual(powershell.args.slice(0, 3), ['-NoProfile', '-NonInteractive', '-Command'])
+  assert.equal(
+    powershell.args[3],
+    `Expand-Archive -LiteralPath '${expectedZipPath}' -DestinationPath '${expectedExtractDir}' -Force`,
+  )
+  assert.equal(result.appPath, join(expectedExtractDir, 'NapCatInstaller.exe'))
+})
+
+test('install on Windows launches NapCatInstaller.exe through cmd /c start', async () => {
+  const runs = []
+  const exePath = 'C:/NapCat/4.18.41/extracted/NapCatInstaller.exe'
+  const manager = makeManager({
+    platform: windowsPlatform(),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.downloadInstaller = async () => ({
+    ok: true,
+    zipPath: 'C:/NapCat/4.18.41/NapCat.Shell.Windows.OneKey.zip',
+    appPath: exePath,
+    version: '4.18.41',
+  })
+
+  const result = await manager.install()
+  assert.equal(result.ok, true)
+  assert.equal(result.appPath, exePath)
+  assert.equal(result.version, '4.18.41')
+  assert.match(result.message, /安装器已启动/u)
+  assert.deepEqual(runs, [{
+    file: 'cmd.exe',
+    args: ['/c', 'start', '', exePath],
+    options: { cwd: 'C:/NapCat/4.18.41/extracted', timeoutMs: 20_000 },
+  }])
+})
+
+test('start on Windows launches napcat.bat from the detected install dir', async (t) => {
+  const installDir = await makeTempDir(t)
+  for (const name of ['napcat.bat', 'launcher-win10.bat', 'launcher.bat']) {
+    await writeFile(join(installDir, name), '@echo off\r\n')
+  }
+  const runs = []
+  let launched = false
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir,
+        configDir: join(installDir, 'config'),
+        version: '4.18.41',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+    }),
+    deps: {
+      run: async (file, args, options) => {
+        runs.push({ file, args, options })
+        launched = true
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.loginStatus = async () => launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null }
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.loggedIn, true)
+  assert.deepEqual(runs, [{
+    file: 'cmd.exe',
+    args: ['/c', 'start', '', join(installDir, 'napcat.bat')],
+    options: { cwd: installDir, timeoutMs: 20_000 },
+  }])
+})
+
+test('start on Windows falls back to QQ.exe --no-sandbox without launcher scripts', async () => {
+  const runs = []
+  let launched = false
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: false,
+        installDir: null,
+        configDir: null,
+        version: null,
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      detectQq: () => ({ installed: true, path: 'C:/Program Files/Tencent/QQNT/QQ.exe', version: null }),
+    }),
+    deps: {
+      run: async (file, args) => {
+        runs.push([file, ...args])
+        launched = true
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+  manager.loginStatus = async () => launched
+    ? { loggedIn: true, qq: '10001', nickname: '机器人' }
+    : { loggedIn: false, qq: null, nickname: null }
+
+  const result = await manager.start({ timeoutMs: 5000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.loggedIn, true)
+  assert.deepEqual(runs, [['C:/Program Files/Tencent/QQNT/QQ.exe', '--no-sandbox']])
+})
+
+test('stop on Windows uses platform.killPid and waits for the process to exit', async () => {
+  const responses = [
+    { running: true, pid: 4242 },
+    { running: true, pid: 4242 },
+    { running: false, pid: null },
+  ]
+  let index = 0
+  let clock = 0
+  const kills = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      findProcess: () => responses[Math.min(index++, responses.length - 1)],
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        return { ok: true }
+      },
+    }),
+    deps: {
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    },
+  })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, true)
+  assert.equal(result.pid, 4242)
+  assert.deepEqual(kills, [{ pid: 4242, force: false }])
+})
+
+test('stop on Windows escalates to killPid force and reports failure', async () => {
+  let clock = 0
+  const kills = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      findProcess: () => ({ running: true, pid: 4242 }),
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        return { ok: true }
+      },
+    }),
+    deps: {
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    },
+  })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, 'kill-failed')
+  assert.deepEqual(kills, [{ pid: 4242, force: false }, { pid: 4242, force: true }])
+})
+
+test('qrImagePath delegates to platform.napcatQrPath for a Windows config dir', () => {
+  let seen = null
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir: 'C:/NapCat.Shell',
+        configDir: 'C:/NapCat.Shell/config',
+        version: '4.18.41',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      napcatQrPath: (detected) => {
+        seen = detected
+        return 'C:/NapCat.Shell/cache/qrcode.png'
+      },
+    }),
+  })
+
+  assert.equal(manager.qrImagePath(), 'C:/NapCat.Shell/cache/qrcode.png')
+  assert.equal(seen.configDir, 'C:/NapCat.Shell/config')
+})
+
+test('configure works on a Windows NapCat config directory', async (t) => {
+  const dir = await makeTempDir(t)
+  const configDir = join(dir, 'config')
+  await mkdir(configDir, { recursive: true })
+  const configPath = join(configDir, 'onebot11_123456.json')
+  await writeFile(configPath, JSON.stringify(emptyOnebotConfig(), null, 2))
+  await writeFile(join(configDir, 'webui.json'), JSON.stringify({ port: 6099, token: 'ui-token-abc' }))
+
+  const calls = []
+  const http = async (url) => {
+    calls.push(url)
+    if (url.endsWith('/api/auth/login')) {
+      return { ok: true, status: 200, data: { code: 0, data: { Credential: 'cred-win' } } }
+    }
+    if (url.endsWith('/api/OB11Config/SetConfig')) {
+      return { ok: true, status: 200, data: { code: 0 } }
+    }
+    return { ok: false, status: 404, data: null }
+  }
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir: dir,
+        configDir,
+        version: '4.18.41',
+        accounts: [{ uin: '123456', configPath }],
+        webui: { port: 6099, token: 'ui-token-abc' },
+      }),
+    }),
+    deps: { http },
+  })
+
+  const result = await manager.configure()
+  assert.equal(result.ok, true)
+  assert.equal(result.accounts.length, 1)
+  assert.equal(result.accounts[0].applied, true)
+  assert.equal(calls.some((url) => url.endsWith('/api/OB11Config/SetConfig')), true)
+  const written = JSON.parse(await readFile(configPath, 'utf8'))
+  assert.equal(written.network.websocketClients[0].url, 'ws://127.0.0.1:5140/onebot')
+})
+
+test('unsupported hosts return structured errors for NapCat actions', async () => {
+  const sideEffects = []
+  const manager = makeManager({
+    platform: fakePlatform({ hostPlatform: () => 'linux' }),
+    deps: {
+      http: async () => {
+        sideEffects.push('http')
+        return { ok: true, status: 200, data: {} }
+      },
+      run: async () => {
+        sideEffects.push('run')
+        return { code: 0, stdout: '', stderr: '' }
+      },
+    },
+  })
+
+  const install = await manager.install()
+  assert.equal(install.ok, false)
+  assert.equal(install.error, 'unsupported-platform')
+  assert.match(install.message, /当前平台暂不支持 NapCat 自动安装/u)
+  for (const action of [
+    () => manager.downloadInstaller(),
+    () => manager.start(),
+    () => manager.stop(),
+    () => manager.configure(),
+    () => manager.refreshQr(),
+  ]) {
+    const result = await action()
+    assert.equal(result.ok, false)
+    assert.equal(result.error, 'unsupported-platform')
+  }
+
+  const status = await manager.status()
+  assert.equal(status.installed, false)
+  assert.equal(status.running, false)
+  assert.equal(status.accounts.length, 0)
+  assert.match(status.error, /当前平台暂不支持 NapCat/u)
+  assert.deepEqual(sideEffects, [])
 })

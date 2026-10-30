@@ -78,8 +78,20 @@ if (!definition || definition.id !== 'dsh-qqbot') throw new Error('module loader
 const api = definition.factory(fakeRequire)
 
 // ---- fake Host payload ------------------------------------------------------
+const MACOS_PLATFORM = {
+  id: 'macos', label: 'macOS', supported: true, napcatSupported: true, koishiSupported: true,
+  arch: 'arm64', release: '24.0.0', osVersion: '15.0', node: 'v24.0.0',
+}
+const WINDOWS_PLATFORM = {
+  id: 'windows', label: 'Windows', supported: true, napcatSupported: true, koishiSupported: true,
+  arch: 'x64', release: '10.0.22631', osVersion: '10.0.22631', node: 'v24.0.0',
+}
+const LINUX_PLATFORM = {
+  id: 'linux', label: 'Linux', supported: false, napcatSupported: false, koishiSupported: true,
+  arch: 'x64', release: '6.8.0', osVersion: null, node: 'v24.0.0',
+}
 const STATUS = {
-  platform: { isMac: true, arch: 'arm64', release: '24.0.0', node: 'v24.0.0' },
+  platform: { ...MACOS_PLATFORM },
   settings: { projectDir: '~/project/qq-bot', koishiPort: 5140, napcatPort: 6099, reversePath: '/onebot' },
   qq: { installed: true, path: '/Applications/QQ.app', version: '9.9.9' },
   napcat: {
@@ -498,6 +510,61 @@ const qrSrc = String(expectTestId(tree, 'qqbot-login-qr').props.src)
 if (!qrSrc.startsWith('/qqbot/napcat/qr?t=')) throw new Error(`login QR src wrong: ${qrSrc}`)
 expectTestId(tree, 'qqbot-login-refresh')
 console.log('login card: ok')
+
+// ---- platform badge + platform-specific copy -------------------------------
+if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('macOS · arm64')) {
+  throw new Error('macOS platform badge missing')
+}
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('App 管理')) {
+  throw new Error('macOS App Management hint missing')
+}
+console.log('platform macOS: ok')
+
+STATUS.platform = { ...WINDOWS_PLATFORM }
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('Windows · x64')) {
+  throw new Error('Windows platform badge missing')
+}
+const windowsText = text(expectTestId(tree, 'qqbot-panel'))
+if (!windowsText.includes('NapCat.Shell.Windows.OneKey')) throw new Error('Windows one-click package hint missing')
+if (!windowsText.includes('NapCatInstaller.exe')) throw new Error('Windows SmartScreen hint missing')
+if (windowsText.includes('App 管理') || windowsText.includes('macOS 安装器')) {
+  throw new Error('Windows copy leaked macOS wording')
+}
+if (expectTestId(tree, 'qqbot-action-napcat-install').props.disabled === true) {
+  throw new Error('NapCat install must stay enabled on Windows')
+}
+console.log('platform Windows: ok')
+
+STATUS.platform = { ...LINUX_PLATFORM }
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('Linux · x64')) {
+  throw new Error('Linux platform badge missing')
+}
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('暂不支持 NapCat 自动安装')) {
+  throw new Error('unsupported-platform hint missing on Linux')
+}
+if (expectTestId(tree, 'qqbot-action-napcat-install').props.disabled !== true) {
+  throw new Error('NapCat install must be disabled on Linux')
+}
+if (expectTestId(tree, 'qqbot-setup-napcat').props.disabled !== true) {
+  throw new Error('setup NapCat install must be disabled on Linux')
+}
+console.log('platform Linux: ok')
+
+STATUS.platform = null
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('未知平台')) {
+  throw new Error('missing platform should show the unknown badge')
+}
+console.log('platform unknown: ok')
+
+STATUS.platform = { ...MACOS_PLATFORM }
+clickTestId(tree, 'qqbot-status-refresh')
+tree = await settle()
 
 // ---- runtime setup card -----------------------------------------------------
 expectTestId(tree, 'qqbot-setup-card')
