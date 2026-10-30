@@ -59,7 +59,13 @@ export async function apply(ctx, config) {
     napcat,
     koishi,
     plugins,
-    platform: { detectQq, detectNapcat, detectKoishiProject, macInfo },
+    // Pass settings through so qqPath/napcatDir overrides are visible to features too.
+    platform: {
+      detectQq: () => detectQq(settings),
+      detectNapcat: () => detectNapcat(settings),
+      detectKoishiProject: () => detectKoishiProject(settings),
+      macInfo,
+    },
   })
   await loadBuiltinFeatures(registry)
 
@@ -101,7 +107,7 @@ export async function apply(ctx, config) {
       koishi.status().catch((error) => ({ error: errorText(error?.message ?? error), running: false, online: false, logs: [] })),
     ])
     const featureStatus = await registry.statusAll()
-    const qq = safeDetect(() => detectQq(), { installed: false, path: null, version: null })
+    const qq = safeDetect(() => detectQq(settings), { installed: false, path: null, version: null })
     const host = safeDetect(() => macInfo(), { isMac: process.platform === 'darwin', arch: process.arch, release: '', osVersion: null })
     const support = safeDetect(() => platformInfo(), {
       id: 'other', label: 'Unsupported', supported: false, napcatSupported: false, koishiSupported: false,
