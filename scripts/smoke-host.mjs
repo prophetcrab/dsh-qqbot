@@ -56,12 +56,15 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 20, `expected at least 20 routes, got ${routes.size}`)
+assert.ok(routes.size >= 24, `expected at least 24 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
   '/qqbot/access',
   '/qqbot/contacts',
+  '/qqbot/napcat/login',
+  '/qqbot/napcat/qr',
+  '/qqbot/messages',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -119,6 +122,21 @@ try {
   assert.equal(typeof contactsBody.ok, 'boolean')
   assert.ok(Array.isArray(contactsBody.groups))
   assert.ok(Array.isArray(contactsBody.friends))
+
+  const loginResponse = await fetch(`${base}/qqbot/napcat/login`)
+  const loginBody = await loginResponse.json()
+  assert.equal(loginBody.ok, true)
+  assert.equal(typeof loginBody.data.loggedIn, 'boolean')
+  assert.ok('phase' in loginBody.data)
+
+  const messagesResponse = await fetch(`${base}/qqbot/messages?limit=5`)
+  const messagesBody = await messagesResponse.json()
+  assert.equal(typeof messagesBody.ok, 'boolean')
+  assert.ok(Array.isArray(messagesBody.data.messages))
+
+  const qrResponse = await fetch(`${base}/qqbot/napcat/qr`)
+  assert.ok([200, 404].includes(qrResponse.status))
+  if (qrResponse.status === 200) assert.match(qrResponse.headers.get('content-type') ?? '', /image\/png/u)
 
   const pluginsResponse = await fetch(`${base}/qqbot/koishi/plugins`)
   const pluginBody = await pluginsResponse.json()

@@ -35,6 +35,7 @@ window.__ModuleLoader__.load({
       retry: 'Retry',
       updated: 'Updated',
       tabOverview: 'Overview',
+      tabMessages: 'Messages',
       tabAccess: 'Access',
       tabPlugins: 'Plugins',
       tabFeatures: 'Features',
@@ -158,6 +159,33 @@ window.__ModuleLoader__.load({
       accessLoading: 'Loading access policy…',
       accessLoadFail: 'Could not load the access policy',
       accessNote: 'Inbound and outbound lists are independent: an inbound whitelist avoids handling unrelated group messages, while an outbound whitelist stops sending to unauthorized groups.',
+      loginTitle: 'Sign in with QR',
+      loginHint: 'Scan the code with the mobile QQ app to sign the bot account in.',
+      loginPhaseWaiting: 'Waiting for QR scan',
+      loginPhaseScanned: 'Scanned, waiting for confirmation',
+      loginPhaseInitializing: 'Initializing…',
+      loginPhaseReconnecting: 'Connecting…',
+      loginPhaseUnknown: 'Waiting to sign in',
+      loginNotRunning: 'NapCat is not serving a login QR code yet. Start NapCat first.',
+      loginQrLoading: 'Fetching the QR code…',
+      loginQrFail: 'Could not load the QR code',
+      loginRetry: 'Retry',
+      loginRefresh: 'Refresh QR code',
+      loginRefreshed: 'QR code refreshed.',
+      loginStart: 'Start NapCat',
+      loginRunning: 'NapCat is running',
+      loginLoggedInAs: 'Signed in',
+      messagesTitle: 'Messages',
+      messagesRefresh: 'Refresh messages',
+      messagesLoading: 'Loading messages…',
+      messagesLoadFail: 'Could not load messages',
+      messagesEmpty: 'No messages yet.',
+      messagesFilterAll: 'All',
+      messagesFilterGroup: 'Groups',
+      messagesFilterPrivate: 'Private',
+      messagesDirectionIn: 'Received',
+      messagesDirectionOut: 'Sent',
+      messagesUnknownSource: 'Unknown',
       actionDone: 'Done.',
       actionFailed: 'Action failed',
       working: 'Working…',
@@ -174,6 +202,7 @@ window.__ModuleLoader__.load({
       retry: '重试',
       updated: '更新于',
       tabOverview: '概览',
+      tabMessages: '消息',
       tabAccess: '权限',
       tabPlugins: '插件',
       tabFeatures: '功能',
@@ -297,6 +326,33 @@ window.__ModuleLoader__.load({
       accessLoading: '正在读取权限策略…',
       accessLoadFail: '权限策略读取失败',
       accessNote: '接收与发送名单相互独立：接收白名单可避免机器人处理无关群消息，发送白名单阻止向未授权群发送消息。',
+      loginTitle: '扫码登录',
+      loginHint: '用手机 QQ 扫码登录机器人账号。',
+      loginPhaseWaiting: '等待扫码',
+      loginPhaseScanned: '已扫码，等待确认',
+      loginPhaseInitializing: '初始化中…',
+      loginPhaseReconnecting: '连接中…',
+      loginPhaseUnknown: '等待登录',
+      loginNotRunning: 'NapCat 还没有提供登录二维码，请先启动 NapCat。',
+      loginQrLoading: '正在获取二维码…',
+      loginQrFail: '二维码加载失败',
+      loginRetry: '重试',
+      loginRefresh: '刷新二维码',
+      loginRefreshed: '二维码已刷新。',
+      loginStart: '启动 NapCat',
+      loginRunning: 'NapCat 运行中',
+      loginLoggedInAs: '已登录',
+      messagesTitle: '消息',
+      messagesRefresh: '刷新消息',
+      messagesLoading: '正在读取消息…',
+      messagesLoadFail: '消息读取失败',
+      messagesEmpty: '还没有收到消息。',
+      messagesFilterAll: '全部',
+      messagesFilterGroup: '群聊',
+      messagesFilterPrivate: '私聊',
+      messagesDirectionIn: '接收',
+      messagesDirectionOut: '发送',
+      messagesUnknownSource: '未知',
       actionDone: '操作完成。',
       actionFailed: '操作失败',
       working: '处理中…',
@@ -489,6 +545,33 @@ window.__ModuleLoader__.load({
   color: var(--dsw-alias-label-tertiary); }
 .qqbot-badge-warn { color: var(--dsw-alias-state-warn-primary);
   border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1)); }
+
+.qqbot-login-card { align-items: stretch; }
+.qqbot-login-qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 0; }
+/* A QR code needs a light quiet zone to stay scannable in dark mode. */
+.qqbot-login-qr { display: block; width: 240px; height: 240px; border-radius: 12px; padding: 8px;
+  background: #fff; border: 0.5px solid var(--dsw-alias-border-l1); object-fit: contain; }
+.qqbot-login-qr-missing { display: flex; flex-direction: column; align-items: center; gap: 8px;
+  width: 240px; padding: 18px; border: 0.5px dashed var(--dsw-alias-border-l1); border-radius: 12px; }
+.qqbot-login-empty { width: 240px; max-width: 100%; align-self: center; }
+
+.qqbot-message-list { display: flex; flex-direction: column; gap: 6px; max-height: 540px; overflow-y: auto; }
+.qqbot-message-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+  background: var(--dsw-alias-bg-base); min-width: 0; }
+.qqbot-message-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 10.5px; color: var(--dsw-alias-label-tertiary); }
+.qqbot-message-direction { display: inline-flex; align-items: center; padding: 1px 7px;
+  border-radius: 999px; font-size: 10px; border: 0.5px solid transparent; }
+.qqbot-message-in { color: var(--dsw-alias-state-success-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent); }
+.qqbot-message-out { color: var(--dsw-alias-brand-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); }
+.qqbot-message-time { font-variant-numeric: tabular-nums; }
+.qqbot-message-source { color: var(--dsw-alias-label-secondary); font-weight: 500; }
+.qqbot-message-sender { color: var(--dsw-alias-label-secondary); }
+.qqbot-message-content { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
@@ -686,6 +769,22 @@ window.__ModuleLoader__.load({
         outboundGroups: '',
         outboundPrivate: '',
       })
+      const [loginInfo, setLoginInfo] = React.useState(null)
+      const [loginError, setLoginError] = React.useState(null)
+      const [qrTicket, setQrTicket] = React.useState(0)
+      const [qrBroken, setQrBroken] = React.useState(false)
+      const [messages, setMessages] = React.useState(null)
+      const [messagesPhase, setMessagesPhase] = React.useState('idle')
+      const [messagesError, setMessagesError] = React.useState(null)
+      const [messagesFilter, setMessagesFilter] = React.useState('all')
+      const [messagesUpdatedAt, setMessagesUpdatedAt] = React.useState(null)
+
+      // Refs keep the 2s pollers from capturing stale state and from overlapping.
+      const tabRef = React.useRef(tab)
+      const loggedInRef = React.useRef(false)
+      const loginPollRef = React.useRef({ busy: false, loggedIn: false })
+      const messagesPollRef = React.useRef(false)
+      tabRef.current = tab
 
       const busyOf = (key) => busy[key] === true
 
@@ -789,6 +888,59 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /**
+       * Read the NapCat QR-login state. On the transition to signed-in the
+       * panel refreshes the status snapshot and the contact lists, so the
+       * overview/login card and the message names update together.
+       */
+      const loadLogin = async () => {
+        if (loginPollRef.current.busy) return
+        loginPollRef.current.busy = true
+        try {
+          const payload = await requestJson('/qqbot/napcat/login')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object') throw new Error('unexpected payload')
+          setLoginInfo(data)
+          setLoginError(null)
+          const wasLoggedIn = loginPollRef.current.loggedIn === true
+          const nowLoggedIn = data.loggedIn === true
+          loginPollRef.current.loggedIn = nowLoggedIn
+          if (nowLoggedIn && !wasLoggedIn) {
+            loadStatus()
+            loadContacts()
+          }
+        } catch (error) {
+          setLoginError(messageOf(error))
+        } finally {
+          loginPollRef.current.busy = false
+        }
+      }
+
+      /**
+       * Read the recent message feed. The Host may wrap it in `data` or return
+       * the shape at the top level; both are accepted.
+       */
+      const loadMessages = async () => {
+        if (messagesPollRef.current) return
+        messagesPollRef.current = true
+        try {
+          const payload = await requestJson('/qqbot/messages?limit=50')
+          const container = payload && payload.data !== undefined ? payload.data : payload
+          const list = container !== null && typeof container === 'object' && Array.isArray(container.messages)
+            ? container.messages
+            : []
+          setMessages(list)
+          setMessagesUpdatedAt(container && typeof container.updatedAt === 'string' ? container.updatedAt : null)
+          setMessagesError(null)
+          setMessagesPhase('ready')
+        } catch (error) {
+          setMessagesError(messageOf(error))
+          setMessagesPhase('error')
+        } finally {
+          messagesPollRef.current = false
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -804,12 +956,14 @@ window.__ModuleLoader__.load({
       }, [])
 
       React.useEffect(() => {
+        if (tab === 'messages' && messagesPhase === 'idle') loadMessages()
+        if (tab === 'messages' && contactsPhase === 'idle') loadContacts()
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
         if (tab === 'access' && contactsPhase === 'idle') loadContacts()
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, accessPhase, contactsPhase, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // ------------------------------------------------------------ mutation --
       /**
@@ -889,6 +1043,14 @@ window.__ModuleLoader__.load({
         runPost('access-save', '/qqbot/access', policy, loadAccess, t('accessSaved'))
       }
 
+      const refreshLoginQr = () => {
+        setQrBroken(false)
+        runPost('login-refresh', '/qqbot/napcat/qr/refresh', {}, async () => {
+          await loadLogin()
+          setQrTicket((previous) => previous + 1)
+        }, t('loginRefreshed'))
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -918,6 +1080,29 @@ window.__ModuleLoader__.load({
       const koishiTone = !hasSnapshot ? 'warn' : !koishiExists ? 'bad' : koishiRunning ? 'ok' : 'warn'
       const botText = !hasSnapshot ? '—' : botOnline ? t('stOnline') : t('stOffline')
       const botTone = !hasSnapshot ? 'warn' : botOnline ? 'ok' : 'warn'
+      loggedInRef.current = napcatLoggedIn
+
+      // Load the QR state as soon as the snapshot says the bot is signed out,
+      // then keep both the QR and the message feed fresh while their views are
+      // visible. The interval is created once and reads refs, so a tab switch
+      // never leaves a stale closure polling the wrong endpoint.
+      React.useEffect(() => {
+        if (hasSnapshot && napcatLoggedIn !== true) loadLogin()
+      }, [hasSnapshot, napcatLoggedIn])
+
+      React.useEffect(() => {
+        let disposed = false
+        const tick = () => {
+          if (disposed) return
+          if (tabRef.current === 'overview' && loggedInRef.current !== true) loadLogin()
+          if (tabRef.current === 'messages') loadMessages()
+        }
+        const timer = setInterval(tick, 2000)
+        return () => {
+          disposed = true
+          clearInterval(timer)
+        }
+      }, [])
 
       // ------------------------------------------------------------ fragments --
       const row = (label, value, tone, mono) => h('div', { key: label, className: 'qqbot-row-item' },
@@ -951,6 +1136,7 @@ window.__ModuleLoader__.load({
 
       const tabItems = [
         { id: 'overview', label: t('tabOverview') },
+        { id: 'messages', label: t('tabMessages') },
         { id: 'access', label: t('tabAccess') },
         { id: 'plugins', label: t('tabPlugins') },
         { id: 'features', label: t('tabFeatures') },
@@ -1006,6 +1192,80 @@ window.__ModuleLoader__.load({
         : null
 
       // ------------------------------------------------------------- overview --
+      // ------------------------------------------------------------- login card --
+      const renderLoginCard = () => {
+        if (!hasSnapshot || napcatLoggedIn) return null
+        const info = loginInfo
+        const reachable = info !== null && info.reachable === true
+        const phase = info !== null && typeof info.phase === 'string' ? info.phase : null
+        const phaseText = info === null
+          ? t('loginPhaseUnknown')
+          : phase === 'waiting_qrcode'
+            ? t('loginPhaseWaiting')
+            : phase === 'qrcode_scanned'
+              ? t('loginPhaseScanned')
+              : phase === 'initializing'
+                ? t('loginPhaseInitializing')
+                : phase === 'reconnecting'
+                  ? t('loginPhaseReconnecting')
+                  : t('loginPhaseUnknown')
+        const hasQr = reachable && (
+          info.qrAvailable === true
+          || (info.qrAvailable === undefined && typeof info.qrUrl === 'string' && info.qrUrl !== '')
+        )
+        const qrVisible = hasQr && (phase === null || phase === 'waiting_qrcode' || phase === 'qrcode_scanned')
+        const refreshBusy = busyOf('login-refresh')
+        const startBusy = busyOf('napcat-start')
+        return h('section', { className: 'qqbot-card qqbot-login-card', 'data-testid': 'qqbot-login-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('loginTitle')),
+            h('span', { className: 'qqbot-card-sub', 'data-testid': 'qqbot-login-phase' }, phaseText)),
+          h('p', { className: 'qqbot-hint' }, t('loginHint')),
+          loginError !== null ? h('p', { className: 'qqbot-error' }, loginError) : null,
+          qrVisible
+            ? h('div', { className: 'qqbot-login-qr-wrap' },
+              qrBroken
+                ? h('div', { className: 'qqbot-login-qr-missing' },
+                  h('p', { className: 'qqbot-error' }, t('loginQrFail')),
+                  h('button', {
+                    type: 'button',
+                    className: 'qqbot-btn',
+                    'data-testid': 'qqbot-login-retry',
+                    'aria-label': t('loginRetry'),
+                    onClick: refreshLoginQr,
+                  }, t('loginRetry')))
+                : h('img', {
+                  className: 'qqbot-login-qr',
+                  'data-testid': 'qqbot-login-qr',
+                  src: `/qqbot/napcat/qr?t=${qrTicket}`,
+                  alt: t('loginTitle'),
+                  width: 240,
+                  height: 240,
+                  onError: () => { setQrBroken(true) },
+                }))
+            : h('div', { className: 'qqbot-empty qqbot-login-empty' },
+              info === null || reachable ? t('loginQrLoading') : t('loginNotRunning')),
+          h('div', { className: 'qqbot-btns' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-login-refresh',
+              'aria-label': t('loginRefresh'),
+              'aria-busy': refreshBusy ? 'true' : undefined,
+              disabled: !reachable || refreshBusy,
+              onClick: refreshLoginQr,
+            }, refreshBusy ? t('working') : t('loginRefresh')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-login-start',
+              'aria-label': t('loginStart'),
+              'aria-busy': startBusy ? 'true' : undefined,
+              disabled: napcatRunning || startBusy,
+              onClick: startNapcat,
+            }, napcatRunning ? t('loginRunning') : startBusy ? t('working') : t('loginStart'))))
+      }
+
       const renderOverview = () => {
         if (!hasSnapshot) {
           if (loading) return h('div', { className: 'qqbot-empty', role: 'status' }, t('loading'))
@@ -1070,6 +1330,7 @@ window.__ModuleLoader__.load({
 
         return h('div', { className: 'qqbot-stack' },
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
+          renderLoginCard(),
           h('section', { className: 'qqbot-card' },
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),
@@ -1080,6 +1341,104 @@ window.__ModuleLoader__.load({
               actionButton('napcat-configure', t('configureNapcat'), null, configureNapcat),
               koishi.depsInstalled === false ? actionButton('koishi-install-deps', t('installDeps'), null, installDeps) : null),
             !napcatInstalled ? h('p', { className: 'qqbot-hint' }, t('installNapcatHint')) : null))
+      }
+
+      // --------------------------------------------------------------- messages --
+      const renderMessages = () => {
+        const contactGroups = contacts !== null && Array.isArray(contacts.groups) ? contacts.groups : []
+        const contactFriends = contacts !== null && Array.isArray(contacts.friends) ? contacts.friends : []
+        const groupNames = new Map(contactGroups.map((group) => [String(group.id), group.name]))
+        const friendNames = new Map(contactFriends.map((friend) => [String(friend.id), friend.name]))
+        const items = Array.isArray(messages) ? messages : []
+        const shown = items.filter((message) => {
+          if (messagesFilter === 'all') return true
+          const scene = message.scene === 'private' ? 'private' : 'group'
+          return scene === messagesFilter
+        })
+        const sourceOf = (message) => {
+          const scene = message.scene === 'private' ? 'private' : 'group'
+          if (scene === 'group') {
+            const id = String(message.groupId !== undefined && message.groupId !== null ? message.groupId : (message.targetId ?? ''))
+            return groupNames.get(id) || id || t('messagesUnknownSource')
+          }
+          // Private messages may carry the bot as targetId, so try the sender id
+          // first and fall back to the target before showing a raw number.
+          const candidates = [message.userId, message.targetId]
+            .filter((value) => value !== undefined && value !== null && String(value) !== '')
+            .map((value) => String(value))
+          for (const id of candidates) {
+            const name = friendNames.get(id)
+            if (name !== undefined) return name
+          }
+          return candidates.length > 0 ? candidates[0] : t('messagesUnknownSource')
+        }
+        const senderOf = (message) => {
+          if (typeof message.userName === 'string' && message.userName !== '') return message.userName
+          if (message.userId !== undefined && message.userId !== null) return String(message.userId)
+          return t('messagesUnknownSource')
+        }
+        const filterOptions = [
+          h('option', { key: 'all', value: 'all' }, t('messagesFilterAll')),
+          h('option', { key: 'group', value: 'group' }, t('messagesFilterGroup')),
+          h('option', { key: 'private', value: 'private' }, t('messagesFilterPrivate')),
+        ]
+        const toolbar = h('div', { className: 'qqbot-toolbar' },
+          h('div', { className: 'qqbot-toolbar-left' },
+            h('h2', { className: 'qqbot-card-title' }, t('messagesTitle')),
+            h('span', { className: 'qqbot-card-sub' }, messagesUpdatedAt !== null
+              ? `${t('updated')} ${formatTime(messagesUpdatedAt)}`
+              : '')),
+          h('div', { className: 'qqbot-toolbar-right' },
+            h('select', {
+              id: 'qqbot-messages-filter',
+              className: 'qqbot-select',
+              'data-testid': 'qqbot-messages-filter',
+              'aria-label': t('messagesFilterAll'),
+              value: messagesFilter,
+              onChange: (event) => { setMessagesFilter(event.currentTarget.value) },
+            }, ...filterOptions),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-messages-refresh',
+              'aria-label': t('messagesRefresh'),
+              disabled: messagesPhase === 'loading',
+              onClick: () => { loadMessages() },
+            }, t('refresh'))))
+        const list = h('div', { className: 'qqbot-message-list', 'data-testid': 'qqbot-messages-list' },
+          ...shown.map((message, index) => {
+            const direction = message.direction === 'out' ? 'out' : 'in'
+            return h('div', {
+              key: message.id !== undefined && message.id !== null ? String(message.id) : `message-${index}`,
+              className: 'qqbot-message-row',
+              'data-testid': 'qqbot-message-row',
+              'data-direction': direction,
+              'data-scene': message.scene === 'private' ? 'private' : 'group',
+            },
+              h('div', { className: 'qqbot-message-meta' },
+                h('span', {
+                  className: `qqbot-message-direction qqbot-message-${direction}`,
+                  'data-testid': 'qqbot-message-direction',
+                }, direction === 'in' ? t('messagesDirectionIn') : t('messagesDirectionOut')),
+                h('span', { className: 'qqbot-message-time' }, formatTime(message.time) || '—'),
+                h('span', { className: 'qqbot-message-source' }, sourceOf(message)),
+                h('span', { className: 'qqbot-message-sender' }, senderOf(message))),
+              h('div', { className: 'qqbot-message-content' },
+                typeof message.content === 'string' ? message.content : ''))
+          }))
+        const empty = messages !== null && shown.length === 0
+          ? h('div', { className: 'qqbot-empty' }, t('messagesEmpty'))
+          : null
+        return h('div', { className: 'qqbot-stack' },
+          toolbar,
+          messagesError !== null
+            ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert' }, `${t('messagesLoadFail')}: ${messagesError}`)
+            : null,
+          messagesPhase === 'loading' && messages === null
+            ? h('div', { className: 'qqbot-empty', role: 'status' }, t('messagesLoading'))
+            : null,
+          messages !== null ? h('div', { className: 'qqbot-card' }, list) : null,
+          empty)
       }
 
       // -------------------------------------------------------------- plugins --
@@ -1597,13 +1956,15 @@ window.__ModuleLoader__.load({
 
       const body = tab === 'overview'
         ? renderOverview()
-        : tab === 'access'
-          ? renderAccess()
-          : tab === 'plugins'
-            ? renderPlugins()
-            : tab === 'features'
-              ? renderFeatures()
-              : renderLogs()
+        : tab === 'messages'
+          ? renderMessages()
+          : tab === 'access'
+            ? renderAccess()
+            : tab === 'plugins'
+              ? renderPlugins()
+              : tab === 'features'
+                ? renderFeatures()
+                : renderLogs()
 
       return h('div', { className: 'qqbot-page', 'data-testid': 'qqbot-panel' },
         hero,

@@ -172,17 +172,67 @@ const ACCESS = {
 }
 let accessSaved = null
 
+const LOGIN_WAITING = {
+  reachable: true,
+  loggedIn: false,
+  qq: null,
+  nickname: null,
+  phase: 'waiting_qrcode',
+  qrUrl: '/qqbot/napcat/qr?t=1',
+  qrAvailable: true,
+  coreReady: true,
+  webuiPort: 6099,
+}
+const LOGIN_DONE = {
+  reachable: true,
+  loggedIn: true,
+  qq: '10001',
+  nickname: 'botcat',
+  phase: null,
+  qrUrl: null,
+  qrAvailable: false,
+  coreReady: true,
+  webuiPort: 6099,
+}
+let loginStage = 'waiting'
+
+const MESSAGE_FIXTURE = [
+  { id: 'm1', time: '2026-10-30T10:00:00.000Z', direction: 'in', scene: 'group', targetId: '1026855069', groupId: '1026855069', userId: '5550001', userName: '小明', content: '大家好，今晚开黑吗？' },
+  { id: 'm2', time: '2026-10-30T10:01:00.000Z', direction: 'in', scene: 'private', targetId: '676512192', userId: '676512192', userName: '天青色瞪眼鱼', content: '私聊测试消息' },
+  { id: 'm3', time: '2026-10-30T10:02:00.000Z', direction: 'out', scene: 'group', targetId: '805836168', groupId: '805836168', userId: 'bot', userName: 'bot', content: '好的，已收到' },
+]
+let messagesData = MESSAGE_FIXTURE.slice()
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
   const path = String(url)
-  fetchLog.push({ url: path, method: (init && init.method) || 'GET', body: (init && init.body) || null })
+  const method = (init && init.method) || 'GET'
+  fetchLog.push({ url: path, method, body: (init && init.body) || null })
   const json = (body) => ({ ok: true, status: 200, json: async () => body })
   if (path.startsWith('/qqbot/status')) {
-    return failStatus ? json({ ok: false, error: 'boom' }) : json({ ok: true, data: STATUS })
+    if (failStatus) return json({ ok: false, error: 'boom' })
+    if (loginStage === 'loggedIn') {
+      return json({
+        ok: true,
+        data: {
+          ...STATUS,
+          napcat: { ...STATUS.napcat, installed: true, running: true, loggedIn: true, qq: '10001', nickname: 'botcat' },
+        },
+      })
+    }
+    return json({ ok: true, data: STATUS })
+  }
+  if (path === '/qqbot/napcat/login') {
+    return json({ ok: true, data: loginStage === 'loggedIn' ? LOGIN_DONE : LOGIN_WAITING })
+  }
+  if (path === '/qqbot/napcat/qr/refresh') return json({ ok: true, qrUrl: '/qqbot/napcat/qr?t=2' })
+  if (path.startsWith('/qqbot/napcat/qr')) return json({ ok: true })
+  if (path.startsWith('/qqbot/messages')) {
+    return json({ ok: true, data: { messages: messagesData, total: messagesData.length, updatedAt: '2026-10-30T10:02:00.000Z' } })
   }
   if (path === '/qqbot/access') {
-    if ((init && init.method) === 'POST') {
+    if (method === 'POST') {
       accessSaved = JSON.parse(String(init.body))
       return json({ ok: true, data: accessSaved })
     }
@@ -357,6 +407,7 @@ for (const id of [
   'qqbot-pill-koishi',
   'qqbot-pill-bot',
   'qqbot-tab-overview',
+  'qqbot-tab-messages',
   'qqbot-tab-access',
   'qqbot-tab-plugins',
   'qqbot-tab-features',
@@ -384,6 +435,15 @@ if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/ac
   throw new Error('access policy was not prefetched on mount')
 }
 
+// ---- QR login card (overview) ----------------------------------------------
+expectTestId(tree, 'qqbot-login-card')
+expectTestId(tree, 'qqbot-login-qr')
+if (!text(expectTestId(tree, 'qqbot-login-phase')).includes('等待扫码')) throw new Error('login phase copy missing')
+const qrSrc = String(expectTestId(tree, 'qqbot-login-qr').props.src)
+if (!qrSrc.startsWith('/qqbot/napcat/qr?t=')) throw new Error(`login QR src wrong: ${qrSrc}`)
+expectTestId(tree, 'qqbot-login-refresh')
+console.log('login card: ok')
+
 // ---- action: start everything -> POST JSON ----------------------------------
 clickTestId(tree, 'qqbot-action-all-start')
 tree = await settle()
@@ -392,6 +452,72 @@ if (started.length !== 1) throw new Error(`expected one POST /qqbot/all/start, g
 if (started[0].body !== '{}') throw new Error(`start-all body should be an empty JSON object, got ${String(started[0].body)}`)
 if (findTestId(tree, 'qqbot-banner') === undefined) throw new Error('success banner missing after the action')
 console.log('action POST: ok')
+
+// ---- messages tab -----------------------------------------------------------
+clickTestId(tree, 'qqbot-tab-messages')
+tree = await settle()
+expectTestId(tree, 'qqbot-tab-messages')
+expectTestId(tree, 'qqbot-messages-list')
+expectTestId(tree, 'qqbot-messages-refresh')
+expectTestId(tree, 'qqbot-messages-filter')
+if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url.startsWith('/qqbot/messages'))) {
+  throw new Error('messages were not fetched when the tab opened')
+}
+if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/contacts')) {
+  throw new Error('the messages tab did not ensure contacts were loaded')
+}
+let messageRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-message-row')
+if (messageRows.length !== 3) throw new Error(`expected 3 message rows, got ${messageRows.length}`)
+const messagesText = text(expectTestId(tree, 'qqbot-messages-list'))
+for (const needle of ['龙图群', '天青色瞪眼鱼', '大家好，今晚开黑吗？', '私聊测试消息', '好的，已收到']) {
+  if (!messagesText.includes(needle)) throw new Error(`message copy missing: ${needle}`)
+}
+if (!messagesText.includes('接收') || !messagesText.includes('发送')) throw new Error('message direction labels missing')
+const directions = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-message-direction').map((node) => text(node))
+if (directions.filter((label) => label.includes('接收')).length !== 2) throw new Error(`expected two received messages, got ${directions.join(',')}`)
+if (directions.filter((label) => label.includes('发送')).length !== 1) throw new Error('expected one sent message')
+const messageCallsBefore = fetchLog.filter((entry) => entry.url.startsWith('/qqbot/messages')).length
+clickTestId(tree, 'qqbot-messages-refresh')
+tree = await settle()
+if (fetchLog.filter((entry) => entry.url.startsWith('/qqbot/messages')).length < messageCallsBefore + 1) {
+  throw new Error('messages refresh did not re-fetch')
+}
+const filterSelect = expectTestId(tree, 'qqbot-messages-filter')
+if (filterSelect.props.value !== 'all') throw new Error('default message filter should be all')
+filterSelect.props.onChange({ currentTarget: { value: 'group' } })
+tree = await settle()
+messageRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-message-row')
+if (messageRows.length !== 2) throw new Error(`group filter should leave 2 rows, got ${messageRows.length}`)
+if (messageRows.some((row) => row.props['data-scene'] !== 'group')) throw new Error('group filter leaked a private row')
+expectTestId(tree, 'qqbot-messages-filter').props.onChange({ currentTarget: { value: 'private' } })
+tree = await settle()
+messageRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-message-row')
+if (messageRows.length !== 1) throw new Error(`private filter should leave 1 row, got ${messageRows.length}`)
+if (!text(expectTestId(tree, 'qqbot-messages-list')).includes('私聊测试消息')) throw new Error('private message content missing')
+expectTestId(tree, 'qqbot-messages-filter').props.onChange({ currentTarget: { value: 'all' } })
+tree = await settle()
+messagesData = []
+clickTestId(tree, 'qqbot-messages-refresh')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('还没有收到消息')) throw new Error('messages empty state missing')
+messagesData = MESSAGE_FIXTURE.slice()
+clickTestId(tree, 'qqbot-messages-refresh')
+tree = await settle()
+clickTestId(tree, 'qqbot-tab-overview')
+tree = await settle()
+console.log('messages tab: ok')
+
+// ---- QR refresh + sign-in hides the card -----------------------------------
+const refreshBefore = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/napcat/qr/refresh').length
+clickTestId(tree, 'qqbot-login-refresh')
+tree = await settle()
+const refreshAfter = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/napcat/qr/refresh').length
+if (refreshAfter < refreshBefore + 1) throw new Error('login refresh did not POST /qqbot/napcat/qr/refresh')
+loginStage = 'loggedIn'
+clickTestId(tree, 'qqbot-login-refresh')
+tree = await settle()
+if (findTestId(tree, 'qqbot-login-card') !== undefined) throw new Error('login card should hide after sign-in')
+console.log('login refresh/sign-in: ok')
 
 // ---- plugins tab ------------------------------------------------------------
 clickTestId(tree, 'qqbot-tab-plugins')

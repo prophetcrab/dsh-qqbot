@@ -9,8 +9,10 @@
  * @module dsh-qqbot
  */
 
+import { readFile } from 'node:fs/promises'
 import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
 import { fetchContacts } from './lib/contacts.js'
+import { fetchMessages } from './lib/messages.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -164,6 +166,35 @@ export async function apply(ctx, config) {
     route('/qqbot/contacts', (req, res) => only(req, res, ['GET'], async () => {
       const contacts = await fetchContacts(settings)
       sendJson(res, 200, { ok: contacts.ok, ...contacts })
+    }))
+
+    route('/qqbot/napcat/login', (req, res) => only(req, res, ['GET'], async () => {
+      sendJson(res, 200, { ok: true, data: await napcat.loginState() })
+    }))
+
+    route('/qqbot/napcat/qr', (req, res) => only(req, res, ['GET'], async () => {
+      const file = napcat.qrImagePath()
+      try {
+        const buffer = await readFile(file)
+        res.writeHead(200, {
+          'content-type': 'image/png',
+          'content-length': String(buffer.length),
+          'cache-control': 'no-store',
+        })
+        res.end(buffer)
+      } catch {
+        sendJson(res, 404, { ok: false, error: '登录二维码尚未生成，请先启动 NapCat' })
+      }
+    }))
+
+    route('/qqbot/napcat/qr/refresh', (req, res) => only(req, res, ['POST'], async () => {
+      sendJson(res, 200, await serialize(() => napcat.refreshQr()))
+    }))
+
+    route('/qqbot/messages', (req, res) => only(req, res, ['GET'], async () => {
+      const limit = clampInt(urlParam(req, 'limit'), 50, 1, 200)
+      const feed = await fetchMessages(settings, { limit })
+      sendJson(res, 200, { ok: feed.ok, data: feed, ...(feed.ok ? {} : { error: feed.error }) })
     }))
 
     route('/qqbot/logs', (req, res) => only(req, res, ['GET'], async () => {

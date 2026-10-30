@@ -49,7 +49,7 @@ node scripts/install-profile.mjs --profile desktop --install
    - NapCat：已安装（v4.x）
    - Koishi：项目存在、依赖已安装
 3. 如果 NapCat 未安装：点「安装 NapCat」→ 在安装器里选择版本、授权「App 管理」、切换入口
-4. NapCat 安装器里点「启动 NapCat」，用手机 QQ 扫码登录机器人账号
+4. 点「启动 NapCat」；概览页会直接显示**登录二维码**，用手机 QQ 扫码即可（二维码可刷新，不需要终端）
 5. 回到面板点「写入 OneBot 配置」（自动写 `ws://127.0.0.1:5140/onebot` 并热应用）
 6. 点「一键启动全部」
 7. 状态应显示：NapCat 运行中、Koishi 运行中、机器人在线
@@ -75,6 +75,8 @@ node scripts/install-profile.mjs --profile desktop --install
   - 私聊段可单独勾选好友；all 模式下列表禁用
   - 安静模式：群里只有 `/` 指令或 @机器人 才处理，适合群多、消息杂的场景
   - 策略文件：`~/project/qq-bot/data/access.json`，保存后 Koishi 插件 1 秒内热加载，无需重启
+- 扫码登录：概览页二维码卡片；未登录时每 2 秒自动刷新登录状态
+- 看消息：「消息」页实时显示收到的群聊/私聊消息，可按群聊/私聊筛选
 - 看日志：「日志」页（Koishi 托管进程）；NapCat 日志在 NapCat WebUI
 - 让 Agent 操作：直接说「看一下 QQ 机器人状态」「帮我重启 Koishi」「安装 koishi-plugin-pics」
 

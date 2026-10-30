@@ -11,9 +11,12 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
   - 下载并打开官方 NapCat macOS 安装器（授权、扫码由用户完成，其余自动）
   - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
   - 自动安装 Koishi 项目依赖
-- **一键启动 / 停止**
+- **一键启动 / 停止（无需终端）**
   - NapCat（QQ）、Koishi（`npm start`）分别控制，或一键全启/全停
+  - NapCat 登录二维码直接显示在面板里，扫码即登录；支持刷新二维码
   - 健康检查（`/api/qqbot/health`）、进程状态、托管日志
+- **消息流**
+  - 「消息」页实时查看机器人收到的群聊/私聊消息（发送者、来源、内容、时间），支持筛选与刷新
 - **Koishi 插件管理系统**
   - 列出 koishi.yml 中的插件（本地 / npm / 内置）
   - 启用 / 禁用（切换 `~` 前缀）、安装（npm install + 写配置）、卸载
@@ -175,6 +178,8 @@ dsh-qqbot/
 │   ├── koishi.js             # Koishi 项目/进程/健康/日志
 │   ├── koishi-plugins.js     # koishi.yml 插件管理
 │   ├── access.js             # 权限策略读写/归一化（data/access.json）
+│   ├── contacts.js           # 群/好友列表代理（Koishi /api/qqbot/contacts）
+│   ├── messages.js           # 消息流代理（Koishi /api/qqbot/messages）
 │   ├── features.js           # FeatureRegistry
 │   └── features/             # 内置 Feature（含 access）
 ├── scripts/
@@ -200,8 +205,8 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 70/70 通过（NapCat 24、Koishi 31、平台/Feature 5、权限 7、群友列表 3）
-- Host 冒烟：20 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
+- 单元测试 73/73 通过（NapCat 24、Koishi 31、平台/Feature 5、权限 7、群友列表 3、消息 3）
+- Host 冒烟：24 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
 

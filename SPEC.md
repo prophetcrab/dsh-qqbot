@@ -340,6 +340,10 @@ plugins:
 | GET | `/qqbot/logs?source=koishi&lines=200` | — | `{ ok:true, lines:string[] }` |
 | GET/POST | `/qqbot/access` | AccessPolicy | `{ ok:true, data: AccessPolicy }` |
 | GET | `/qqbot/contacts` | — | `{ ok, groups, friends, selfId?, fetchedAt?, error? }`（代理 Koishi `/api/qqbot/contacts`） |
+| GET | `/qqbot/messages?limit=50` | — | `{ ok, data:{ messages, total, updatedAt } }`（代理 Koishi `/api/qqbot/messages`） |
+| GET | `/qqbot/napcat/login` | — | `{ ok, data:{ reachable, loggedIn, qq, nickname, phase, qrUrl, coreReady, webuiPort } }` |
+| GET | `/qqbot/napcat/qr?t=` | — | `image/png` 登录二维码（未生成时 404 JSON） |
+| POST | `/qqbot/napcat/qr/refresh` | `{}` | `{ ok, qrUrl?, message?, error? }` |
 | GET | `/qqbot/features` | — | `{ ok:true, data: FeatureDescriptor[] }` |
 | GET | `/qqbot/koishi/plugins` | — | `{ ok:true, data: PluginInfo[] }` |
 | POST | `/qqbot/napcat/install` | `{}` | `{ ok, appPath?, message?, error? }` |
