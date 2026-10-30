@@ -1192,6 +1192,83 @@ test('stop on Windows escalates to killPid force and reports failure', async () 
   assert.deepEqual(kills, [{ pid: 4242, force: false }, { pid: 4242, force: true }])
 })
 
+test('stop on Windows force-stops the remaining QQ chain while the WebUI stays reachable', async () => {
+  let clock = 0
+  const alive = new Set([111, 222])
+  const kills = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      detectNapcat: () => ({
+        installed: true,
+        installDir: 'C:/NapCat.Shell',
+        configDir: 'C:/NapCat.Shell/config',
+        version: '4.18.42',
+        accounts: [],
+        webui: { port: 6099, token: null },
+      }),
+      findProcess: (pattern) => {
+        if (pattern === 'C:/NapCat.Shell') {
+          return alive.has(111) ? { running: true, pid: 111 } : { running: false, pid: null }
+        }
+        return alive.has(222) ? { running: true, pid: 222 } : { running: false, pid: null }
+      },
+      killPid: async (pid, options) => {
+        kills.push({ pid, force: options.force })
+        if (options.force === true) alive.delete(pid)
+        return { ok: true }
+      },
+    }),
+    deps: {
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    },
+  })
+  // The WebUI only stops answering once the injected QQ chain is gone.
+  manager.loginStatus = async () => ({ loggedIn: alive.has(222), qq: null, nickname: null })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, true)
+  assert.equal(alive.size, 0)
+  assert.ok(kills.some((entry) => entry.pid === 111 && entry.force === true))
+  assert.ok(kills.some((entry) => entry.pid === 222 && entry.force === true))
+})
+
+test('stop on Windows retries force-kill through an elevated helper when denied', async () => {
+  let clock = 0
+  let alive = true
+  const runs = []
+  const manager = makeManager({
+    platform: windowsPlatform({
+      findProcess: () => (alive ? { running: true, pid: 4242 } : { running: false, pid: null }),
+      killPid: async (pid, options) => {
+        if (options.force === true) return { ok: false, error: 'Access is denied' }
+        return { ok: true }
+      },
+    }),
+    deps: {
+      run: async (file, args) => {
+        runs.push([file, ...args])
+        alive = false
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    },
+  })
+  manager.loginStatus = async () => ({ loggedIn: false, qq: null, nickname: null })
+
+  const result = await manager.stop({ timeoutMs: 1000 })
+  assert.equal(result.ok, true)
+  assert.equal(runs.length, 1)
+  assert.equal(runs[0][0], 'powershell.exe')
+  assert.match(runs[0].join(' '), /taskkill\.exe/u)
+  assert.match(runs[0].join(' '), /4242/u)
+})
+
 test('stop on Windows escalates to force when the graceful taskkill fails', async () => {
   let clock = 0
   let alive = true
@@ -1299,7 +1376,8 @@ test('start on Windows reports a failure when the running QQ cannot be closed', 
     deps: {
       run: async (file, args, options) => {
         runs.push({ file, args, options })
-        return { code: 0, stdout: '', stderr: '' }
+        // Simulate a denied elevation attempt: the elevated taskkill cannot run.
+        return { code: 1, stdout: '', stderr: '用户取消授权' }
       },
       sleep: async () => {},
       now: (() => {
@@ -1317,7 +1395,8 @@ test('start on Windows reports a failure when the running QQ cannot be closed', 
   assert.equal(result.ok, false)
   assert.equal(result.error, 'qq-running')
   assert.match(result.message, /无法结束/u)
-  assert.deepEqual(runs, [])
+  assert.equal(runs.length, 1)
+  assert.equal(runs[0].file, 'powershell.exe')
 })
 
 test('start on Windows repairs the missing QQ-side loadNapCat.js before launching', async (t) => {
