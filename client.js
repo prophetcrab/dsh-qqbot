@@ -127,6 +127,18 @@ window.__ModuleLoader__.load({
       personaPreview: 'Prompt preview',
       personaPreviewShow: 'Show',
       personaPreviewHide: 'Hide',
+      personaPresetsTitle: 'Preset library',
+      personaPresetsHint: 'Save the current card as a named preset, or load one back into the editor.',
+      personaPresetName: 'Preset name',
+      personaPresetSave: 'Save preset',
+      personaPresetLoad: 'Load',
+      personaPresetDelete: 'Delete',
+      personaPresetsEmpty: 'No presets yet.',
+      personaPresetsLoading: 'Loading presets…',
+      personaPresetSaved: 'Preset saved.',
+      personaPresetLoaded: 'Preset loaded into the editor.',
+      personaPresetDeleted: 'Preset deleted.',
+      personaPresetsError: 'Could not update the preset library',
       tabAi: 'AI',
       aiSettingsTitle: 'Reply settings',
       aiSettingsSubtitle: 'Runtime behavior of the group AI chat.',
@@ -421,6 +433,18 @@ window.__ModuleLoader__.load({
       personaPreview: '提示词预览',
       personaPreviewShow: '展开',
       personaPreviewHide: '收起',
+      personaPresetsTitle: '预设卡库',
+      personaPresetsHint: '把当前人设保存为命名预设，或把已有预设加载回编辑器。',
+      personaPresetName: '预设名称',
+      personaPresetSave: '保存预设',
+      personaPresetLoad: '加载',
+      personaPresetDelete: '删除',
+      personaPresetsEmpty: '暂无预设卡。',
+      personaPresetsLoading: '正在读取预设卡…',
+      personaPresetSaved: '预设卡已保存。',
+      personaPresetLoaded: '预设卡已加载到编辑器。',
+      personaPresetDeleted: '预设卡已删除。',
+      personaPresetsError: '预设卡库更新失败',
       tabAi: 'AI',
       aiSettingsTitle: '回复设置',
       aiSettingsSubtitle: '群里 AI 聊天的运行参数。',
@@ -881,6 +905,21 @@ window.__ModuleLoader__.load({
   text-overflow: ellipsis; white-space: nowrap; }
 .qqbot-profile-editor { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
+.qqbot-persona-presets { display: flex; flex-direction: column; gap: 8px; border-top: 0.5px dashed var(--dsw-alias-border-l1);
+  padding-top: 10px; margin-top: 2px; }
+.qqbot-persona-presets-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.qqbot-persona-presets-bar .qqbot-input { flex: 1 1 220px; }
+.qqbot-persona-preset-list { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-persona-preset-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 7px 10px; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+  background: var(--dsw-alias-bg-base); }
+.qqbot-persona-preset-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qqbot-persona-preset-name { font-size: 12px; font-weight: 500; color: var(--dsw-alias-label-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-persona-preset-role { font-size: 10.5px; color: var(--dsw-alias-label-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-persona-preset-row .qqbot-btns { flex: none; }
+
 @media (max-width: 860px) {
   .qqbot-ai-settings-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-profiles-layout { grid-template-columns: minmax(0, 1fr); }
@@ -1238,6 +1277,11 @@ window.__ModuleLoader__.load({
       const [profilesPath, setProfilesPath] = React.useState(null)
       const [selectedProfileKey, setSelectedProfileKey] = React.useState(null)
       const [profileDraft, setProfileDraft] = React.useState(null)
+      const [personaPresets, setPersonaPresets] = React.useState(null)
+      const [personaPresetsPhase, setPersonaPresetsPhase] = React.useState('idle')
+      const [personaPresetsError, setPersonaPresetsError] = React.useState(null)
+      const [personaPresetsPath, setPersonaPresetsPath] = React.useState(null)
+      const [personaPresetName, setPersonaPresetName] = React.useState('')
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
@@ -1486,6 +1530,23 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Persona preset library (AI tab, below the persona card). */
+      const loadPersonaPresets = async () => {
+        setPersonaPresetsPhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/persona/presets')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object' || !Array.isArray(data.presets)) throw new Error('unexpected payload')
+          setPersonaPresets(data.presets)
+          setPersonaPresetsPath(typeof data.path === 'string' ? data.path : null)
+          setPersonaPresetsError(null)
+          setPersonaPresetsPhase('ready')
+        } catch (error) {
+          setPersonaPresetsError(messageOf(error))
+          setPersonaPresetsPhase('error')
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -1505,6 +1566,7 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
         if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
+        if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
         if (tab === 'messages' && messagesPhase === 'idle') loadMessages()
         if (tab === 'messages' && contactsPhase === 'idle') loadContacts()
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
@@ -1512,7 +1574,7 @@ window.__ModuleLoader__.load({
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, aiSettingsPhase, profilesPhase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // ------------------------------------------------------------ mutation --
       /**
@@ -1876,6 +1938,109 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const savePersonaPreset = async () => {
+        if (personaDraft === null || busyOf('persona-preset-save')) return
+        const name = personaPresetName.trim() !== '' ? personaPresetName.trim() : personaDraft.name
+        setBusy((previous) => ({ ...previous, 'persona-preset-save': true }))
+        setPersonaPresetsError(null)
+        try {
+          const result = await requestJson('/qqbot/persona/presets/save', {
+            method: 'POST',
+            body: { name, persona: personaBody(personaDraft) },
+            acceptNotOk: true,
+          })
+          const data = result && result.data
+          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && Array.isArray(data.presets)) {
+            setPersonaPresets(data.presets)
+            if (typeof data.path === 'string') setPersonaPresetsPath(data.path)
+            setPersonaPresetName('')
+            setPersonaPresetsError(null)
+            setPersonaPresetsPhase('ready')
+            setBanner({ kind: 'ok', text: t('personaPresetSaved') })
+          } else {
+            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('personaPresetsError'))
+          }
+        } catch (error) {
+          setPersonaPresetsError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['persona-preset-save']
+            return next
+          })
+        }
+      }
+
+      const loadPersonaPreset = async (preset) => {
+        if (busyOf('persona-preset-load')) return
+        setBusy((previous) => ({ ...previous, 'persona-preset-load': true }))
+        setPersonaPresetsError(null)
+        try {
+          const result = await requestJson('/qqbot/persona/presets/load', {
+            method: 'POST',
+            body: { id: preset.id },
+            acceptNotOk: true,
+          })
+          const data = result && result.data
+          if (result !== null && result.ok === true && data !== null && typeof data === 'object'
+            && data.persona !== null && typeof data.persona === 'object') {
+            setPersonaDraft(draftFromPersona(data.persona))
+            setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
+            if (typeof data.path === 'string') setPersonaPath(data.path)
+            if (Array.isArray(data.presets)) setPersonaPresets(data.presets)
+            setPersonaError(null)
+            setPersonaPhase('ready')
+            setBanner({ kind: 'ok', text: t('personaPresetLoaded') })
+          } else {
+            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('personaPresetsError'))
+          }
+        } catch (error) {
+          setPersonaPresetsError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['persona-preset-load']
+            return next
+          })
+        }
+      }
+
+      const deletePersonaPreset = async (preset) => {
+        if (busyOf('persona-preset-delete')) return
+        setBusy((previous) => ({ ...previous, 'persona-preset-delete': true }))
+        setPersonaPresetsError(null)
+        try {
+          const result = await requestJson('/qqbot/persona/presets/delete', {
+            method: 'POST',
+            body: { id: preset.id },
+            acceptNotOk: true,
+          })
+          const data = result && result.data
+          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && Array.isArray(data.presets)) {
+            setPersonaPresets(data.presets)
+            setPersonaPresetsError(null)
+            setPersonaPresetsPhase('ready')
+            setBanner({ kind: 'ok', text: t('personaPresetDeleted') })
+          } else {
+            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('personaPresetsError'))
+          }
+        } catch (error) {
+          setPersonaPresetsError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['persona-preset-delete']
+            return next
+          })
+        }
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -2162,6 +2327,73 @@ window.__ModuleLoader__.load({
               ? h('pre', { className: 'qqbot-pre qqbot-persona-preview', 'data-testid': 'qqbot-persona-preview' }, personaPreview)
               : null)
 
+        const presetSaving = busyOf('persona-preset-save')
+        const presetLoading = busyOf('persona-preset-load')
+        const presetDeleting = busyOf('persona-preset-delete')
+        const presetList = Array.isArray(personaPresets) ? personaPresets : []
+        const presetsBlock = h('div', { className: 'qqbot-persona-presets', 'data-testid': 'qqbot-persona-presets' },
+          h('span', { className: 'qqbot-field-label' }, t('personaPresetsTitle')),
+          h('p', { className: 'qqbot-hint' }, t('personaPresetsHint')),
+          h('div', { className: 'qqbot-persona-presets-bar' },
+            h('input', {
+              className: 'qqbot-input',
+              type: 'text',
+              'data-testid': 'qqbot-persona-preset-name',
+              'aria-label': t('personaPresetName'),
+              placeholder: t('personaPresetName'),
+              value: personaPresetName,
+              onChange: (event) => { setPersonaPresetName(event.currentTarget.value) },
+            }),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-persona-preset-save',
+              'aria-label': t('personaPresetSave'),
+              'aria-busy': presetSaving ? 'true' : undefined,
+              disabled: presetSaving,
+              onClick: () => { savePersonaPreset() },
+            }, presetSaving ? t('working') : t('personaPresetSave'))),
+          personaPresetsError !== null
+            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-presets-error' }, personaPresetsError)
+            : null,
+          personaPresetsPhase === 'loading' && personaPresets === null
+            ? h('p', { className: 'qqbot-hint' }, t('personaPresetsLoading'))
+            : null,
+          personaPresets !== null && presetList.length === 0
+            ? h('p', { className: 'qqbot-hint' }, t('personaPresetsEmpty'))
+            : null,
+          presetList.length > 0
+            ? h('div', { className: 'qqbot-persona-preset-list' },
+              ...presetList.map((preset) => h('div', {
+                key: String(preset.id),
+                className: 'qqbot-persona-preset-row',
+                'data-testid': 'qqbot-persona-preset-row',
+                'data-preset-id': String(preset.id),
+              },
+                h('div', { className: 'qqbot-persona-preset-main' },
+                  h('span', { className: 'qqbot-persona-preset-name' }, preset.name || String(preset.id)),
+                  h('span', { className: 'qqbot-persona-preset-role' },
+                    preset.persona !== null && typeof preset.persona === 'object' && preset.persona.name ? preset.persona.name : '—')),
+                h('div', { className: 'qqbot-btns' },
+                  h('button', {
+                    type: 'button',
+                    className: 'qqbot-btn',
+                    'data-testid': 'qqbot-persona-preset-load',
+                    'aria-label': `${t('personaPresetLoad')} ${String(preset.name || '')}`,
+                    disabled: presetLoading || presetDeleting,
+                    onClick: () => { loadPersonaPreset(preset) },
+                  }, t('personaPresetLoad')),
+                  h('button', {
+                    type: 'button',
+                    className: 'qqbot-btn qqbot-btn-danger',
+                    'data-testid': 'qqbot-persona-preset-delete',
+                    'aria-label': `${t('personaPresetDelete')} ${String(preset.name || '')}`,
+                    disabled: presetLoading || presetDeleting,
+                    onClick: () => { deletePersonaPreset(preset) },
+                  }, t('personaPresetDelete'))))))
+            : null,
+          personaPresetsPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, personaPresetsPath) : null)
+
         return h('section', { className: 'qqbot-card qqbot-persona-card', 'data-testid': 'qqbot-persona-card' },
           head,
           h('div', { className: 'qqbot-form' },
@@ -2207,6 +2439,7 @@ window.__ModuleLoader__.load({
             ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-error' }, personaError)
             : null,
           previewBlock,
+          presetsBlock,
           personaPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, personaPath) : null)
       }
 

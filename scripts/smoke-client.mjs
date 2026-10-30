@@ -287,6 +287,22 @@ const PROFILE_FIXTURE = [
 ]
 let profilesState = PROFILE_FIXTURE.slice()
 
+const PERSONA_PRESET = {
+  id: 'preset-1',
+  name: '默认卡',
+  persona: {
+    name: '预设角色',
+    role: '预设身份',
+    tone: '预设语气',
+    personality: '预设性格',
+    rules: '预设规则',
+    examples: [{ user: '预设问题', assistant: '预设回答' }],
+  },
+  createdAt: '2026-10-30T10:00:00.000Z',
+  updatedAt: '2026-10-30T10:00:00.000Z',
+}
+let personaPresetsState = [PERSONA_PRESET]
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -342,6 +358,41 @@ globalThis.fetch = async (url, init) => {
     const body = JSON.parse(String(init.body))
     profilesState = profilesState.filter((item) => item.key !== body.key)
     return json({ ok: true, data: { deleted: true, path: '~/project/qq-bot/data/profiles.json' } })
+  }
+  if (path === '/qqbot/persona/presets') {
+    return json({ ok: true, data: { presets: personaPresetsState, active: personaState.persona, path: '~/project/qq-bot/data/persona-presets.json' } })
+  }
+  if (path === '/qqbot/persona/presets/save') {
+    const body = JSON.parse(String(init.body))
+    const preset = {
+      id: `preset-${personaPresetsState.length + 1}`,
+      name: body.name,
+      persona: body.persona,
+      createdAt: '2026-10-30T10:05:00.000Z',
+      updatedAt: '2026-10-30T10:05:00.000Z',
+    }
+    personaPresetsState = [...personaPresetsState, preset]
+    return json({ ok: true, data: { preset, presets: personaPresetsState, path: '~/project/qq-bot/data/persona-presets.json' } })
+  }
+  if (path === '/qqbot/persona/presets/load') {
+    const body = JSON.parse(String(init.body))
+    const preset = personaPresetsState.find((item) => item.id === body.id) ?? null
+    if (preset === null) return json({ ok: false, error: '预设卡不存在' })
+    return json({
+      ok: true,
+      data: {
+        preset,
+        persona: preset.persona,
+        promptPreview: `【角色设定】\n名称：${preset.persona.name}`,
+        presets: personaPresetsState,
+        path: '~/project/qq-bot/data/persona.json',
+      },
+    })
+  }
+  if (path === '/qqbot/persona/presets/delete') {
+    const body = JSON.parse(String(init.body))
+    personaPresetsState = personaPresetsState.filter((item) => item.id !== body.id)
+    return json({ ok: true, data: { deleted: true, presets: personaPresetsState, path: '~/project/qq-bot/data/persona-presets.json' } })
   }
   if (path === '/qqbot/persona') {
     return json({ ok: true, data: personaState })
@@ -775,6 +826,51 @@ if (resetBody.reset !== true) throw new Error(`reset body wrong: ${JSON.stringif
 if (expectTestId(tree, 'qqbot-persona-name').props.value !== '默认人设') throw new Error('persona not refreshed after reset')
 if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('默认人设')) throw new Error('persona preview not updated after reset')
 console.log('persona reset: ok')
+
+// ---- persona presets --------------------------------------------------------
+expectTestId(tree, 'qqbot-persona-presets')
+expectTestId(tree, 'qqbot-persona-preset-name')
+expectTestId(tree, 'qqbot-persona-preset-save')
+let presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
+if (presetRows.length !== 1) throw new Error(`expected one preset row, got ${presetRows.length}`)
+if (!text(presetRows[0]).includes('默认卡') || !text(presetRows[0]).includes('预设角色')) {
+  throw new Error('preset row is missing its name or persona name')
+}
+expectTestId(tree, 'qqbot-persona-preset-name').props.onChange({ currentTarget: { value: '我的卡' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-persona-preset-save')
+tree = await settle()
+const presetSavePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/save')
+if (presetSavePosts.length !== 1) throw new Error(`expected one preset save POST, got ${presetSavePosts.length}`)
+const presetSaveBody = JSON.parse(String(presetSavePosts[0].body))
+if (presetSaveBody.name !== '我的卡') throw new Error(`preset name wrong: ${String(presetSaveBody.name)}`)
+if (!presetSaveBody.persona || presetSaveBody.persona.name !== '默认人设') throw new Error('preset persona should be the current editor draft')
+presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
+if (presetRows.length !== 2) throw new Error(`expected two preset rows after save, got ${presetRows.length}`)
+console.log('persona presets save: ok')
+
+const presetLoadButtons = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-load')
+if (presetLoadButtons.length !== 2) throw new Error(`expected two preset load buttons, got ${presetLoadButtons.length}`)
+presetLoadButtons[0].props.onClick()
+tree = await settle()
+const presetLoadPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/load')
+if (presetLoadPosts.length !== 1) throw new Error(`expected one preset load POST, got ${presetLoadPosts.length}`)
+if (JSON.parse(String(presetLoadPosts[0].body)).id !== 'preset-1') throw new Error('preset load id wrong')
+if (expectTestId(tree, 'qqbot-persona-name').props.value !== '预设角色') throw new Error('persona name not loaded from preset')
+if (expectTestId(tree, 'qqbot-persona-role').props.value !== '预设身份') throw new Error('persona role not loaded from preset')
+if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('预设角色')) throw new Error('persona preview not updated after preset load')
+console.log('persona presets load: ok')
+
+const presetDeleteButtons = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-delete')
+if (presetDeleteButtons.length !== 2) throw new Error(`expected two preset delete buttons, got ${presetDeleteButtons.length}`)
+presetDeleteButtons[1].props.onClick()
+tree = await settle()
+const presetDeletePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/delete')
+if (presetDeletePosts.length !== 1) throw new Error(`expected one preset delete POST, got ${presetDeletePosts.length}`)
+if (JSON.parse(String(presetDeletePosts[0].body)).id !== 'preset-2') throw new Error('preset delete id wrong')
+presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
+if (presetRows.length !== 1) throw new Error(`expected one preset row after delete, got ${presetRows.length}`)
+console.log('persona presets delete: ok')
 
 // ---- AI reply settings ------------------------------------------------------
 expectTestId(tree, 'qqbot-ai-settings-card')

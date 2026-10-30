@@ -56,7 +56,7 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 35, `expected at least 35 routes, got ${routes.size}`)
+assert.ok(routes.size >= 39, `expected at least 39 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
@@ -74,6 +74,10 @@ for (const required of [
   '/qqbot/profiles',
   '/qqbot/profiles/save',
   '/qqbot/profiles/delete',
+  '/qqbot/persona/presets',
+  '/qqbot/persona/presets/save',
+  '/qqbot/persona/presets/load',
+  '/qqbot/persona/presets/delete',
   '/qqbot/persona',
   '/qqbot/persona/save',
   '/qqbot/koishi/plugins',
@@ -143,6 +147,11 @@ try {
   const profilesBody = await profilesResponse.json()
   assert.equal(profilesBody.ok, true)
   assert.ok(Array.isArray(profilesBody.data.profiles))
+
+  const presetsResponse = await fetch(`${base}/qqbot/persona/presets`)
+  const presetsBody = await presetsResponse.json()
+  assert.equal(presetsBody.ok, true)
+  assert.ok(Array.isArray(presetsBody.data.presets))
 
   const personaResponse = await fetch(`${base}/qqbot/persona`)
   const personaBody = await personaResponse.json()

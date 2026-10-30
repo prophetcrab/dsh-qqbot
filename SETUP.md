@@ -73,6 +73,7 @@ node scripts/install-profile.mjs --profile desktop --install
 2. AI 会读取本群最近最多 100 条消息作为背景（只回复当前消息）；不同人的消息并发处理，同一人连续消息静默排队
 3. 触发方式/上下文：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`replyProbability`、`followUpMinutes`、`historyLimit`）
 4. 人设：DSH 面板「AI」页 →「人设卡」，编辑角色/语气/性格/行为准则/few-shot 示例并保存；它作为系统提示词第一段，保存在 `qq-bot/data/persona.json`
+   - 人设卡下方可把当前人设保存成命名预设，随时加载/删除；预设保存在 `qq-bot/data/persona-presets.json`
    - 「回复设置」可调概率、跟进分钟数、上下文条数，保存后立即生效
    - 「人物画像」可查看/编辑/删除已保存的按 QQ 号画像
 5. 调整模型/提示词：在 `cordis.patch.yml` 配 `aiProvider/aiModel/aiSystemPrompt`；DSH 面板「AI 聊天」卡片可点「测试 AI」验证链路

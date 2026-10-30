@@ -24,6 +24,12 @@ import {
   readPersonaFile,
   writePersonaFile,
 } from './lib/persona.js'
+import {
+  loadPresetStore,
+  removePreset,
+  savePresetStore,
+  upsertPreset,
+} from './lib/persona-presets.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -63,6 +69,7 @@ export async function apply(ctx, config) {
   const plugins = new KoishiPluginsManager({ koishi, settings, logger: ctx.logger('qqbot/plugins') })
   const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
   const personaPath = join(settings.projectDir, 'data', 'persona.json')
+  const personaPresetsPath = join(settings.projectDir, 'data', 'persona-presets.json')
   const profilesPath = join(settings.projectDir, 'data', 'profiles.json')
   const aiSettingsPath = join(settings.projectDir, 'data', 'ai-settings.json')
   const ai = new AiChatService({ ctx, settings, personaPath, profilesPath, logger: ctx.logger('qqbot/ai') })
@@ -306,6 +313,49 @@ export async function apply(ctx, config) {
       const limit = clampInt(urlParam(req, 'limit'), 50, 1, 200)
       const feed = await fetchMessages(settings, { limit })
       sendJson(res, 200, { ok: feed.ok, data: feed, ...(feed.ok ? {} : { error: feed.error }) })
+    }))
+
+    route('/qqbot/persona/presets', (req, res) => only(req, res, ['GET'], async () => {
+      const store = await loadPresetStore(personaPresetsPath)
+      const active = (await readPersonaFile(personaPath)) ?? normalizePersona(DEFAULT_PERSONA)
+      sendJson(res, 200, { ok: true, data: { presets: store.presets, active, path: personaPresetsPath } })
+    }))
+
+    route('/qqbot/persona/presets/save', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const store = await loadPresetStore(personaPresetsPath)
+      const active = (await readPersonaFile(personaPath)) ?? normalizePersona(DEFAULT_PERSONA)
+      const persona = body.persona !== null && typeof body.persona === 'object' ? normalizePersona(body.persona) : active
+      const saved = upsertPreset(store, {
+        ...(typeof body.id === 'string' ? { id: body.id } : {}),
+        ...(typeof body.name === 'string' && body.name.trim() !== '' ? { name: body.name } : { name: persona.name }),
+        persona,
+      })
+      await savePresetStore(personaPresetsPath, store)
+      sendJson(res, 200, { ok: true, data: { preset: saved, presets: store.presets, path: personaPresetsPath } })
+    }))
+
+    route('/qqbot/persona/presets/load', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const store = await loadPresetStore(personaPresetsPath)
+      const preset = store.presets.find((item) => item.id === body.id) ?? null
+      if (preset === null) {
+        sendJson(res, 404, { ok: false, error: '预设卡不存在' })
+        return
+      }
+      const persona = await writePersonaFile(personaPath, preset.persona)
+      sendJson(res, 200, {
+        ok: true,
+        data: { preset, persona, promptPreview: buildPersonaPrompt(persona), presets: store.presets, path: personaPath },
+      })
+    }))
+
+    route('/qqbot/persona/presets/delete', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const store = await loadPresetStore(personaPresetsPath)
+      const deleted = removePreset(store, typeof body.id === 'string' ? body.id : '')
+      if (deleted) await savePresetStore(personaPresetsPath, store)
+      sendJson(res, 200, { ok: deleted, data: { deleted, presets: store.presets, path: personaPresetsPath } })
     }))
 
     route('/qqbot/persona', (req, res) => only(req, res, ['GET'], async () => {
