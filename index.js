@@ -420,7 +420,7 @@ export async function apply(ctx, config) {
     }))
 
     route('/qqbot/ai/last-prompt', (req, res) => only(req, res, ['GET'], async () => {
-      sendJson(res, 200, { ok: true, data: { prompt: ai.lastPromptSnapshot() } })
+      sendJson(res, 200, { ok: true, data: { prompt: ai.lastPromptSnapshot(), gate: ai.lastGateSnapshot() } })
     }))
 
     route('/qqbot/ai/status', (req, res) => only(req, res, ['GET'], async () => {

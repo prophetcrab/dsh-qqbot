@@ -298,3 +298,63 @@ test('chat: records the last full prompt for the panel preview', async () => {
   assert.equal(snapshot.messages.length, 1)
   assert.equal(snapshot.messages[0].text, '@小明 在吗')
 })
+
+
+function scriptedLlm(scripts) {
+  const calls = []
+  let index = 0
+  return {
+    calls,
+    llm: {
+      stream: async function* (options) {
+        calls.push(options)
+        const text = scripts[Math.min(index, scripts.length - 1)]
+        index += 1
+        if (text !== null) yield { type: 'text-delta', index: 0, text }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+}
+
+test('self-check: persona can decline a triggered message without calling the main reply', async () => {
+  const scripted = scriptedLlm(['{"reply":false,"reason":"与我无关"}', '不该被调用'])
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: scripted.llm,
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({ messages: [{ role: 'user', text: '他们聊他们的' }] })
+  assert.equal(result.ok, true)
+  assert.equal(result.skipped, true)
+  assert.match(result.reason, /与我无关/u)
+  assert.equal(scripted.calls.length, 1)
+  assert.equal(ai.lastGateSnapshot().reply, false)
+})
+
+test('self-check: accepted message proceeds to the main reply', async () => {
+  const scripted = scriptedLlm(['{"reply":true,"reason":"可以聊"}', '那就一起呀'])
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: scripted.llm,
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({ messages: [{ role: 'user', text: '要一起吗' }] })
+  assert.equal(result.ok, true)
+  assert.equal(result.skipped, undefined)
+  assert.equal(result.reply, '那就一起呀')
+  assert.equal(scripted.calls.length, 2)
+})
+
+test('self-check: malformed verdict falls back to replying', async () => {
+  const scripted = scriptedLlm(['不是 JSON', '照常回复'])
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: scripted.llm,
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({ messages: [{ role: 'user', text: '你好' }] })
+  assert.equal(result.ok, true)
+  assert.equal(result.reply, '照常回复')
+  assert.equal(scripted.calls.length, 2)
+})

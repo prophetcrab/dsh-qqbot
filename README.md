@@ -204,6 +204,7 @@ node scripts/install-profile.mjs --profile desktop --install
 | `aiSystemPrompt` | 内置中文提示 | 群聊 AI 系统提示词 |
 | `aiMaxTokens` | `800` | 回复 token 上限 |
 | `aiTemperature` | `0.7` | 采样温度 |
+| `aiSelfCheck` | `true` | 触发后先按人设判断是否回复 |
 | `logLines` | `200` | 日志/状态返回的行数上限 |
 
 ## 扩展：注册自己的功能
