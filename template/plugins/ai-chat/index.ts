@@ -123,6 +123,14 @@ function readDiscovery(file: string): Discovery | null {
 }
 
 /** 按长度/换行把长回复拆成 QQ 可发送的片段。 */
+/** Remove leaked context labels from a reply (defense in depth beside the host sanitizer). */
+export function sanitizeReplyText(text: string): string {
+  return String(text ?? '')
+    .replace(/^\s*[\[【](?:背景|当前消息|群聊背景|历史|上下文)[\]】]\s*(?:AI|[^：\n]{0,40})?\s*[:：]?\s*/u, '')
+    .replace(/^\s*AI\s*[:：]\s*/u, '')
+    .trim()
+}
+
 export function splitReply(text: string, max: number): string[] {
   const limit = Math.max(100, Math.trunc(max))
   const parts: string[] = []
@@ -273,15 +281,11 @@ export function apply(ctx: Context, config: Config): void {
     history.set(key, list)
   }
 
-  const buildRequestMessages = (key: string, current: HistoryMessage): HistoryMessage[] => {
+  const buildBackground = (key: string): string => {
     const background = (history.get(key) ?? []).slice(-Math.max(0, runtime.historyLimit))
-    return [
-      ...background.map((item) => ({
-        role: item.role,
-        text: `[背景] ${item.role === 'assistant' ? 'AI' : item.name ?? '群友'}：${item.text}`,
-      })),
-      { role: 'user', text: `[当前消息] ${current.name ?? '群友'}：${current.text}` },
-    ]
+    return background
+      .map((item) => `- ${item.role === 'assistant' ? 'AI' : item.name ?? '群友'}：${String(item.text).slice(0, 500)}`)
+      .join('\n')
   }
 
   ctx.middleware(async (session, next) => {
@@ -354,7 +358,8 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
     const current: HistoryMessage = { role: 'user', name, text: prompt }
-    const messages = buildRequestMessages(key, current)
+    const messages: HistoryMessage[] = [{ role: 'user', text: prompt }]
+    const background = buildBackground(key)
     try {
       const images = imageUrls.length > 0 ? await downloadImages(session, config) : []
       const controller = new AbortController()
@@ -367,6 +372,7 @@ export function apply(ctx: Context, config: Config): void {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             messages,
+            background,
             images,
             groupId: key,
             userId: String(session.userId ?? ''),
@@ -387,7 +393,7 @@ export function apply(ctx: Context, config: Config): void {
         await session.send(`AI 暂时不可用：${error.slice(0, 200)}`)
         return
       }
-      const reply = String(data.reply).trim()
+      const reply = sanitizeReplyText(String(data.reply).trim())
       if (reply === '') return
       const followMs = runtime.followUpMinutes * 60 * 1000
       if (followMs > 0) followUntil.set(followKey(session), Date.now() + followMs)

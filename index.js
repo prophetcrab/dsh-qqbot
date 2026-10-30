@@ -382,6 +382,7 @@ export async function apply(ctx, config) {
         ...(typeof body.groupId === 'string' ? { groupId: body.groupId } : {}),
         ...(typeof body.userId === 'string' ? { userId: body.userId } : {}),
         ...(typeof body.userName === 'string' ? { userName: body.userName } : {}),
+        ...(typeof body.background === 'string' ? { background: body.background } : {}),
         ...(typeof body.system === 'string' ? { system: body.system } : {}),
       })
       sendJson(res, 200, result)

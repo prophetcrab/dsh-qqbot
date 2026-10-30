@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { AiChatService, normalizeMessages } from '../lib/ai.js'
+import { AiChatService, normalizeMessages, sanitizeReply } from '../lib/ai.js'
 
 const logger = { info() {}, warn() {}, error() {}, debug() {} }
 
@@ -232,4 +232,13 @@ test('profile panel methods: save, list with search, delete', async () => {
   assert.equal(await ai.deleteProfile('g1:20000'), true)
   assert.equal((await ai.listProfiles()).length, 0)
   await rm(dir, { recursive: true, force: true })
+})
+
+
+test('sanitizeReply: strips context labels and speaker prefixes only', () => {
+  assert.equal(sanitizeReply('[背景] AI：这是回复'), '这是回复')
+  assert.equal(sanitizeReply('[当前消息] 小明：这是回复'), '这是回复')
+  assert.equal(sanitizeReply('第一行\n[背景] AI：第二行'), '第一行\n第二行')
+  assert.equal(sanitizeReply('【当前消息】回复内容'), '回复内容')
+  assert.equal(sanitizeReply('正常内容 [图片] 保留'), '正常内容 [图片] 保留')
 })
