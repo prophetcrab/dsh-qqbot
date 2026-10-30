@@ -1,6 +1,6 @@
 {
   "name": "dsh-qqbot",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "QQ bot control center for DeepSeek Harness: one-click NapCat/Koishi setup, lifecycle management, a Koishi plugin manager, and an extensible feature registry.",
   "license": "MIT",
   "author": "prophetcrab",
