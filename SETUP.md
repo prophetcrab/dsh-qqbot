@@ -2,8 +2,8 @@
 
 本文按当前这台 Mac 的实际环境编写：macOS（Apple Silicon）、DSH 桌面版 `desktop` profile、QQ + NapCat 已安装、Koishi 项目在 `~/project/qq-bot`。
 
-> 当前状态：本插件已经写入 `desktop` profile（依赖 + bundles + patch，且已 `pnpm install`）。
-> **只需完全退出 DeepSeek Harness（Cmd+Q）再重新打开**，即可在侧边栏看到「QQ 机器人」。
+> 当前状态：本插件已经写入 `desktop` profile（依赖 + bundles + patch，且已 `pnpm install`，并已热加载）。
+> 如果侧边栏没有「QQ 机器人」，先刷新页面（Cmd+R）；仍没有则完全退出 DSH（Cmd+Q）再打开。
 > 被修改的 profile 文件已自动备份为 `package.json.bak-*` / `cordis.patch.yml.bak-*`。
 
 ## 前置状态检查
@@ -54,6 +54,7 @@ node scripts/install-profile.mjs --profile desktop --install
 6. 点「一键启动全部」
 7. 状态应显示：NapCat 运行中、Koishi 运行中、机器人在线
 8. 用另一个 QQ 账号在群里发 `/echo 你好` 验证
+9. 打开「权限」页：默认全部放行；建议把常用群加入接收白名单，或开启安静模式，避免机器人处理所有群消息
 
 > 如果之前已经手工配置过 NapCat（本机当前就是），插件检测到已有 `koishi` 客户端后会保持幂等，不会重复添加。
 
@@ -64,6 +65,10 @@ node scripts/install-profile.mjs --profile desktop --install
   - 在「插件」页启用/禁用、卸载，或输入 npm 包名安装
   - 勾选「操作后重启 Koishi」即可生效
   - 也可以直接用面板外的 `npm start`，插件会检测到并识别为外部运行
+- 权限管理：「权限」页配置接收/发送白名单、黑名单、私聊开关与安静模式
+  - 接收白名单：只处理列表内群的消息；发送白名单：只向列表内群发消息
+  - 安静模式：群里只有 `/` 指令或 @机器人 才处理，适合群多、消息杂的场景
+  - 策略文件：`~/project/qq-bot/data/access.json`，保存后 Koishi 插件 1 秒内热加载，无需重启
 - 看日志：「日志」页（Koishi 托管进程）；NapCat 日志在 NapCat WebUI
 - 让 Agent 操作：直接说「看一下 QQ 机器人状态」「帮我重启 Koishi」「安装 koishi-plugin-pics」
 
@@ -86,6 +91,7 @@ node scripts/install-profile.mjs --uninstall
 | 「写入 OneBot 配置」失败 | 确认 NapCat 正在运行、WebUI 端口可访问（默认 6099）；插件会退化为直接写文件，重启 NapCat 生效 |
 | 一键启动后机器人不在线 | 看状态卡的 NapCat 是否已登录、Koishi 健康检查是否通；到「日志」页看 Koishi 报错 |
 | 插件管理改完不生效 | 勾选重启，或手动重启 Koishi；`koishi.yml` 由 Koishi Loader 自动维护，插件的增删是文本级操作 |
+| 权限策略不生效 | 确认 Koishi 已加载 `access-control` 插件（「插件」页可见）；策略保存后约 1 秒热加载，无需重启 |
 | 端口冲突 | 在 `cordis.patch.yml` 修改 `koishiPort` / `napcatPort`，并让 NapCat 反向 WS 指向新端口 |
 
 ## 恢复/清理

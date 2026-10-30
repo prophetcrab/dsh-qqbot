@@ -142,6 +142,21 @@ const FEATURES = [
 
 const LOG_LINES = ['[koishi] ready', '[koishi] bot online']
 
+const ACCESS = {
+  version: 1,
+  updatedAt: '2026-10-30T00:00:00.000Z',
+  inbound: {
+    groups: { mode: 'whitelist', ids: ['123456', '234567'] },
+    private: { mode: 'all', ids: [] },
+    quiet: { enabled: false, prefixes: ['/'] },
+  },
+  outbound: {
+    groups: { mode: 'blacklist', ids: ['999999'] },
+    private: { mode: 'whitelist', ids: [] },
+  },
+}
+let accessSaved = null
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -150,6 +165,13 @@ globalThis.fetch = async (url, init) => {
   const json = (body) => ({ ok: true, status: 200, json: async () => body })
   if (path.startsWith('/qqbot/status')) {
     return failStatus ? json({ ok: false, error: 'boom' }) : json({ ok: true, data: STATUS })
+  }
+  if (path === '/qqbot/access') {
+    if ((init && init.method) === 'POST') {
+      accessSaved = JSON.parse(String(init.body))
+      return json({ ok: true, data: accessSaved })
+    }
+    return json({ ok: true, data: accessSaved ?? ACCESS })
   }
   if (path.startsWith('/qqbot/koishi/plugins')) return json({ ok: true, data: PLUGINS })
   if (path.startsWith('/qqbot/features')) return json({ ok: true, data: FEATURES })
@@ -294,6 +316,7 @@ for (const id of [
   'qqbot-pill-koishi',
   'qqbot-pill-bot',
   'qqbot-tab-overview',
+  'qqbot-tab-access',
   'qqbot-tab-plugins',
   'qqbot-tab-features',
   'qqbot-tab-logs',
@@ -316,6 +339,9 @@ expectTestId(tree, 'qqbot-action-napcat-start')
 expectTestId(tree, 'qqbot-action-koishi-start')
 expectTestId(tree, 'qqbot-action-koishi-restart')
 console.log('overview testids: ok')
+if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/access')) {
+  throw new Error('access policy was not prefetched on mount')
+}
 
 // ---- action: start everything -> POST JSON ----------------------------------
 clickTestId(tree, 'qqbot-action-all-start')
@@ -380,10 +406,80 @@ if (!lastLogCall.url.includes('source=napcat')) throw new Error(`napcat source n
 if (findTestId(tree, 'qqbot-logs-source-napcat').props['aria-pressed'] !== 'true') throw new Error('napcat source did not activate')
 console.log('logs source switch: ok')
 
+// ---- access tab -------------------------------------------------------------
+clickTestId(tree, 'qqbot-tab-access')
+tree = await settle()
+for (const id of [
+  'qqbot-tab-access',
+  'qqbot-access-inbound-mode',
+  'qqbot-access-inbound-groups',
+  'qqbot-access-outbound-mode',
+  'qqbot-access-outbound-groups',
+  'qqbot-access-private-inbound',
+  'qqbot-access-private-outbound',
+  'qqbot-access-quiet',
+  'qqbot-access-prefixes',
+  'qqbot-access-save',
+]) {
+  expectTestId(tree, id)
+}
+const accessText = text(expectTestId(tree, 'qqbot-panel'))
+if (!accessText.includes('接收') || !accessText.includes('发送')) throw new Error('access policy cards missing')
+if (!accessText.includes('相互独立')) throw new Error('access independence note missing')
+const inboundMode = expectTestId(tree, 'qqbot-access-inbound-mode')
+if (inboundMode.props.value !== 'whitelist') throw new Error(`loaded inbound mode wrong: ${String(inboundMode.props.value)}`)
+const inboundGroups = expectTestId(tree, 'qqbot-access-inbound-groups')
+if (!String(inboundGroups.props.value).includes('123456')) throw new Error('loaded inbound group ids missing')
+if (expectTestId(tree, 'qqbot-access-outbound-mode').props.value !== 'blacklist') throw new Error('loaded outbound mode wrong')
+if (expectTestId(tree, 'qqbot-access-private-inbound').props.checked !== true) throw new Error('loaded inbound private switch wrong')
+if (expectTestId(tree, 'qqbot-access-private-outbound').props.checked !== false) throw new Error('loaded outbound private switch wrong')
+console.log('access tab load: ok')
+
+// edit the draft, then save: ids are trimmed/de-duped/numeric, switches map to all/whitelist
+inboundMode.props.onChange({ currentTarget: { value: 'all' } })
+tree = await settle()
+expectTestId(tree, 'qqbot-access-inbound-groups').props.onChange({ currentTarget: { value: '123456, 234567\n123456\nabc' } })
+tree = await settle()
+expectTestId(tree, 'qqbot-access-private-inbound').props.onChange({ currentTarget: { checked: false } })
+tree = await settle()
+expectTestId(tree, 'qqbot-access-private-outbound').props.onChange({ currentTarget: { checked: true } })
+tree = await settle()
+expectTestId(tree, 'qqbot-access-quiet').props.onChange({ currentTarget: { checked: true } })
+tree = await settle()
+expectTestId(tree, 'qqbot-access-prefixes').props.onChange({ currentTarget: { value: '! , #   !' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-access-save')
+tree = await settle()
+
+const accessPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/access')
+if (accessPosts.length !== 1) throw new Error(`expected one POST /qqbot/access, got ${accessPosts.length}`)
+const accessBody = JSON.parse(String(accessPosts[0].body))
+if (accessBody.version !== 1 || typeof accessBody.updatedAt !== 'string') throw new Error('access policy version/timestamp missing')
+if (!accessBody.inbound || !accessBody.outbound || !accessBody.inbound.quiet) throw new Error('access policy sections missing')
+if (accessBody.inbound.groups.mode !== 'all') throw new Error('inbound mode not sent')
+if (JSON.stringify(accessBody.inbound.groups.ids) !== JSON.stringify(['123456', '234567'])) {
+  throw new Error(`inbound ids not sanitized: ${JSON.stringify(accessBody.inbound.groups.ids)}`)
+}
+if (accessBody.inbound.private.mode !== 'whitelist' || accessBody.inbound.private.ids.length !== 0) {
+  throw new Error(`inbound private mapping wrong: ${JSON.stringify(accessBody.inbound.private)}`)
+}
+if (accessBody.outbound.private.mode !== 'all' || accessBody.outbound.private.ids.length !== 0) {
+  throw new Error(`outbound private mapping wrong: ${JSON.stringify(accessBody.outbound.private)}`)
+}
+if (accessBody.inbound.quiet.enabled !== true) throw new Error('quiet flag not sent')
+if (JSON.stringify(accessBody.inbound.quiet.prefixes) !== JSON.stringify(['!', '#'])) {
+  throw new Error(`prefixes not sanitized: ${JSON.stringify(accessBody.inbound.quiet.prefixes)}`)
+}
+if (accessBody.outbound.groups.mode !== 'blacklist') throw new Error('outbound mode changed unexpectedly')
+const saveBanner = findTestId(tree, 'qqbot-banner')
+if (saveBanner === undefined || !text(saveBanner).includes('权限策略已保存')) throw new Error('save banner missing')
+console.log('access save POST: ok')
+
 // ---- locale flip ------------------------------------------------------------
 currentLang = 'en'
 tree = await settle()
 if (!text(expectTestId(tree, 'qqbot-panel')).includes('QQ bot')) throw new Error('en title missing after locale switch')
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('Access policy')) throw new Error('en access copy missing after locale switch')
 currentLang = 'zh'
 
 // ---- installed / running state ---------------------------------------------

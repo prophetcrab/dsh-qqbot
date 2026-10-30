@@ -9,6 +9,7 @@
  * @module dsh-qqbot
  */
 
+import { accessPath, normalizePolicy, readPolicy, summarizePolicy, writePolicy } from './lib/access.js'
 import { FeatureRegistry, loadBuiltinFeatures } from './lib/features.js'
 import { KoishiManager } from './lib/koishi.js'
 import { KoishiPluginsManager } from './lib/koishi-plugins.js'
@@ -145,6 +146,18 @@ export async function apply(ctx, config) {
       }
       const result = await registry.run(featureId, actionId, body.params ?? {})
       sendJson(res, 200, { ok: result?.ok !== false, data: result })
+    }))
+
+    route('/qqbot/access', (req, res) => only(req, res, ['GET', 'POST'], async () => {
+      const file = accessPath(settings)
+      if (req.method === 'GET') {
+        const { policy, exists, error } = await readPolicy(file)
+        sendJson(res, 200, { ok: true, data: policy, exists, ...(error ? { warning: error } : {}) })
+        return
+      }
+      const body = await readBody(req)
+      const policy = await serialize(() => writePolicy(file, body))
+      sendJson(res, 200, { ok: true, data: policy })
     }))
 
     route('/qqbot/logs', (req, res) => only(req, res, ['GET'], async () => {
@@ -343,6 +356,34 @@ export async function apply(ctx, config) {
   })
 
   ctx.tools.register({
+    name: 'qqbot_access',
+    description: 'Read or replace the QQ bot access policy: which groups may message the bot (inbound), which groups it may send to (outbound), and quiet mode. The policy is enforced by the Koishi access-control plugin and written to the Koishi project data/access.json.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['get', 'set'], description: 'Read the current policy or replace it.' },
+        policy: { type: 'object', description: 'Full policy object when action=set (inbound/outbound modes, ids, quiet).' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    output: textOutput(),
+    execute: async (args) => {
+      const file = accessPath(settings)
+      if (String(args?.action ?? 'get') === 'get') {
+        const { policy, exists } = await readPolicy(file)
+        const summary = summarizePolicy(policy)
+        return { text: renderAccess(summary, file, exists) }
+      }
+      const raw = args?.policy
+      if (raw === null || typeof raw !== 'object') throw new Error('policy object is required for action=set')
+      const normalized = normalizePolicy(raw, { stamp: true })
+      await serialize(() => writePolicy(file, normalized))
+      return { text: `已更新权限策略：${renderAccess(summarizePolicy(normalized), file, true)}` }
+    },
+  })
+
+  ctx.tools.register({
     name: 'qqbot_logs',
     description: 'Read the tail of the managed Koishi process log.',
     parameters: {
@@ -474,5 +515,27 @@ function renderStatus(snapshot) {
     `Koishi: ${koishi.exists === false ? '项目不存在' : koishi.running ? `运行中${koishi.managed ? '（本插件管理）' : ''}` : '未运行'} · 端口 ${snapshot?.settings?.koishiPort ?? '?'}`,
     `机器人: ${bot.online ? `在线${bot.selfId ? ` (${bot.selfId})` : ''}` : '离线'}`,
     `插件统计: ${(snapshot?.features ?? []).find((feature) => feature.id === 'koishi-plugins')?.status?.enabled ?? '?'} 启用`,
+    `权限: 接收 ${renderScope((snapshot?.features ?? []).find((feature) => feature.id === 'access')?.status?.inbound)} · 发送 ${renderScope((snapshot?.features ?? []).find((feature) => feature.id === 'access')?.status?.outbound)}${(snapshot?.features ?? []).find((feature) => feature.id === 'access')?.status?.quiet ? ' · 安静模式' : ''}`,
   ].join('\n')
+}
+
+
+/** Render one access scope for the status tool. */
+function renderScope(scope) {
+  if (scope === undefined || scope === null) return '未知'
+  const labels = { all: '全部', whitelist: '白名单', blacklist: '黑名单' }
+  const label = labels[scope.groups] ?? String(scope.groups ?? '未知')
+  const count = Number(scope.groupCount ?? 0)
+  return count === 0 ? label : `${label}(${count})`
+}
+
+/** Render a policy summary for the qqbot_access tool. */
+function renderAccess(summary, file, exists) {
+  const lines = [
+    `接收：群=${renderScope(summary.inbound)}，私聊=${summary.inbound.private}`,
+    `发送：群=${renderScope(summary.outbound)}，私聊=${summary.outbound.private}`,
+    `安静模式：${summary.inbound.quiet ? `开启（前缀 ${summary.inbound.prefixes.join(' ')}）` : '关闭'}`,
+    `策略文件：${file}${exists ? '' : '（尚未创建，默认全部放行）'}`,
+  ]
+  return lines.join('\n')
 }

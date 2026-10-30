@@ -56,10 +56,11 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 12, `expected at least 12 routes, got ${routes.size}`)
+assert.ok(routes.size >= 19, `expected at least 19 routes, got ${routes.size}`)
 for (const required of [
   '/qqbot/status',
   '/qqbot/features',
+  '/qqbot/access',
   '/qqbot/koishi/plugins',
   '/qqbot/napcat/configure',
   '/qqbot/all/start',
@@ -67,7 +68,7 @@ for (const required of [
 ]) {
   assert.ok(routes.has(required), `missing route ${required}`)
 }
-assert.equal(tools.size, 5, `expected 5 tools, got ${tools.size}`)
+assert.equal(tools.size, 6, `expected 6 tools, got ${tools.size}`)
 assert.equal(typeof service?.registerFeature, 'function', 'qqbot service should expose registerFeature')
 
 const server = http.createServer((req, res) => {
@@ -95,7 +96,7 @@ try {
   assert.equal(typeof status.data.koishi?.exists, 'boolean')
   assert.ok(Array.isArray(status.data.features))
   const featureIds = status.data.features.map((feature) => feature.id)
-  for (const id of ['overview', 'lifecycle', 'configuration', 'koishi-plugins']) {
+  for (const id of ['overview', 'lifecycle', 'configuration', 'koishi-plugins', 'access']) {
     assert.ok(featureIds.includes(id), `missing built-in feature ${id}`)
   }
   const lifecycle = status.data.features.find((feature) => feature.id === 'lifecycle')
@@ -105,6 +106,12 @@ try {
   const features = await featuresResponse.json()
   assert.equal(features.ok, true)
   assert.ok(features.data.some((feature) => feature.id === 'configuration'))
+
+  const accessResponse = await fetch(`${base}/qqbot/access`)
+  const accessBody = await accessResponse.json()
+  assert.equal(accessBody.ok, true)
+  assert.ok(['all', 'whitelist', 'blacklist'].includes(accessBody.data.inbound.groups.mode))
+  assert.ok(Array.isArray(accessBody.data.inbound.groups.ids))
 
   const pluginsResponse = await fetch(`${base}/qqbot/koishi/plugins`)
   const pluginBody = await pluginsResponse.json()

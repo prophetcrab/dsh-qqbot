@@ -338,6 +338,7 @@ plugins:
 | --- | --- | --- | --- |
 | GET | `/qqbot/status` | — | `{ ok:true, data: StatusSnapshot }` |
 | GET | `/qqbot/logs?source=koishi&lines=200` | — | `{ ok:true, lines:string[] }` |
+| GET/POST | `/qqbot/access` | AccessPolicy | `{ ok:true, data: AccessPolicy }` |
 | GET | `/qqbot/features` | — | `{ ok:true, data: FeatureDescriptor[] }` |
 | GET | `/qqbot/koishi/plugins` | — | `{ ok:true, data: PluginInfo[] }` |
 | POST | `/qqbot/napcat/install` | `{}` | `{ ok, appPath?, message?, error? }` |
@@ -395,6 +396,7 @@ export async function loadBuiltinFeatures(registry) // 静态注册 lib/features
 - `lifecycle`：`start-all`、`stop-all`、`start-koishi`、`stop-koishi`、`start-napcat`、`stop-napcat`
 - `configuration`：`configure-napcat`、`install-napcat`、`install-koishi-deps`
 - `koishi-plugins`：无 action（客户端直接调插件路由），status 返回插件数量摘要
+- `access`：无 action（客户端直接调权限路由），status 返回收/发策略摘要
 
 FeatureDescriptor：
 ```js
@@ -431,6 +433,7 @@ export function apply(ctx) {
 | `qqbot_control` | `target: 'all'\|'napcat'\|'koishi'`, `action: 'start'\|'stop'\|'restart'` | 控制进程 |
 | `qqbot_configure` | `uin?` | 写入并热应用 NapCat OneBot 配置 |
 | `qqbot_plugin` | `action: 'list'\|'install'\|'uninstall'\|'enable'\|'disable'`, `name?`, `restart?` | Koishi 插件管理 |
+| `qqbot_access` | `action: 'get'\|'set'`, `policy?` | 读取/替换收发权限策略 |
 | `qqbot_logs` | `source: 'koishi'\|'napcat'`, `lines?` | 日志尾部 |
 
 工具 `output.render` 返回 `[{type:'text',text}]`。

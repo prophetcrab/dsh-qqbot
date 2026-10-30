@@ -35,6 +35,7 @@ window.__ModuleLoader__.load({
       retry: 'Retry',
       updated: 'Updated',
       tabOverview: 'Overview',
+      tabAccess: 'Access',
       tabPlugins: 'Plugins',
       tabFeatures: 'Features',
       tabLogs: 'Logs',
@@ -117,6 +118,32 @@ window.__ModuleLoader__.load({
       logsLoading: 'Loading logs…',
       logsRefresh: 'Refresh logs',
       loadLogsFail: 'Could not load logs',
+      accessTitle: 'Access policy',
+      accessInboundTitle: 'Inbound',
+      accessInboundDesc: 'Which groups and private chats the bot processes.',
+      accessOutboundTitle: 'Outbound',
+      accessOutboundDesc: 'Which groups and private chats the bot may send to.',
+      accessMode: 'Mode',
+      accessModeAll: 'All',
+      accessModeWhitelist: 'Whitelist',
+      accessModeBlacklist: 'Blacklist',
+      accessGroups: 'Group IDs',
+      accessGroupsPlaceholder: 'One per line or comma separated, e.g. 123456, 234567',
+      accessGroupsModeHint: 'all = every group, whitelist = only listed, blacklist = all except listed.',
+      accessPrivate: 'Allow private chats',
+      accessPrivateOnHint: 'When on, every private chat is processed.',
+      accessPrivateOffHint: 'When off, all private chats are muted.',
+      accessQuietTitle: 'Quiet mode',
+      accessQuiet: 'In groups, only respond to command prefixes or @mentions',
+      accessQuietHint: 'When on, other group messages are ignored.',
+      accessPrefixes: 'Command prefixes',
+      accessPrefixesPlaceholder: 'Space or comma separated, e.g. / !',
+      accessPrefixesHint: 'Empty means the default "/".',
+      accessSave: 'Save policy',
+      accessSaved: 'Access policy saved.',
+      accessLoading: 'Loading access policy…',
+      accessLoadFail: 'Could not load the access policy',
+      accessNote: 'Inbound and outbound lists are independent: an inbound whitelist avoids handling unrelated group messages, while an outbound whitelist stops sending to unauthorized groups.',
       actionDone: 'Done.',
       actionFailed: 'Action failed',
       working: 'Working…',
@@ -133,6 +160,7 @@ window.__ModuleLoader__.load({
       retry: '重试',
       updated: '更新于',
       tabOverview: '概览',
+      tabAccess: '权限',
       tabPlugins: '插件',
       tabFeatures: '功能',
       tabLogs: '日志',
@@ -215,6 +243,32 @@ window.__ModuleLoader__.load({
       logsLoading: '正在读取日志…',
       logsRefresh: '刷新日志',
       loadLogsFail: '日志读取失败',
+      accessTitle: '权限策略',
+      accessInboundTitle: '接收',
+      accessInboundDesc: '机器人处理哪些群与私聊的消息。',
+      accessOutboundTitle: '发送',
+      accessOutboundDesc: '机器人允许向哪些群与私聊发消息。',
+      accessMode: '模式',
+      accessModeAll: '全部',
+      accessModeWhitelist: '白名单',
+      accessModeBlacklist: '黑名单',
+      accessGroups: '群号',
+      accessGroupsPlaceholder: '每行一个或逗号分隔，例如 123456, 234567',
+      accessGroupsModeHint: 'all=全部群，whitelist=仅名单内，blacklist=名单除外。',
+      accessPrivate: '允许私聊',
+      accessPrivateOnHint: '开启后所有私聊都会被处理。',
+      accessPrivateOffHint: '关闭后私聊全部静默。',
+      accessQuietTitle: '静默模式',
+      accessQuiet: '群里只响应指令前缀或 @机器人',
+      accessQuietHint: '开启后群里其他消息将被忽略。',
+      accessPrefixes: '指令前缀',
+      accessPrefixesPlaceholder: '空格或逗号分隔，例如 / !',
+      accessPrefixesHint: '留空时默认使用 "/"。',
+      accessSave: '保存策略',
+      accessSaved: '权限策略已保存。',
+      accessLoading: '正在读取权限策略…',
+      accessLoadFail: '权限策略读取失败',
+      accessNote: '接收与发送名单相互独立：接收白名单可避免机器人处理无关群消息，发送白名单阻止向未授权群发消息。',
       actionDone: '操作完成。',
       actionFailed: '操作失败',
       working: '处理中…',
@@ -362,6 +416,25 @@ window.__ModuleLoader__.load({
   max-height: 480px; overflow: auto; }
 .qqbot-foot { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
 
+.qqbot-form { display: flex; flex-direction: column; gap: 12px; }
+.qqbot-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.qqbot-field-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--dsw-alias-label-tertiary); }
+.qqbot-field .qqbot-input, .qqbot-field .qqbot-select, .qqbot-field .qqbot-area {
+  width: 100%; flex: 0 0 auto; box-sizing: border-box; }
+.qqbot-select { font: inherit; font-size: 12px; color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2); border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 9px; padding: 7px 9px; }
+.qqbot-select:focus, .qqbot-area:focus { outline: none; border-color: var(--dsw-alias-brand-primary); }
+.qqbot-area { font: inherit; font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2); border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: 9px; padding: 8px 10px; min-height: 76px; resize: vertical; }
+.qqbot-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.qqbot-chip { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px;
+  padding: 2px 8px; border-radius: 999px; border: 0.5px solid var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-layer-2); }
+.qqbot-check-block { align-items: flex-start; }
+
 @media (max-width: 860px) {
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
@@ -454,6 +527,71 @@ window.__ModuleLoader__.load({
       return date.toLocaleTimeString()
     }
 
+    /** Scope modes accepted by the Host access policy. */
+    const ACCESS_MODES = ['all', 'whitelist', 'blacklist']
+
+    /** Fall back to `all` for unknown/missing modes. */
+    function normalizeMode(value) {
+      return ACCESS_MODES.includes(value) ? value : 'all'
+    }
+
+    /** Render a policy id list into the textarea form. */
+    function idsText(ids) {
+      return Array.isArray(ids) ? ids.map((id) => String(id)).join('\n') : ''
+    }
+
+    /**
+     * Parse a textarea-style id list. Mirrors the Host parser (newlines,
+     * spaces, commas including full-width variants; 5-15 digit ids only),
+     * trims, drops non-numeric tokens and de-duplicates.
+     */
+    function parseIdList(text) {
+      if (typeof text !== 'string' || text.trim() === '') return []
+      const seen = new Set()
+      for (const part of text.split(/[\s,，、;；]+/u)) {
+        const id = part.trim()
+        if (/^\d{5,15}$/u.test(id)) seen.add(id)
+      }
+      return [...seen]
+    }
+
+    /** Parse the quiet-mode prefix input the same way, without the digit rule. */
+    function parsePrefixes(text) {
+      if (typeof text !== 'string' || text.trim() === '') return []
+      const seen = new Set()
+      for (const part of text.split(/[\s,，、;；]+/u)) {
+        const prefix = part.trim()
+        if (prefix !== '') seen.add(prefix)
+      }
+      return [...seen]
+    }
+
+    /**
+     * Turn an AccessPolicy payload into the editable draft. The private-chat
+     * switches are two-state: on means `all`, off means an empty `whitelist`
+     * (which mutes every private chat).
+     */
+    function draftFromPolicy(policy) {
+      const source = policy !== null && typeof policy === 'object' ? policy : {}
+      const inbound = source.inbound !== null && typeof source.inbound === 'object' ? source.inbound : {}
+      const outbound = source.outbound !== null && typeof source.outbound === 'object' ? source.outbound : {}
+      const quiet = inbound.quiet !== null && typeof inbound.quiet === 'object' ? inbound.quiet : {}
+      const inboundGroups = inbound.groups !== null && typeof inbound.groups === 'object' ? inbound.groups : {}
+      const inboundPrivate = inbound.private !== null && typeof inbound.private === 'object' ? inbound.private : {}
+      const outboundGroups = outbound.groups !== null && typeof outbound.groups === 'object' ? outbound.groups : {}
+      const outboundPrivate = outbound.private !== null && typeof outbound.private === 'object' ? outbound.private : {}
+      return {
+        inboundMode: normalizeMode(inboundGroups.mode),
+        inboundGroups: idsText(inboundGroups.ids),
+        inboundPrivate: inboundPrivate.mode === 'all',
+        outboundMode: normalizeMode(outboundGroups.mode),
+        outboundGroups: idsText(outboundGroups.ids),
+        outboundPrivate: outboundPrivate.mode === 'all',
+        quietEnabled: quiet.enabled === true,
+        prefixes: Array.isArray(quiet.prefixes) ? quiet.prefixes.map((prefix) => String(prefix)).join(' ') : '',
+      }
+    }
+
     function QqbotIcon(props) {
       const size = props && props.size ? props.size : 18
       return h('svg', { viewBox: '0 0 16 16', width: size, height: size, 'aria-hidden': true, fill: 'none' },
@@ -490,6 +628,10 @@ window.__ModuleLoader__.load({
       const [restartAfter, setRestartAfter] = React.useState(false)
       const [busy, setBusy] = React.useState({})
       const [pendingUninstall, setPendingUninstall] = React.useState(null)
+      const [accessPhase, setAccessPhase] = React.useState('idle')
+      const [accessError, setAccessError] = React.useState(null)
+      const [accessWarning, setAccessWarning] = React.useState(null)
+      const [accessDraft, setAccessDraft] = React.useState(null)
 
       const busyOf = (key) => busy[key] === true
 
@@ -548,11 +690,29 @@ window.__ModuleLoader__.load({
         }
       }
 
-      // Poll the snapshot; the other tabs load lazily the first time they show.
+      const loadAccess = async () => {
+        setAccessPhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/access')
+          const policy = payload && payload.data
+          if (policy === null || typeof policy !== 'object') throw new Error('unexpected payload')
+          setAccessDraft(draftFromPolicy(policy))
+          setAccessWarning(payload && typeof payload.warning === 'string' ? payload.warning : null)
+          setAccessError(null)
+          setAccessPhase('ready')
+        } catch (error) {
+          setAccessError(messageOf(error))
+          setAccessPhase('error')
+        }
+      }
+
+      // Poll the snapshot; the access policy is small, so prefetch it on mount
+      // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
         let disposed = false
         const tick = () => { if (!disposed) loadStatus() }
         tick()
+        loadAccess()
         const timer = setInterval(tick, POLL_MS)
         return () => {
           disposed = true
@@ -561,23 +721,24 @@ window.__ModuleLoader__.load({
       }, [])
 
       React.useEffect(() => {
+        if (tab === 'access' && accessPhase === 'idle') loadAccess()
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, accessPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // ------------------------------------------------------------ mutation --
       /**
        * Run one JSON POST behind a per-action busy flag. Success and failure
        * both land in the banner; `after` refreshes whatever the action touched.
        */
-      const runPost = async (key, path, body, after) => {
+      const runPost = async (key, path, body, after, successText) => {
         if (busyOf(key)) return
         setBusy((previous) => ({ ...previous, [key]: true }))
         setBanner(null)
         try {
           await requestJson(path, { method: 'POST', body: body || {} })
-          setBanner({ kind: 'ok', text: t('actionDone') })
+          setBanner({ kind: 'ok', text: successText || t('actionDone') })
           if (typeof after === 'function') await after()
         } catch (error) {
           setBanner({ kind: 'error', text: `${t('actionFailed')}: ${messageOf(error)}` })
@@ -621,6 +782,27 @@ window.__ModuleLoader__.load({
           await loadStatus()
           await loadFeatures()
         })
+      }
+
+      const saveAccess = () => {
+        if (accessDraft === null) return
+        const draft = accessDraft
+        // POST the complete policy: the Host normalizes and stamps it, then we
+        // re-read so the form shows exactly what was stored.
+        const policy = {
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          inbound: {
+            groups: { mode: draft.inboundMode, ids: parseIdList(draft.inboundGroups) },
+            private: { mode: draft.inboundPrivate ? 'all' : 'whitelist', ids: [] },
+            quiet: { enabled: draft.quietEnabled === true, prefixes: parsePrefixes(draft.prefixes) },
+          },
+          outbound: {
+            groups: { mode: draft.outboundMode, ids: parseIdList(draft.outboundGroups) },
+            private: { mode: draft.outboundPrivate ? 'all' : 'whitelist', ids: [] },
+          },
+        }
+        runPost('access-save', '/qqbot/access', policy, loadAccess, t('accessSaved'))
       }
 
       // ------------------------------------------------------------- derived --
@@ -685,6 +867,7 @@ window.__ModuleLoader__.load({
 
       const tabItems = [
         { id: 'overview', label: t('tabOverview') },
+        { id: 'access', label: t('tabAccess') },
         { id: 'plugins', label: t('tabPlugins') },
         { id: 'features', label: t('tabFeatures') },
         { id: 'logs', label: t('tabLogs') },
@@ -997,6 +1180,141 @@ window.__ModuleLoader__.load({
           h('p', { className: 'qqbot-note' }, t('featuresNote')))
       }
 
+      // --------------------------------------------------------------- access --
+      const renderAccess = () => {
+        if (accessDraft === null) {
+          if (accessPhase === 'loading' || accessPhase === 'idle') {
+            return h('div', { className: 'qqbot-empty', role: 'status' }, t('accessLoading'))
+          }
+          return h('div', { className: 'qqbot-empty', role: 'alert' },
+            h('p', { className: 'qqbot-error' }, `${t('accessLoadFail')}: ${accessError || ''}`),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'aria-label': t('retry'),
+              onClick: () => { loadAccess() },
+            }, t('retry')))
+        }
+
+        const draft = accessDraft
+        const updateDraft = (patch) => {
+          setAccessDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+        }
+        const modeOptions = [
+          h('option', { key: 'all', value: 'all' }, t('accessModeAll')),
+          h('option', { key: 'whitelist', value: 'whitelist' }, t('accessModeWhitelist')),
+          h('option', { key: 'blacklist', value: 'blacklist' }, t('accessModeBlacklist')),
+        ]
+        const modeId = (scope) => `qqbot-access-${scope}-mode`
+        const groupsId = (scope) => `qqbot-access-${scope}-groups`
+        const privateId = (scope) => `qqbot-access-private-${scope}`
+
+        const scopeCard = (scope, title, description, mode, groups, privateOn, onMode, onGroups, onPrivate) => h('section', { className: 'qqbot-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, title),
+            h('span', { className: 'qqbot-card-sub' }, description)),
+          h('div', { className: 'qqbot-form' },
+            h('div', { className: 'qqbot-field' },
+              h('label', { className: 'qqbot-field-label', htmlFor: modeId(scope) }, t('accessMode')),
+              h('select', {
+                id: modeId(scope),
+                className: 'qqbot-select',
+                'data-testid': modeId(scope),
+                value: mode,
+                onChange: (event) => { onMode(event.currentTarget.value) },
+              }, ...modeOptions)),
+            h('div', { className: 'qqbot-field' },
+              h('label', { className: 'qqbot-field-label', htmlFor: groupsId(scope) }, t('accessGroups')),
+              h('textarea', {
+                id: groupsId(scope),
+                className: 'qqbot-area',
+                'data-testid': groupsId(scope),
+                rows: 3,
+                value: groups,
+                placeholder: t('accessGroupsPlaceholder'),
+                onChange: (event) => { onGroups(event.currentTarget.value) },
+              }),
+              h('p', { className: 'qqbot-hint' }, t('accessGroupsModeHint'))),
+            h('label', { className: 'qqbot-check qqbot-check-block' },
+              h('input', {
+                type: 'checkbox',
+                'data-testid': privateId(scope),
+                checked: privateOn,
+                onChange: (event) => { onPrivate(event.currentTarget.checked) },
+              }),
+              t('accessPrivate')),
+            h('p', { className: 'qqbot-hint' }, privateOn ? t('accessPrivateOnHint') : t('accessPrivateOffHint'))))
+
+        const prefixChips = parsePrefixes(draft.prefixes)
+        const quietCard = h('section', { className: 'qqbot-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('accessQuietTitle'))),
+          h('div', { className: 'qqbot-form' },
+            h('label', { className: 'qqbot-check qqbot-check-block' },
+              h('input', {
+                type: 'checkbox',
+                'data-testid': 'qqbot-access-quiet',
+                checked: draft.quietEnabled,
+                onChange: (event) => { updateDraft({ quietEnabled: event.currentTarget.checked }) },
+              }),
+              t('accessQuiet')),
+            h('p', { className: 'qqbot-hint' }, t('accessQuietHint')),
+            h('div', { className: 'qqbot-field' },
+              h('label', { className: 'qqbot-field-label', htmlFor: 'qqbot-access-prefixes' }, t('accessPrefixes')),
+              h('input', {
+                id: 'qqbot-access-prefixes',
+                className: 'qqbot-input',
+                type: 'text',
+                'data-testid': 'qqbot-access-prefixes',
+                value: draft.prefixes,
+                placeholder: t('accessPrefixesPlaceholder'),
+                onChange: (event) => { updateDraft({ prefixes: event.currentTarget.value }) },
+              }),
+              prefixChips.length === 0
+                ? h('p', { className: 'qqbot-hint' }, t('accessPrefixesHint'))
+                : h('div', { className: 'qqbot-chips' }, ...prefixChips.map((prefix) => h('span', { key: prefix, className: 'qqbot-chip' }, prefix))))))
+
+        return h('div', { className: 'qqbot-stack' },
+          h('div', { className: 'qqbot-toolbar' },
+            h('div', { className: 'qqbot-toolbar-left' },
+              h('h2', { className: 'qqbot-card-title' }, t('accessTitle'))),
+            h('div', { className: 'qqbot-toolbar-right' },
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-access-refresh',
+                'aria-label': t('refresh'),
+                disabled: accessPhase === 'loading',
+                onClick: () => { loadAccess() },
+              }, t('refresh')),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn qqbot-btn-primary',
+                'data-testid': 'qqbot-access-save',
+                'aria-label': t('accessSave'),
+                'aria-busy': busyOf('access-save') ? 'true' : undefined,
+                disabled: busyOf('access-save') || accessPhase === 'loading',
+                onClick: saveAccess,
+              }, busyOf('access-save') ? t('working') : t('accessSave')))),
+          accessError !== null
+            ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert' }, `${t('accessLoadFail')}: ${accessError}`)
+            : null,
+          accessWarning !== null ? h('p', { className: 'qqbot-warn' }, accessWarning) : null,
+          h('div', { className: 'qqbot-grid' },
+            scopeCard('inbound', t('accessInboundTitle'), t('accessInboundDesc'),
+              draft.inboundMode, draft.inboundGroups, draft.inboundPrivate,
+              (value) => updateDraft({ inboundMode: value }),
+              (value) => updateDraft({ inboundGroups: value }),
+              (value) => updateDraft({ inboundPrivate: value })),
+            scopeCard('outbound', t('accessOutboundTitle'), t('accessOutboundDesc'),
+              draft.outboundMode, draft.outboundGroups, draft.outboundPrivate,
+              (value) => updateDraft({ outboundMode: value }),
+              (value) => updateDraft({ outboundGroups: value }),
+              (value) => updateDraft({ outboundPrivate: value }))),
+          quietCard,
+          h('p', { className: 'qqbot-note' }, t('accessNote')))
+      }
+
       // ----------------------------------------------------------------- logs --
       const renderLogs = () => {
         const sourceButton = (id, label) => h('button', {
@@ -1049,11 +1367,13 @@ window.__ModuleLoader__.load({
 
       const body = tab === 'overview'
         ? renderOverview()
-        : tab === 'plugins'
-          ? renderPlugins()
-          : tab === 'features'
-            ? renderFeatures()
-            : renderLogs()
+        : tab === 'access'
+          ? renderAccess()
+          : tab === 'plugins'
+            ? renderPlugins()
+            : tab === 'features'
+              ? renderFeatures()
+              : renderLogs()
 
       return h('div', { className: 'qqbot-page', 'data-testid': 'qqbot-panel' },
         hero,

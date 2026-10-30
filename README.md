@@ -21,9 +21,13 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 - **高扩展性功能框架**
   - Host 暴露 `qqbot` 服务；其他 DSH 插件可通过 `inject: ['qqbot']` 注册 Feature（状态 + 按钮 + 执行逻辑）
   - 每个 Feature 自动出现在面板「功能」页，并可通过 `/qqbot/features/run` 触发
+- **权限管理**
+  - 按「群聊 / 私聊」分别配置接收与发送策略：全部放行 / 白名单 / 黑名单
+  - 安静模式：群里只有 `/` 指令或 @机器人 的消息才处理，避免无关消息刷屏
+  - 策略写入 Koishi 项目 `data/access.json`，由 Koishi `access-control` 插件实时生效（无需重启）
 - **Agent 工具**
-  - `qqbot_status`、`qqbot_control`、`qqbot_configure`、`qqbot_plugin`、`qqbot_logs`
-  - 对话里即可查询状态、启停、安装 Koishi 插件
+  - `qqbot_status`、`qqbot_control`、`qqbot_configure`、`qqbot_plugin`、`qqbot_access`、`qqbot_logs`
+  - 对话里即可查询状态、启停、安装 Koishi 插件、读写权限策略
 
 ## 架构
 
@@ -169,8 +173,9 @@ dsh-qqbot/
 │   ├── napcat.js             # NapCat 安装/配置/启停
 │   ├── koishi.js             # Koishi 项目/进程/健康/日志
 │   ├── koishi-plugins.js     # koishi.yml 插件管理
+│   ├── access.js             # 权限策略读写/归一化（data/access.json）
 │   ├── features.js           # FeatureRegistry
-│   └── features/             # 内置 Feature
+│   └── features/             # 内置 Feature（含 access）
 ├── scripts/
 │   ├── install-profile.mjs   # 写入 DSH profile
 │   ├── smoke-host.mjs        # Host 冒烟
@@ -194,8 +199,8 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 58/58 通过（NapCat 22、Koishi 31、平台/Feature 5）
-- Host 冒烟：18 条路由、5 个工具、4 个内置 Feature、真实环境 15 个 Koishi 插件
+- 单元测试 65/65 通过（NapCat 22、Koishi 31、平台/Feature 7、权限 7）
+- Host 冒烟：19 条路由、6 个工具、5 个内置 Feature、真实环境 16 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
 
