@@ -3,7 +3,7 @@
  * （`/qqbot/ai/chat`），由 DSH 复用自己已配置的模型/API Key 生成回复。
  *
  * 触发方式：
- * - 默认：@机器人 或 `/ai` 前缀
+ * - 只响应 @机器人（不使用 /ai 等指令前缀）
  * - 所有群消息都会进入该群的短期上下文，因此 AI 能“看到”前文
  */
 import { Context, Schema, h } from 'koishi'
@@ -15,8 +15,6 @@ export const inject: string[] = []
 
 export interface Config {
   enabled: boolean
-  trigger: 'mention' | 'prefix' | 'both'
-  prefix: string
   groupOnly: boolean
   historyLimit: number
   maxReplyChars: number
@@ -28,10 +26,7 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.object({
   enabled: Schema.boolean().default(true).description('是否启用 AI 聊天'),
-  trigger: Schema.union(['mention', 'prefix', 'both'] as const).default('both')
-    .description('触发方式：@机器人 / 指令前缀 / 两者'),
-  prefix: Schema.string().default('/ai').description('触发前缀'),
-  groupOnly: Schema.boolean().default(true).description('是否只处理群聊'),
+  groupOnly: Schema.boolean().default(true).description('是否只处理群聊（群内需 @机器人）'),
   historyLimit: Schema.number().default(12).min(0).max(50).description('每个群保留并发送的历史消息条数'),
   maxReplyChars: Schema.number().default(1200).min(100).max(4000).description('单条回复最大字符数（超长自动分条）'),
   timeoutMs: Schema.number().default(120000).min(5000).max(600000).description('调用 DSH AI 桥的超时时间'),
@@ -140,12 +135,7 @@ export function apply(ctx: Context, config: Config): void {
     const key = keyOf(session)
 
     const mentioned = hasMention(session, String(session.selfId))
-    const hasPrefix = config.prefix !== '' && content.startsWith(config.prefix)
-    const trigger = (config.trigger === 'mention' && mentioned)
-      || (config.trigger === 'prefix' && hasPrefix)
-      || (config.trigger === 'both' && (mentioned || hasPrefix))
-
-    if (!trigger) {
+    if (!mentioned) {
       // 所有普通群消息都进入上下文，AI 才能理解前文。
       if (content !== '' && !content.startsWith('/') && content.length <= 2000) {
         pushHistory(key, { role: 'user', text: `${senderName(session)}：${content}` })
@@ -158,10 +148,7 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
 
-    let prompt = content
-    if (hasPrefix) prompt = prompt.slice(config.prefix.length).trim()
-    if (mentioned) prompt = prompt.replace(/@\S+/gu, '').trim()
-    if (prompt === '') prompt = '（对方 @ 了你但没有输入文字）'
+    const prompt = content !== '' ? content : '（对方 @ 了你但没有输入文字）'
 
     const endpoint = endpointOf()
     if (endpoint === null) {

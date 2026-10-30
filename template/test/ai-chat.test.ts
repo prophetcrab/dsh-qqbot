@@ -49,11 +49,11 @@ async function setup(t: TestContext, config: Record<string, any> = {}) {
   return { app, calls }
 }
 
-test('群消息进入上下文，/ai 触发时把历史一起发给 DSH 并回复', async (t) => {
+test('群消息进入上下文，@机器人 触发时把历史一起发给 DSH 并回复', async (t) => {
   const { app, calls } = await setup(t)
   await app.mock.client(USER, GROUP).receive('今天天气不错')
   await app.mock.client(USER, GROUP).receive('你们在聊什么')
-  const replies = await app.mock.client(USER, GROUP).receive('/ai 总结一下')
+  const replies = await app.mock.client(USER, GROUP).receive(`<at id="${SELF_ID}"/> 总结一下`)
   assert.deepEqual(replies, ['这是 AI 的回复'])
   assert.equal(calls.length, 1)
   assert.match(calls[0].url, /\/qqbot\/ai\/chat/u)
@@ -63,14 +63,14 @@ test('群消息进入上下文，/ai 触发时把历史一起发给 DSH 并回�
   assert.ok(sent.some((m: any) => m.text.includes('总结一下')))
 })
 
-test('@机器人 同样触发 AI', async (t) => {
+test('/ai 前缀不再触发 AI', async (t) => {
   const { app, calls } = await setup(t)
-  const replies = await app.mock.client(USER, GROUP).receive(`<at id="${SELF_ID}"/> 你好`)
-  assert.deepEqual(replies, ['这是 AI 的回复'])
-  assert.equal(calls.length, 1)
+  const replies = await app.mock.client(USER, GROUP).receive('/ai 你好')
+  assert.deepEqual(replies, [])
+  assert.equal(calls.length, 0)
 })
 
-test('未触发时只记录上下文，不调用 AI', async (t) => {
+test('未 @机器人 时只记录上下文，不调用 AI', async (t) => {
   const { app, calls } = await setup(t)
   const replies = await app.mock.client(USER, GROUP).receive('随便聊聊')
   assert.deepEqual(replies, [])
@@ -84,7 +84,7 @@ test('AI 返回错误时给出友好提示', async (t) => {
     status: 500,
     json: async () => ({ ok: false, error: '模型返回错误：AUTH' }),
   })) as typeof fetch
-  const replies = await app.mock.client(USER, GROUP).receive('/ai 在吗')
+  const replies = await app.mock.client(USER, GROUP).receive(`<at id="${SELF_ID}"/> 在吗`)
   assert.equal(replies.length, 1)
   assert.match(replies[0], /AI 暂时不可用/u)
 })

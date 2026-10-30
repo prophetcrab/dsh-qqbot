@@ -114,8 +114,8 @@ node scripts/install-profile.mjs --profile desktop --install
 - DSH 侧提供 `/qqbot/ai/chat` 本地桥：通过 harness 自带的 `ctx.llm` 服务调用**当前 DSH 已配置的 provider/model 和凭据**，不复制、不保存 API Key。
 - provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
 - 端点自动写入 `qq-bot/data/ai.json`，Koishi 的 `ai-chat` 插件启动时读取；DSH 端口变化后文件会更新。
-- 群聊里 **@机器人** 或 **`/ai` 前缀** 触发；普通群消息会进入该群短期上下文，AI 能理解前文。
-- 触发方式/前缀/上下文条数/超时在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
+- 群聊里 **@机器人** 触发（不使用 `/ai` 等指令前缀）；普通群消息会进入该群短期上下文，AI 能理解前文。
+- 上下文条数/超时/回复长度在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
 
 ```yaml
 # cordis.patch.yml（可选覆盖）
@@ -132,9 +132,7 @@ node scripts/install-profile.mjs --profile desktop --install
 ```yaml
 # qq-bot/koishi.yml（触发方式）
 ./plugins/ai-chat:ai7k2m:
-  trigger: both      # mention | prefix | both
-  prefix: /ai
-  historyLimit: 12
+  historyLimit: 12   # 每个群保留的上下文条数
 ```
 
 ## 配置项

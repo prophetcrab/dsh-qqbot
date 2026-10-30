@@ -46,12 +46,10 @@ qq-bot/
 
 ## AI 聊天
 
-`plugins/ai-chat`：群消息进入短期上下文，@机器人 或 `/ai` 触发后调用 DSH 的 `/qqbot/ai/chat` 桥（复用 DSH 的模型和凭据，不保存 API Key）。触发配置在 `koishi.yml`：
+`plugins/ai-chat`：群消息进入短期上下文，**@机器人** 触发后调用 DSH 的 `/qqbot/ai/chat` 桥（复用 DSH 的模型和凭据，不保存 API Key；不使用 `/ai` 指令）。配置在 `koishi.yml`：
 
 ```yaml
 ./plugins/ai-chat:ai7k2m:
-  trigger: both    # mention | prefix | both
-  prefix: /ai
   historyLimit: 12
 ```
 
