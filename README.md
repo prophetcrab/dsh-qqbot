@@ -200,7 +200,7 @@ dsh-qqbot/
 ## 开发
 
 ```bash
-npm test          # 58 个单元测试
+npm test          # 81 个单元测试
 npm run smoke:host
 npm run smoke:client
 npm run check     # 全部
