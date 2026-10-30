@@ -25,6 +25,7 @@ export interface Config {
   endpoint: string
   discoveryFile: string
   stateFile: string
+  settingsFile: string
   systemPrompt: string
   imageLimit: number
   imageMaxBytes: number
@@ -46,6 +47,7 @@ export const Config: Schema<Config> = Schema.object({
   endpoint: Schema.string().default('').description('DSH AI 桥地址；留空则读取 discoveryFile'),
   discoveryFile: Schema.string().default('data/ai.json').description('DSH 写入的 AI 桥发现文件（相对项目根目录）'),
   stateFile: Schema.string().default('data/ai-chat-state.json').description('AI 监听/回复诊断状态文件（相对项目根目录）'),
+  settingsFile: Schema.string().default('data/ai-settings.json').description('DSH 面板写入的运行时回复设置（概率/跟进/上下文）'),
   systemPrompt: Schema.string().default('').description('额外系统提示词；留空使用 DSH 侧默认'),
   imageLimit: Schema.number().default(4).min(0).max(6).description('每条消息最多读取的图片数'),
   imageMaxBytes: Schema.number().default(6 * 1024 * 1024).min(1024 * 1024).max(10 * 1024 * 1024)
@@ -67,6 +69,41 @@ interface Discovery {
 interface InboundImage {
   mediaType: string
   data: string
+}
+
+interface RuntimeSettings {
+  enabled: boolean
+  replyProbability: number
+  followUpMinutes: number
+  historyLimit: number
+}
+
+function clampNumber(value: any, fallback: number, min: number, max: number, truncate = false): number {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return fallback
+  const bounded = Math.min(max, Math.max(min, number))
+  return truncate ? Math.trunc(bounded) : Math.round(bounded * 1000) / 1000
+}
+
+function loadRuntimeSettings(file: string, config: Config): RuntimeSettings {
+  const fallback: RuntimeSettings = {
+    enabled: config.enabled,
+    replyProbability: clampNumber(config.replyProbability, 0.15, 0, 1),
+    followUpMinutes: clampNumber(config.followUpMinutes, 3, 0, 60, true),
+    historyLimit: clampNumber(config.historyLimit, 100, 0, 200, true),
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    if (parsed === null || typeof parsed !== 'object') return fallback
+    return {
+      enabled: parsed.enabled === undefined ? fallback.enabled : parsed.enabled === true,
+      replyProbability: clampNumber(parsed.replyProbability, fallback.replyProbability, 0, 1),
+      followUpMinutes: clampNumber(parsed.followUpMinutes, fallback.followUpMinutes, 0, 60, true),
+      historyLimit: clampNumber(parsed.historyLimit, fallback.historyLimit, 0, 200, true),
+    }
+  } catch {
+    return fallback
+  }
 }
 
 function readDiscovery(file: string): Discovery | null {
@@ -183,11 +220,11 @@ export function apply(ctx: Context, config: Config): void {
   const followUntil = new Map<string, number>()
   const discoveryPath = resolve(process.cwd(), config.discoveryFile)
   const statePath = resolve(process.cwd(), config.stateFile)
+  const settingsPath = resolve(process.cwd(), config.settingsFile)
   let discovery: Discovery | null = readDiscovery(discoveryPath)
-  const probability = Math.min(1, Math.max(0, Number(config.replyProbability) || 0))
-  const followMs = Math.max(0, Number(config.followUpMinutes) || 0) * 60 * 1000
+  let runtime = loadRuntimeSettings(settingsPath, config)
 
-  const state: any = { replyProbability: probability, followUpMinutes: config.followUpMinutes, lastInbound: null, lastReply: null, updatedAt: null }
+  const state: any = { replyProbability: runtime.replyProbability, followUpMinutes: runtime.followUpMinutes, lastInbound: null, lastReply: null, updatedAt: null }
   const persistState = (): void => {
     try {
       state.updatedAt = new Date().toISOString()
@@ -196,6 +233,15 @@ export function apply(ctx: Context, config: Config): void {
     } catch {
       // diagnostics only
     }
+  }
+
+  try {
+    watchFile(settingsPath, { interval: 1000 }, () => {
+      runtime = loadRuntimeSettings(settingsPath, config)
+      logger.info('AI 回复设置已更新：概率 %s / 跟进 %s 分钟 / 上下文 %s 条', runtime.replyProbability, runtime.followUpMinutes, runtime.historyLimit)
+    }).unref?.()
+  } catch {
+    // ignore
   }
 
   try {
@@ -222,13 +268,13 @@ export function apply(ctx: Context, config: Config): void {
   const pushHistory = (key: string, message: HistoryMessage): void => {
     const list = history.get(key) ?? []
     list.push(message)
-    const cap = Math.max(2, config.historyLimit * 2 + 2)
+    const cap = Math.max(2, runtime.historyLimit * 2 + 2)
     if (list.length > cap) list.splice(0, list.length - cap)
     history.set(key, list)
   }
 
   const buildRequestMessages = (key: string, current: HistoryMessage): HistoryMessage[] => {
-    const background = (history.get(key) ?? []).slice(-Math.max(0, config.historyLimit))
+    const background = (history.get(key) ?? []).slice(-Math.max(0, runtime.historyLimit))
     return [
       ...background.map((item) => ({
         role: item.role,
@@ -239,7 +285,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.middleware(async (session, next) => {
-    if (!config.enabled) return next()
+    if (!runtime.enabled) return next()
     if (session.userId === session.selfId) return next()
     if (session.author?.isBot === true) return next()
     if (config.groupOnly && session.isDirect === true) return next()
@@ -258,7 +304,7 @@ export function apply(ctx: Context, config: Config): void {
     const inFollowUp = (followUntil.get(followKey(session)) ?? 0) > Date.now()
     const hasContent = content !== '' || imageUrls.length > 0
     const userBusy = replyQueues.has(followKey(session))
-    const randomHit = !forced && !inFollowUp && !userBusy && hasContent && Math.random() < probability
+    const randomHit = !forced && !inFollowUp && !userBusy && hasContent && Math.random() < runtime.replyProbability
     const shouldReply = !isCommand && hasContent && (forced || inFollowUp || userBusy || randomHit)
     const reason = forced ? (mentioned ? 'mention' : 'reply') : inFollowUp ? 'follow-up' : userBusy ? 'queued' : randomHit ? 'probability' : 'none'
 
@@ -272,7 +318,7 @@ export function apply(ctx: Context, config: Config): void {
       replyToBot: replied,
       followUp: inFollowUp,
       images: imageUrls.length,
-      replyProbability: probability,
+      replyProbability: runtime.replyProbability,
       shouldReply,
       reason,
     }
@@ -343,6 +389,7 @@ export function apply(ctx: Context, config: Config): void {
       }
       const reply = String(data.reply).trim()
       if (reply === '') return
+      const followMs = runtime.followUpMinutes * 60 * 1000
       if (followMs > 0) followUntil.set(followKey(session), Date.now() + followMs)
       pushHistory(key, current)
       pushHistory(key, { role: 'assistant', text: reply })

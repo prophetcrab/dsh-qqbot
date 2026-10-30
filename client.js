@@ -127,6 +127,45 @@ window.__ModuleLoader__.load({
       personaPreview: 'Prompt preview',
       personaPreviewShow: 'Show',
       personaPreviewHide: 'Hide',
+      tabAi: 'AI',
+      aiSettingsTitle: 'Reply settings',
+      aiSettingsSubtitle: 'Runtime behavior of the group AI chat.',
+      aiSettingsEnabled: 'Enable AI replies',
+      aiSettingsProbability: 'Reply probability (%)',
+      aiSettingsProbabilityHint: 'Percent of eligible messages the bot replies to.',
+      aiSettingsFollowUp: 'Follow-up window (minutes)',
+      aiSettingsHistory: 'Context messages',
+      aiSettingsSave: 'Save settings',
+      aiSettingsSaved: 'AI settings saved.',
+      aiSettingsReset: 'Restore defaults',
+      aiSettingsResetDone: 'Defaults loaded; press save to apply.',
+      aiSettingsLoadFail: 'Could not load AI settings',
+      aiSettingsError: 'Could not save AI settings',
+      aiSettingsLoading: 'Loading AI settings…',
+      profilesTitle: 'Member profiles',
+      profilesSubtitle: 'What the AI remembers about people in the group.',
+      profilesSearch: 'Search nickname or QQ',
+      profilesRefresh: 'Refresh profiles',
+      profilesEmpty: 'No profiles yet.',
+      profilesLoading: 'Loading profiles…',
+      profilesLoadFail: 'Could not load profiles',
+      profilesSelect: 'Select a profile to edit.',
+      profilesNickname: 'Nickname',
+      profilesQq: 'QQ',
+      profilesGroup: 'Group',
+      profilesSummary: 'Summary',
+      profilesPersonality: 'Personality',
+      profilesStyle: 'Speaking style',
+      profilesRelationship: 'Relationship',
+      profilesInterests: 'Interests (comma separated)',
+      profilesRecent: 'Recent interactions',
+      profilesInteractions: 'interactions',
+      profilesSave: 'Save profile',
+      profilesSaved: 'Profile saved.',
+      profilesDelete: 'Delete profile',
+      profilesDeleted: 'Profile deleted.',
+      profilesSaveFail: 'Could not save the profile',
+      profilesDeleteFail: 'Could not delete the profile',
       pluginsTitle: 'Koishi plugins',
       pluginsEmpty: 'No plugin was found in koishi.yml.',
       plName: 'Name',
@@ -382,6 +421,45 @@ window.__ModuleLoader__.load({
       personaPreview: '提示词预览',
       personaPreviewShow: '展开',
       personaPreviewHide: '收起',
+      tabAi: 'AI',
+      aiSettingsTitle: '回复设置',
+      aiSettingsSubtitle: '群里 AI 聊天的运行参数。',
+      aiSettingsEnabled: '启用 AI 回复',
+      aiSettingsProbability: '回复概率（%）',
+      aiSettingsProbabilityHint: '符合条件的消息中机器人回复的百分比。',
+      aiSettingsFollowUp: '跟进窗口（分钟）',
+      aiSettingsHistory: '上下文条数',
+      aiSettingsSave: '保存设置',
+      aiSettingsSaved: 'AI 设置已保存。',
+      aiSettingsReset: '恢复默认',
+      aiSettingsResetDone: '已填入默认值，请点保存应用。',
+      aiSettingsLoadFail: 'AI 设置读取失败',
+      aiSettingsError: 'AI 设置保存失败',
+      aiSettingsLoading: '正在读取 AI 设置…',
+      profilesTitle: '人物画像',
+      profilesSubtitle: 'AI 记住的群成员信息。',
+      profilesSearch: '搜索昵称或 QQ',
+      profilesRefresh: '刷新画像',
+      profilesEmpty: '暂无画像。',
+      profilesLoading: '正在读取画像…',
+      profilesLoadFail: '画像读取失败',
+      profilesSelect: '选择一个画像进行编辑。',
+      profilesNickname: '昵称',
+      profilesQq: 'QQ',
+      profilesGroup: '群号',
+      profilesSummary: '概要',
+      profilesPersonality: '性格',
+      profilesStyle: '说话风格',
+      profilesRelationship: '与机器人关系',
+      profilesInterests: '兴趣（逗号分隔）',
+      profilesRecent: '近期互动',
+      profilesInteractions: '次互动',
+      profilesSave: '保存画像',
+      profilesSaved: '画像已保存。',
+      profilesDelete: '删除画像',
+      profilesDeleted: '画像已删除。',
+      profilesSaveFail: '画像保存失败',
+      profilesDeleteFail: '画像删除失败',
       pluginsTitle: 'Koishi 插件',
       pluginsEmpty: 'koishi.yml 里没有检测到插件。',
       plName: '名称',
@@ -787,7 +865,25 @@ window.__ModuleLoader__.load({
 .qqbot-persona-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .qqbot-persona-preview { max-height: 240px; }
 
+.qqbot-ai-settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.qqbot-profiles-layout { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.qqbot-profile-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.qqbot-profile-item { appearance: none; font: inherit; text-align: left; display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 10px; border-radius: 10px; border: 0.5px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); cursor: pointer; min-width: 0; }
+.qqbot-profile-item:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l1)); }
+.qqbot-profile-item[data-active="true"] { border-color: var(--dsw-alias-brand-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, var(--dsw-alias-bg-base)); }
+.qqbot-profile-item-top { display: flex; align-items: baseline; gap: 8px; justify-content: space-between; min-width: 0; }
+.qqbot-profile-name { font-size: 12.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-profile-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 10.5px; color: var(--dsw-alias-label-tertiary); }
+.qqbot-profile-summary { font-size: 11px; color: var(--dsw-alias-label-tertiary); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-profile-editor { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
 @media (max-width: 860px) {
+  .qqbot-ai-settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .qqbot-profiles-layout { grid-template-columns: minmax(0, 1fr); }
   .qqbot-grid { grid-template-columns: minmax(0, 1fr); }
   .qqbot-hero { flex-direction: column; }
   .qqbot-hero-side { align-items: flex-start; }
@@ -888,6 +984,80 @@ window.__ModuleLoader__.load({
 
     /** Fixed smoke-style prompt used by the panel's AI self-test. */
     const AI_TEST_PROMPT = '请只回复：AI 面板测试成功'
+
+    /** Convert Host AI settings into the numeric draft the form edits. */
+    function aiSettingsDraftFrom(settings) {
+      const source = settings !== null && typeof settings === 'object' ? settings : {}
+      const probability = Number(source.replyProbability)
+      const followUp = Number(source.followUpMinutes)
+      const history = Number(source.historyLimit)
+      return {
+        enabled: source.enabled !== false,
+        replyProbabilityPercent: Number.isFinite(probability) ? Math.round(probability * 10000) / 100 : 15,
+        followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
+        historyLimit: Number.isFinite(history) ? history : 100,
+      }
+    }
+
+    /** POST body for /qqbot/ai/settings (percent input -> 0..1 float). */
+    function aiSettingsBodyFrom(draft) {
+      const percent = Number(draft.replyProbabilityPercent)
+      const probability = Number.isFinite(percent) ? Math.min(1, Math.max(0, percent / 100)) : 0.15
+      const followUp = Number(draft.followUpMinutes)
+      const history = Number(draft.historyLimit)
+      return {
+        enabled: draft.enabled === true,
+        replyProbability: Math.round(probability * 1000) / 1000,
+        followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
+        historyLimit: Number.isFinite(history) ? history : 100,
+      }
+    }
+
+    /** Editable draft from one member profile; key/groupId/qq stay fixed. */
+    function profileDraftFrom(profile) {
+      const source = profile !== null && typeof profile === 'object' ? profile : {}
+      const text = (value) => (typeof value === 'string' ? value : '')
+      return {
+        key: text(source.key),
+        groupId: text(source.groupId),
+        qq: text(source.qq),
+        nickname: text(source.nickname),
+        summary: text(source.summary),
+        personality: text(source.personality),
+        style: text(source.style),
+        relationship: text(source.relationship),
+        interests: Array.isArray(source.interests) ? source.interests.map((item) => String(item)).join(', ') : '',
+        recent: text(source.recent),
+        interactions: Number(source.interactions) || 0,
+      }
+    }
+
+    /** Split/serialize the interests editor value. */
+    function parseInterests(text) {
+      if (typeof text !== 'string' || text.trim() === '') return []
+      const seen = new Set()
+      for (const part of text.split(/[,，、;；]+/u)) {
+        const value = part.trim()
+        if (value !== '') seen.add(value)
+      }
+      return [...seen]
+    }
+
+    /** POST body for /qqbot/profiles/save; key/groupId/qq are preserved. */
+    function profileBodyFrom(draft) {
+      return {
+        key: draft.key,
+        groupId: draft.groupId,
+        qq: draft.qq,
+        nickname: draft.nickname,
+        summary: draft.summary,
+        personality: draft.personality,
+        style: draft.style,
+        relationship: draft.relationship,
+        interests: parseInterests(draft.interests),
+        recent: draft.recent,
+      }
+    }
 
     /** The persona card supports at most 8 few-shot examples. */
     const MAX_PERSONA_EXAMPLES = 8
@@ -1056,6 +1226,18 @@ window.__ModuleLoader__.load({
       const [personaPhase, setPersonaPhase] = React.useState('idle')
       const [personaError, setPersonaError] = React.useState(null)
       const [personaPreviewOpen, setPersonaPreviewOpen] = React.useState(true)
+      const [aiSettingsDraft, setAiSettingsDraft] = React.useState(null)
+      const [aiSettingsDefaults, setAiSettingsDefaults] = React.useState(null)
+      const [aiSettingsPath, setAiSettingsPath] = React.useState(null)
+      const [aiSettingsPhase, setAiSettingsPhase] = React.useState('idle')
+      const [aiSettingsError, setAiSettingsError] = React.useState(null)
+      const [profiles, setProfiles] = React.useState(null)
+      const [profilesPhase, setProfilesPhase] = React.useState('idle')
+      const [profilesError, setProfilesError] = React.useState(null)
+      const [profilesSearch, setProfilesSearch] = React.useState('')
+      const [profilesPath, setProfilesPath] = React.useState(null)
+      const [selectedProfileKey, setSelectedProfileKey] = React.useState(null)
+      const [profileDraft, setProfileDraft] = React.useState(null)
 
       // Refs keep the 2s pollers from capturing stale state and from overlapping.
       const tabRef = React.useRef(tab)
@@ -1266,6 +1448,44 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Runtime AI reply settings for the AI tab. */
+      const loadAiSettings = async () => {
+        setAiSettingsPhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/ai/settings')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object' || data.settings === null || typeof data.settings !== 'object') {
+            throw new Error('unexpected payload')
+          }
+          setAiSettingsDraft(aiSettingsDraftFrom(data.settings))
+          setAiSettingsDefaults(data.defaults !== null && typeof data.defaults === 'object' ? data.defaults : null)
+          setAiSettingsPath(typeof data.path === 'string' ? data.path : null)
+          setAiSettingsError(null)
+          setAiSettingsPhase('ready')
+        } catch (error) {
+          setAiSettingsError(messageOf(error))
+          setAiSettingsPhase('error')
+        }
+      }
+
+      /** Member profiles for the AI tab; `search` is passed to the Host. */
+      const loadProfiles = async (search) => {
+        const query = typeof search === 'string' ? search : profilesSearch
+        setProfilesPhase('loading')
+        try {
+          const payload = await requestJson(`/qqbot/profiles?search=${encodeURIComponent(query)}`)
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object' || !Array.isArray(data.profiles)) throw new Error('unexpected payload')
+          setProfiles(data.profiles)
+          setProfilesPath(typeof data.path === 'string' ? data.path : null)
+          setProfilesError(null)
+          setProfilesPhase('ready')
+        } catch (error) {
+          setProfilesError(messageOf(error))
+          setProfilesPhase('error')
+        }
+      }
+
       // Poll the snapshot; the access policy is small, so prefetch it on mount
       // and load the remaining tabs lazily the first time they show.
       React.useEffect(() => {
@@ -1283,6 +1503,8 @@ window.__ModuleLoader__.load({
       }, [])
 
       React.useEffect(() => {
+        if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
+        if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
         if (tab === 'messages' && messagesPhase === 'idle') loadMessages()
         if (tab === 'messages' && contactsPhase === 'idle') loadContacts()
         if (tab === 'access' && accessPhase === 'idle') loadAccess()
@@ -1290,7 +1512,7 @@ window.__ModuleLoader__.load({
         if (tab === 'plugins' && pluginsPhase === 'idle') loadPlugins()
         if (tab === 'features' && featuresPhase === 'idle') loadFeatures()
         if (tab === 'logs' && logsPhase === 'idle') loadLogs(logSource)
-      }, [tab, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
+      }, [tab, aiSettingsPhase, profilesPhase, accessPhase, contactsPhase, messagesPhase, pluginsPhase, featuresPhase, logsPhase])
 
       // ------------------------------------------------------------ mutation --
       /**
@@ -1540,6 +1762,120 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const applyAiSettingsPayload = (result) => {
+        const data = result && result.data
+        if (data === null || typeof data !== 'object' || data.settings === null || typeof data.settings !== 'object') return false
+        setAiSettingsDraft(aiSettingsDraftFrom(data.settings))
+        if (data.defaults !== null && typeof data.defaults === 'object') setAiSettingsDefaults(data.defaults)
+        if (typeof data.path === 'string') setAiSettingsPath(data.path)
+        setAiSettingsError(null)
+        setAiSettingsPhase('ready')
+        return true
+      }
+
+      const saveAiSettings = async () => {
+        if (aiSettingsDraft === null || busyOf('ai-settings-save')) return
+        setBusy((previous) => ({ ...previous, 'ai-settings-save': true }))
+        setAiSettingsError(null)
+        try {
+          const result = await requestJson('/qqbot/ai/settings', {
+            method: 'POST',
+            body: aiSettingsBodyFrom(aiSettingsDraft),
+            acceptNotOk: true,
+          })
+          if (result !== null && result.ok === true && applyAiSettingsPayload(result)) {
+            setBanner({ kind: 'ok', text: t('aiSettingsSaved') })
+          } else {
+            setAiSettingsError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('aiSettingsError'))
+          }
+        } catch (error) {
+          setAiSettingsError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['ai-settings-save']
+            return next
+          })
+        }
+      }
+
+      const resetAiSettingsDraft = () => {
+        if (aiSettingsDefaults === null) return
+        setAiSettingsDraft(aiSettingsDraftFrom(aiSettingsDefaults))
+        setBanner({ kind: 'ok', text: t('aiSettingsResetDone') })
+      }
+
+      const selectProfile = (profile) => {
+        const draft = profileDraftFrom(profile)
+        setSelectedProfileKey(draft.key)
+        setProfileDraft(draft)
+      }
+
+      const saveProfile = async () => {
+        if (profileDraft === null || busyOf('profile-save')) return
+        setBusy((previous) => ({ ...previous, 'profile-save': true }))
+        try {
+          const result = await requestJson('/qqbot/profiles/save', {
+            method: 'POST',
+            body: { profile: profileBodyFrom(profileDraft) },
+            acceptNotOk: true,
+          })
+          const data = result && result.data
+          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && data.profile !== null && typeof data.profile === 'object') {
+            const saved = profileDraftFrom(data.profile)
+            setSelectedProfileKey(saved.key)
+            setProfileDraft(saved)
+            setBanner({ kind: 'ok', text: t('profilesSaved') })
+            await loadProfiles(profilesSearch)
+          } else {
+            setProfilesError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('profilesSaveFail'))
+          }
+        } catch (error) {
+          setProfilesError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['profile-save']
+            return next
+          })
+        }
+      }
+
+      const deleteProfile = async () => {
+        if (profileDraft === null || busyOf('profile-delete')) return
+        const key = profileDraft.key
+        setBusy((previous) => ({ ...previous, 'profile-delete': true }))
+        try {
+          const result = await requestJson('/qqbot/profiles/delete', {
+            method: 'POST',
+            body: { key },
+            acceptNotOk: true,
+          })
+          if (result !== null && result.ok === true) {
+            setProfileDraft(null)
+            setSelectedProfileKey(null)
+            setBanner({ kind: 'ok', text: t('profilesDeleted') })
+            await loadProfiles(profilesSearch)
+          } else {
+            setProfilesError(result !== null && typeof result.error === 'string' && result.error !== ''
+              ? result.error
+              : t('profilesDeleteFail'))
+          }
+        } catch (error) {
+          setProfilesError(messageOf(error))
+        } finally {
+          setBusy((previous) => {
+            const next = { ...previous }
+            delete next['profile-delete']
+            return next
+          })
+        }
+      }
+
       // ------------------------------------------------------------- derived --
       const hasSnapshot = snapshot !== null
       const napcat = (snapshot && snapshot.napcat) || {}
@@ -1667,6 +2003,7 @@ window.__ModuleLoader__.load({
 
       const tabItems = [
         { id: 'overview', label: t('tabOverview') },
+        { id: 'ai', label: t('tabAi') },
         { id: 'messages', label: t('tabMessages') },
         { id: 'access', label: t('tabAccess') },
         { id: 'plugins', label: t('tabPlugins') },
@@ -1912,6 +2249,219 @@ window.__ModuleLoader__.load({
             : null,
           aiError !== null ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-error' }, aiError) : null)
       }
+
+      // ----------------------------------------------------------- AI tab cards --
+      const renderAiSettingsCard = () => {
+        const draft = aiSettingsDraft
+        const saving = busyOf('ai-settings-save')
+        const updateDraft = (patch) => setAiSettingsDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+        const head = h('div', { className: 'qqbot-card-head' },
+          h('h2', { className: 'qqbot-card-title' }, t('aiSettingsTitle')),
+          h('span', { className: 'qqbot-card-sub' }, t('aiSettingsSubtitle')))
+        if (draft === null) {
+          return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
+            head,
+            aiSettingsPhase === 'error'
+              ? h('div', { className: 'qqbot-empty' },
+                h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-settings-error' }, `${t('aiSettingsLoadFail')}${aiSettingsError !== null ? `: ${aiSettingsError}` : ''}`),
+                h('button', { type: 'button', className: 'qqbot-btn', 'aria-label': t('retry'), onClick: () => { loadAiSettings() } }, t('retry')))
+              : h('div', { className: 'qqbot-empty', role: 'status' }, t('aiSettingsLoading')))
+        }
+        const field = (testid, label, value, onChange, options) => {
+          const extra = options || {}
+          return h('div', { className: 'qqbot-field' },
+            h('label', { className: 'qqbot-field-label', htmlFor: testid }, label),
+            h('input', {
+              id: testid,
+              className: 'qqbot-input',
+              type: 'number',
+              min: extra.min,
+              max: extra.max,
+              step: extra.step,
+              'data-testid': testid,
+              value,
+              onChange: (event) => { onChange(event.currentTarget.value) },
+            }))
+        }
+        return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
+          head,
+          h('div', { className: 'qqbot-form' },
+            h('label', { className: 'qqbot-check' },
+              h('input', {
+                type: 'checkbox',
+                'data-testid': 'qqbot-ai-settings-enabled',
+                checked: draft.enabled,
+                onChange: (event) => { updateDraft({ enabled: event.currentTarget.checked }) },
+              }),
+              t('aiSettingsEnabled')),
+            h('div', { className: 'qqbot-ai-settings-grid' },
+              field('qqbot-ai-settings-probability', t('aiSettingsProbability'), draft.replyProbabilityPercent,
+                (value) => { updateDraft({ replyProbabilityPercent: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 100, step: 1 }),
+              field('qqbot-ai-settings-followup', t('aiSettingsFollowUp'), draft.followUpMinutes,
+                (value) => { updateDraft({ followUpMinutes: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 60, step: 1 }),
+              field('qqbot-ai-settings-history', t('aiSettingsHistory'), draft.historyLimit,
+                (value) => { updateDraft({ historyLimit: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 200, step: 1 })),
+            h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint'))),
+          h('div', { className: 'qqbot-btns' },
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn qqbot-btn-primary',
+              'data-testid': 'qqbot-ai-settings-save',
+              'aria-label': t('aiSettingsSave'),
+              'aria-busy': saving ? 'true' : undefined,
+              disabled: saving,
+              onClick: () => { saveAiSettings() },
+            }, saving ? t('working') : t('aiSettingsSave')),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'data-testid': 'qqbot-ai-settings-reset',
+              'aria-label': t('aiSettingsReset'),
+              disabled: saving || aiSettingsDefaults === null,
+              onClick: resetAiSettingsDraft,
+            }, t('aiSettingsReset'))),
+          aiSettingsError !== null && aiSettingsPhase === 'ready'
+            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-settings-error' }, aiSettingsError)
+            : null,
+          aiSettingsPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, aiSettingsPath) : null)
+      }
+
+      const renderProfilesCard = () => {
+        const list = Array.isArray(profiles) ? profiles : []
+        const saving = busyOf('profile-save')
+        const deleting = busyOf('profile-delete')
+        const busy = saving || deleting
+        const updateDraft = (patch) => setProfileDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+        const field = (testid, label, value, onChange, options) => {
+          const extra = options || {}
+          return h('div', { className: 'qqbot-field' },
+            h('label', { className: 'qqbot-field-label', htmlFor: testid }, label),
+            extra.multiline === true
+              ? h('textarea', {
+                id: testid,
+                className: 'qqbot-area',
+                'data-testid': testid,
+                rows: extra.rows || 3,
+                value,
+                onChange: (event) => { onChange(event.currentTarget.value) },
+              })
+              : h('input', {
+                id: testid,
+                className: 'qqbot-input',
+                type: 'text',
+                'data-testid': testid,
+                value,
+                onChange: (event) => { onChange(event.currentTarget.value) },
+              }))
+        }
+        const rows = list.map((profile) => {
+          const key = typeof profile.key === 'string' && profile.key !== ''
+            ? profile.key
+            : `${String(profile.groupId ?? '')}:${String(profile.qq ?? '')}`
+          const active = key === selectedProfileKey
+          return h('button', {
+            key,
+            type: 'button',
+            className: 'qqbot-profile-item',
+            'data-testid': 'qqbot-profile-row',
+            'data-key': key,
+            'data-active': active ? 'true' : 'false',
+            'aria-pressed': active ? 'true' : 'false',
+            onClick: () => { selectProfile(profile) },
+          },
+            h('div', { className: 'qqbot-profile-item-top' },
+              h('span', { className: 'qqbot-profile-name' }, profile.nickname || profile.qq || key),
+              h('span', { className: 'qqbot-profile-meta' }, `${t('profilesQq')} ${profile.qq || '—'}`)),
+            h('div', { className: 'qqbot-profile-meta' },
+              h('span', null, `${t('profilesGroup')} ${profile.groupId || '—'}`),
+              h('span', null, `${Number(profile.interactions) || 0} ${t('profilesInteractions')}`)),
+            typeof profile.summary === 'string' && profile.summary !== ''
+              ? h('span', { className: 'qqbot-profile-summary' }, profile.summary)
+              : null)
+        })
+        const editor = profileDraft === null
+          ? h('div', { className: 'qqbot-empty' }, t('profilesSelect'))
+          : h('div', { className: 'qqbot-profile-editor' },
+            h('div', { className: 'qqbot-rows' },
+              row(t('profilesGroup'), profileDraft.groupId || '—', null, true),
+              row(t('profilesQq'), profileDraft.qq || '—', null, true)),
+            h('div', { className: 'qqbot-form' },
+              field('qqbot-profile-nickname', t('profilesNickname'), profileDraft.nickname, (value) => { updateDraft({ nickname: value }) }),
+              field('qqbot-profile-summary', t('profilesSummary'), profileDraft.summary, (value) => { updateDraft({ summary: value }) }, { multiline: true }),
+              field('qqbot-profile-personality', t('profilesPersonality'), profileDraft.personality, (value) => { updateDraft({ personality: value }) }, { multiline: true }),
+              field('qqbot-profile-style', t('profilesStyle'), profileDraft.style, (value) => { updateDraft({ style: value }) }),
+              field('qqbot-profile-relationship', t('profilesRelationship'), profileDraft.relationship, (value) => { updateDraft({ relationship: value }) }),
+              field('qqbot-profile-interests', t('profilesInterests'), profileDraft.interests, (value) => { updateDraft({ interests: value }) }),
+              field('qqbot-profile-recent', t('profilesRecent'), profileDraft.recent, (value) => { updateDraft({ recent: value }) }, { multiline: true })),
+            h('div', { className: 'qqbot-btns' },
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn qqbot-btn-primary',
+                'data-testid': 'qqbot-profile-save',
+                'aria-label': t('profilesSave'),
+                'aria-busy': saving ? 'true' : undefined,
+                disabled: busy,
+                onClick: () => { saveProfile() },
+              }, saving ? t('working') : t('profilesSave')),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn qqbot-btn-danger',
+                'data-testid': 'qqbot-profile-delete',
+                'aria-label': t('profilesDelete'),
+                'aria-busy': deleting ? 'true' : undefined,
+                disabled: busy,
+                onClick: () => { deleteProfile() },
+              }, deleting ? t('working') : t('profilesDelete'))))
+        return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-profiles-card' },
+          h('div', { className: 'qqbot-card-head' },
+            h('h2', { className: 'qqbot-card-title' }, t('profilesTitle')),
+            h('span', { className: 'qqbot-card-sub' }, t('profilesSubtitle'))),
+          h('div', { className: 'qqbot-toolbar' },
+            h('div', { className: 'qqbot-toolbar-left' },
+              h('input', {
+                className: 'qqbot-input',
+                type: 'text',
+                'data-testid': 'qqbot-profiles-search',
+                'aria-label': t('profilesSearch'),
+                placeholder: t('profilesSearch'),
+                value: profilesSearch,
+                onChange: (event) => { setProfilesSearch(event.currentTarget.value) },
+              }),
+              h('button', {
+                type: 'button',
+                className: 'qqbot-btn',
+                'data-testid': 'qqbot-profiles-refresh',
+                'aria-label': t('profilesRefresh'),
+                disabled: profilesPhase === 'loading',
+                onClick: () => { loadProfiles(profilesSearch) },
+              }, t('refresh'))),
+            h('div', { className: 'qqbot-toolbar-right' },
+              h('span', { className: 'qqbot-card-sub' }, `${list.length}`))),
+          profilesError !== null
+            ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert', 'data-testid': 'qqbot-profiles-error' }, profilesError)
+            : null,
+          profilesPhase === 'loading' && profiles === null
+            ? h('div', { className: 'qqbot-empty', role: 'status' }, t('profilesLoading'))
+            : null,
+          profiles !== null && list.length === 0 && profileDraft === null
+            ? h('div', { className: 'qqbot-empty' }, t('profilesEmpty'))
+            : null,
+          profiles !== null && (list.length > 0 || profileDraft !== null)
+            ? h('div', { className: 'qqbot-profiles-layout' },
+              h('div', { className: 'qqbot-profile-list' }, ...rows),
+              editor)
+            : null,
+          profilesPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, profilesPath) : null)
+      }
+
+      const renderAiTab = () => h('div', { className: 'qqbot-stack' },
+        renderAiCard(),
+        renderAiSettingsCard(),
+        renderPersonaCard(),
+        renderProfilesCard())
 
       // ------------------------------------------------------------- setup card --
       const renderSetupCard = () => {
@@ -2203,8 +2753,6 @@ window.__ModuleLoader__.load({
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
           renderLoginCard(),
           renderSetupCard(),
-          renderAiCard(),
-          renderPersonaCard(),
           h('section', { className: 'qqbot-card' },
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),
@@ -2836,8 +3384,10 @@ window.__ModuleLoader__.load({
 
       const body = tab === 'overview'
         ? renderOverview()
-        : tab === 'messages'
-          ? renderMessages()
+        : tab === 'ai'
+          ? renderAiTab()
+          : tab === 'messages'
+            ? renderMessages()
           : tab === 'access'
             ? renderAccess()
             : tab === 'plugins'

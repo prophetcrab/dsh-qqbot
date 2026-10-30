@@ -15,7 +15,7 @@ const IMAGE_URL = 'https://img.example.test/photo.png'
 
 interface SetupResult { app: any; calls: any[]; imageRequests: string[] }
 
-async function setup(t: TestContext, config: Record<string, any> = {}): Promise<SetupResult> {
+async function setup(t: TestContext, config: Record<string, any> = {}, runtimeSettings: Record<string, any> = {}): Promise<SetupResult> {
   const dir = mkdtempSync(join(tmpdir(), 'qqbot-ai-'))
   const discoveryFile = join(dir, 'data', 'ai.json')
   mkdirSync(dirname(discoveryFile), { recursive: true })
@@ -24,6 +24,8 @@ async function setup(t: TestContext, config: Record<string, any> = {}): Promise<
     provider: 'deepseek-account',
     model: 'deepseek-flash',
   }), 'utf8')
+  const settingsFile = join(dir, 'data', 'ai-settings.json')
+  if (Object.keys(runtimeSettings).length > 0) writeFileSync(settingsFile, JSON.stringify(runtimeSettings), 'utf8')
 
   const calls: any[] = []
   const imageRequests: string[] = []
@@ -51,6 +53,7 @@ async function setup(t: TestContext, config: Record<string, any> = {}): Promise<
   app.plugin(mock, { selfId: SELF_ID })
   app.plugin(aiChat as any, {
     discoveryFile,
+    settingsFile,
     stateFile: join(dir, 'ai-chat-state.json'),
     replyProbability: 0,
     ...config,
@@ -202,4 +205,12 @@ test('同一个人连续消息按队列顺序处理，但不会提示上一条�
   assert.deepEqual(second, ['并发回复'])
   assert.equal(calls.length, 2)
   assert.ok(![...first, ...second].some((reply) => String(reply).includes('上一条')))
+})
+
+
+test('面板写入的运行时设置优先于 koishi.yml 配置', async (t) => {
+  const { app, calls } = await setup(t, { replyProbability: 0 }, { enabled: true, replyProbability: 1, followUpMinutes: 3, historyLimit: 100 })
+  const replies = await app.mock.client(USER, GROUP).receive('设置文件触发的消息')
+  assert.deepEqual(replies, ['这是 AI 的回复'])
+  assert.equal(calls.length, 1)
 })

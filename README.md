@@ -16,6 +16,10 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
   - NapCat（QQ）、Koishi（`npm start`）分别控制，或一键全启/全停
   - NapCat 登录二维码直接显示在面板里，扫码即登录；支持刷新二维码
   - 健康检查（`/api/qqbot/health`）、进程状态、托管日志
+- **AI 面板**
+  - 独立「AI」页：AI 状态、回复设置（概率 / 跟进分钟数 / 上下文条数）、人设卡、人物画像管理
+  - 回复概率等设置写入 `qq-bot/data/ai-settings.json`，Koishi 插件热加载，无需重启
+  - 人物画像按 `群号:QQ号` 查看/编辑/删除，保存在 `qq-bot/data/profiles.json`
 - **消息流**
   - 「消息」页实时查看机器人**收到**和**发出**的消息（接收/发送标记、发送者、来源、群名、内容、时间）
   - 只显示权限白名单里的目标群消息（按入站/出站策略过滤），非目标群不会刷屏；策略变更自动生效
@@ -111,6 +115,9 @@ node scripts/install-profile.mjs --profile desktop --install
 7. **日志**：查看托管 Koishi 进程的输出
 
 ## AI 聊天（复用 DSH 模型）
+
+> 面板已拆出独立「AI」页：状态、回复设置、人设卡、人物画像都在那里；概览只保留运行状态与环境安装。
+
 
 - DSH 侧提供 `/qqbot/ai/chat` 本地桥：通过 harness 自带的 `ctx.llm` 服务调用**当前 DSH 已配置的 provider/model 和凭据**，不复制、不保存 API Key。
 - provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
@@ -278,8 +285,8 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 127/127 通过（含 macOS/Windows 分支、AI 桥、人设卡与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 9、人设 5、画像 7）
-- Host 冒烟：31 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
+- 单元测试 130/130 通过（含 macOS/Windows 分支、AI 桥、人设卡与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 10、人设 5、画像 7、AI 设置 2）
+- Host 冒烟：35 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
 

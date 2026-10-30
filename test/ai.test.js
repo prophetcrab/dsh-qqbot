@@ -211,3 +211,25 @@ test('chat: current-message images are stored as attachments and attached to the
     attachment: { attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 1, height: 1 },
   })
 })
+
+
+test('profile panel methods: save, list with search, delete', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-ai-profiles-api-'))
+  const profilesPath = join(dir, 'profiles.json')
+  const ai = new AiChatService({ ctx: fakeCtx(), settings, logger, profilesPath })
+  const saved = await ai.saveProfile({
+    groupId: 'g1', qq: '20000', nickname: '小明', summary: '喜欢打游戏',
+    personality: '话多', style: '网络用语', relationship: '群友', interests: ['游戏'], recent: '刚聊了新番',
+  })
+  assert.equal(saved.key, 'g1:20000')
+  const list = await ai.listProfiles({ search: '打游戏' })
+  assert.equal(list.length, 1)
+  assert.equal(list[0].nickname, '小明')
+  assert.equal((await ai.listProfiles({ groupId: 'other' })).length, 0)
+  assert.equal(await ai.deleteProfile('g1:20000'), true)
+  assert.equal((await ai.listProfiles()).length, 0)
+  await rm(dir, { recursive: true, force: true })
+})

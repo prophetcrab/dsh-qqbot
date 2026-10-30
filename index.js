@@ -16,6 +16,7 @@ import { fetchContacts } from './lib/contacts.js'
 import { fetchMessages } from './lib/messages.js'
 import { SetupManager } from './lib/setup.js'
 import { AiChatService } from './lib/ai.js'
+import { AI_SETTINGS_DEFAULTS, normalizeAiSettings, readAiSettings, writeAiSettings } from './lib/ai-settings.js'
 import {
   DEFAULT_PERSONA,
   buildPersonaPrompt,
@@ -63,6 +64,7 @@ export async function apply(ctx, config) {
   const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
   const personaPath = join(settings.projectDir, 'data', 'persona.json')
   const profilesPath = join(settings.projectDir, 'data', 'profiles.json')
+  const aiSettingsPath = join(settings.projectDir, 'data', 'ai-settings.json')
   const ai = new AiChatService({ ctx, settings, personaPath, profilesPath, logger: ctx.logger('qqbot/ai') })
   let lastAiDiscovery = ''
   /** Publish the local AI bridge endpoint for the Koishi ai-chat plugin. */
@@ -172,6 +174,7 @@ export async function apply(ctx, config) {
     })
     const aiEndpoint = await ensureAiEndpoint()
     const aiStatus = { ...ai.status(), endpoint: aiEndpoint, ready: aiEndpoint !== null }
+    const aiRuntime = await readAiSettings(aiSettingsPath)
     const personaCard = (await readPersonaFile(personaPath)) ?? normalizePersona(DEFAULT_PERSONA)
     const bot = {
       online: koishiStatus?.online === true,
@@ -195,6 +198,7 @@ export async function apply(ctx, config) {
       },
       qq,
       ai: aiStatus,
+      aiSettings: aiRuntime,
       persona: {
         name: personaCard.name,
         examples: personaCard.examples.length,
@@ -327,6 +331,42 @@ export async function apply(ctx, config) {
       const payload = body.persona !== null && typeof body.persona === 'object' ? body.persona : body
       const saved = await writePersonaFile(personaPath, payload)
       sendJson(res, 200, { ok: true, data: { persona: saved, promptPreview: buildPersonaPrompt(saved), path: personaPath } })
+    }))
+
+    route('/qqbot/ai/settings', (req, res) => only(req, res, ['GET', 'POST'], async () => {
+      if (req.method === 'GET') {
+        sendJson(res, 200, { ok: true, data: { settings: await readAiSettings(aiSettingsPath), defaults: AI_SETTINGS_DEFAULTS, path: aiSettingsPath } })
+        return
+      }
+      const body = await readBody(req)
+      const saved = await writeAiSettings(aiSettingsPath, normalizeAiSettings(body))
+      sendJson(res, 200, { ok: true, data: { settings: saved, defaults: AI_SETTINGS_DEFAULTS, path: aiSettingsPath } })
+    }))
+
+    route('/qqbot/profiles', (req, res) => only(req, res, ['GET'], async () => {
+      const url = new URL(req.url, 'http://localhost')
+      const profiles = await ai.listProfiles({
+        groupId: url.searchParams.get('groupId') ?? '',
+        search: url.searchParams.get('search') ?? '',
+      })
+      sendJson(res, 200, { ok: true, data: { profiles, path: profilesPath } })
+    }))
+
+    route('/qqbot/profiles/save', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const profile = body.profile !== null && typeof body.profile === 'object' ? body.profile : body
+      const saved = await ai.saveProfile(profile)
+      if (saved === null) {
+        sendJson(res, 400, { ok: false, error: '画像需要 groupId 与 qq' })
+        return
+      }
+      sendJson(res, 200, { ok: true, data: { profile: saved, path: profilesPath } })
+    }))
+
+    route('/qqbot/profiles/delete', (req, res) => only(req, res, ['POST'], async () => {
+      const body = await readBody(req)
+      const deleted = await ai.deleteProfile(typeof body.key === 'string' ? body.key : '')
+      sendJson(res, 200, { ok: deleted, data: { deleted, path: profilesPath } })
     }))
 
     route('/qqbot/ai/status', (req, res) => only(req, res, ['GET'], async () => {

@@ -251,6 +251,42 @@ let personaState = {
   path: '~/project/qq-bot/data/persona.json',
 }
 
+const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMinutes: 3, historyLimit: 100 }
+let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
+const PROFILE_FIXTURE = [
+  {
+    key: '1026855069:5550001',
+    groupId: '1026855069',
+    qq: '5550001',
+    nickname: '小明',
+    summary: '爱开黑的老群友',
+    personality: '外向',
+    style: '简短直接',
+    relationship: '熟人',
+    interests: ['游戏', '电影'],
+    recent: '昨天约了开黑',
+    interactions: 12,
+    firstSeen: '2026-10-01T10:00:00.000Z',
+    updatedAt: '2026-10-30T10:00:00.000Z',
+  },
+  {
+    key: '1026855069:676512192',
+    groupId: '1026855069',
+    qq: '676512192',
+    nickname: '天青色瞪眼鱼',
+    summary: '喜欢聊天',
+    personality: '温和',
+    style: '细腻',
+    relationship: '普通群友',
+    interests: ['音乐'],
+    recent: '',
+    interactions: 3,
+    firstSeen: '2026-10-02T10:00:00.000Z',
+    updatedAt: '2026-10-30T10:00:00.000Z',
+  },
+]
+let profilesState = PROFILE_FIXTURE.slice()
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -273,6 +309,39 @@ globalThis.fetch = async (url, init) => {
   }
   if (path === '/qqbot/ai/chat') {
     return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
+  }
+  if (path === '/qqbot/ai/settings') {
+    if (method === 'POST') {
+      const body = JSON.parse(String(init.body))
+      aiSettingsState = {
+        enabled: body.enabled === true,
+        replyProbability: Number(body.replyProbability) || 0,
+        followUpMinutes: Number(body.followUpMinutes) || 0,
+        historyLimit: Number(body.historyLimit) || 0,
+      }
+    }
+    return json({ ok: true, data: { settings: aiSettingsState, defaults: AI_SETTINGS_DEFAULTS, path: '~/project/qq-bot/data/ai-settings.json' } })
+  }
+  if (path.startsWith('/qqbot/profiles?')) {
+    const query = new URL(path, 'http://localhost').searchParams.get('search') || ''
+    const filtered = profilesState.filter((profile) => query === ''
+      || profile.nickname.includes(query)
+      || profile.qq.includes(query))
+    return json({ ok: true, data: { profiles: filtered, path: '~/project/qq-bot/data/profiles.json' } })
+  }
+  if (path === '/qqbot/profiles/save') {
+    const body = JSON.parse(String(init.body))
+    const profile = body.profile
+    const index = profilesState.findIndex((item) => item.key === profile.key)
+    const saved = { ...profile, interactions: index >= 0 ? profilesState[index].interactions : 0 }
+    if (index >= 0) profilesState[index] = saved
+    else profilesState.push(saved)
+    return json({ ok: true, data: { profile: saved, path: '~/project/qq-bot/data/profiles.json' } })
+  }
+  if (path === '/qqbot/profiles/delete') {
+    const body = JSON.parse(String(init.body))
+    profilesState = profilesState.filter((item) => item.key !== body.key)
+    return json({ ok: true, data: { deleted: true, path: '~/project/qq-bot/data/profiles.json' } })
   }
   if (path === '/qqbot/persona') {
     return json({ ok: true, data: personaState })
@@ -530,6 +599,7 @@ for (const id of [
   'qqbot-pill-koishi',
   'qqbot-pill-bot',
   'qqbot-tab-overview',
+  'qqbot-tab-ai',
   'qqbot-tab-messages',
   'qqbot-tab-access',
   'qqbot-tab-plugins',
@@ -622,6 +692,14 @@ STATUS.platform = { ...MACOS_PLATFORM }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
 
+// ---- AI tab ----------------------------------------------------------------
+clickTestId(tree, 'qqbot-tab-ai')
+tree = await settle()
+expectTestId(tree, 'qqbot-tab-ai')
+expectTestId(tree, 'qqbot-ai-card')
+expectTestId(tree, 'qqbot-persona-card')
+console.log('ai tab: ok')
+
 // ---- AI chat card -----------------------------------------------------------
 expectTestId(tree, 'qqbot-ai-card')
 const aiStatusText = text(expectTestId(tree, 'qqbot-ai-status'))
@@ -697,6 +775,77 @@ if (resetBody.reset !== true) throw new Error(`reset body wrong: ${JSON.stringif
 if (expectTestId(tree, 'qqbot-persona-name').props.value !== '默认人设') throw new Error('persona not refreshed after reset')
 if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('默认人设')) throw new Error('persona preview not updated after reset')
 console.log('persona reset: ok')
+
+// ---- AI reply settings ------------------------------------------------------
+expectTestId(tree, 'qqbot-ai-settings-card')
+expectTestId(tree, 'qqbot-ai-settings-enabled')
+expectTestId(tree, 'qqbot-ai-settings-followup')
+expectTestId(tree, 'qqbot-ai-settings-history')
+const probabilityInput = expectTestId(tree, 'qqbot-ai-settings-probability')
+if (Number(probabilityInput.props.value) !== 15) throw new Error(`probability should display 15, got ${String(probabilityInput.props.value)}`)
+probabilityInput.props.onChange({ currentTarget: { value: '40' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-ai-settings-save')
+tree = await settle()
+const settingsPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/ai/settings')
+if (settingsPosts.length !== 1) throw new Error(`expected one POST /qqbot/ai/settings, got ${settingsPosts.length}`)
+const settingsBody = JSON.parse(String(settingsPosts[0].body))
+if (Math.abs(Number(settingsBody.replyProbability) - 0.4) > 1e-9) throw new Error(`replyProbability should be 0.4, got ${String(settingsBody.replyProbability)}`)
+if (settingsBody.enabled !== true) throw new Error('AI enabled flag not sent')
+if (Number(settingsBody.followUpMinutes) !== 3) throw new Error('followUpMinutes not sent')
+if (Number(settingsBody.historyLimit) !== 100) throw new Error('historyLimit not sent')
+if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 40) {
+  throw new Error('probability draft not refreshed after save')
+}
+console.log('ai settings: ok')
+
+// ---- member profiles --------------------------------------------------------
+expectTestId(tree, 'qqbot-profiles-card')
+expectTestId(tree, 'qqbot-profiles-search')
+expectTestId(tree, 'qqbot-profiles-refresh')
+let profileRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-profile-row')
+if (profileRows.length !== 2) throw new Error(`expected 2 profile rows, got ${profileRows.length}`)
+if (!text(profileRows[0]).includes('小明') || !text(profileRows[0]).includes('5550001')) {
+  throw new Error('profile row is missing the nickname or QQ')
+}
+if (!text(profileRows[0]).includes('12')) throw new Error('profile row is missing the interaction count')
+profileRows[0].props.onClick()
+tree = await settle()
+if (expectTestId(tree, 'qqbot-profile-nickname').props.value !== '小明') throw new Error('selected profile nickname not loaded')
+if (expectTestId(tree, 'qqbot-profile-summary').props.value !== '爱开黑的老群友') throw new Error('selected profile summary not loaded')
+expectTestId(tree, 'qqbot-profile-nickname').props.onChange({ currentTarget: { value: '小明改' } })
+tree = await settle()
+expectTestId(tree, 'qqbot-profile-summary').props.onChange({ currentTarget: { value: '更新后的概要' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-profile-save')
+tree = await settle()
+const profilePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/profiles/save')
+if (profilePosts.length !== 1) throw new Error(`expected one POST /qqbot/profiles/save, got ${profilePosts.length}`)
+const profileBody = JSON.parse(String(profilePosts[0].body))
+if (!profileBody.profile || profileBody.profile.key !== '1026855069:5550001') throw new Error('profile key not sent')
+if (profileBody.profile.groupId !== '1026855069' || profileBody.profile.qq !== '5550001') {
+  throw new Error('profile groupId/qq must be preserved')
+}
+if (profileBody.profile.nickname !== '小明改' || profileBody.profile.summary !== '更新后的概要') {
+  throw new Error(`profile edits not sent: ${JSON.stringify(profileBody.profile)}`)
+}
+if (!Array.isArray(profileBody.profile.interests) || profileBody.profile.interests[0] !== '游戏') {
+  throw new Error('profile interests not sent as an array')
+}
+if (expectTestId(tree, 'qqbot-profile-nickname').props.value !== '小明改') throw new Error('profile draft not refreshed after save')
+console.log('profiles save: ok')
+
+clickTestId(tree, 'qqbot-profile-delete')
+tree = await settle()
+const deletePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/profiles/delete')
+if (deletePosts.length !== 1) throw new Error(`expected one POST /qqbot/profiles/delete, got ${deletePosts.length}`)
+if (JSON.parse(String(deletePosts[0].body)).key !== '1026855069:5550001') throw new Error('delete key wrong')
+const remainingRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-profile-row')
+if (remainingRows.length !== 1) throw new Error(`expected one profile row after delete, got ${remainingRows.length}`)
+console.log('profiles delete: ok')
+
+clickTestId(tree, 'qqbot-tab-overview')
+tree = await settle()
 
 // ---- runtime setup card -----------------------------------------------------
 expectTestId(tree, 'qqbot-setup-card')
