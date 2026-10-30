@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "generatedAt": "2026-10-30T13:50:00Z",
+  "napcat": {
+    "version": "4.18.42",
+    "shell": {
+      "file": "payload/NapCat.Shell-4.18.42.zip",
+      "bytes": 35967555,
+      "sha256": "02e5ff0f79916c1e04c81c1b4590056406fb4293f1f1300c955e71fd08b2829d"
+    }
+  },
+  "installers": {
+    "macos": {
+      "file": "macos/NapCatInstaller_arm64.amd64-1.7.zip",
+      "version": "1.7",
+      "bytes": 1101125,
+      "sha256": "93537837ae2a5d645393fbe67a758fbaebe93ca2b8cad3a608582c4be12a92a4"
+    }
+  }
+}

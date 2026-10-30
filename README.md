@@ -103,13 +103,28 @@ node scripts/install-profile.mjs --profile desktop --install
 
 然后在 profile 目录执行 `pnpm install`，重启 DSH。
 
+### 方式三：离线 NapCat（内置包）
+
+仓库在 `vendor/napcat/` 内置了 NapCat 安装包，安装 NapCat 时优先本地解压，**完全不访问 GitHub**：
+
+| 平台 | 产物 | 行为 |
+|---|---|---|
+| Windows | `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` | 解压到 `%USERPROFILE%\NapCat.4.18.42.Shell`，插件自动识别，无需 GUI 安装器 |
+| macOS | 同一份 `NapCat.Shell.zip` | 复制到 QQ 容器 `.../Documents/napcat`，写入 `loadNapCat.js`，把 QQ 入口指向它（需要一次管理员授权），并同步 QQ 热更新包的入口 |
+| macOS（兜底） | `vendor/napcat/macos/NapCatInstaller_arm64.amd64-1.7.zip` | 原生安装失败（如拒绝授权）时解压并打开官方安装器 |
+
+- 安装前校验 `vendor/napcat/manifest.json` 的字节数与 SHA-256；文件缺失、被截断或被篡改都拒绝安装，并回退到原来的在线流程。
+- 配置项：`offlineInstall`（默认 `true`）、`offlineVendorDir`（指向另一份离线包）、`offlineNapcatVersion`（为空即使用包内版本，指定其它版本会被拒绝）。
+- 解压完成后若已存在 QQ 账号配置，立即写入 OneBot 反向 WS 配置；否则在扫码登录后自动补写。
+- 更新离线包：下载新 release 的 `NapCat.Shell.zip` 替换 `payload/` 下的文件，并把 `manifest.json` 的 `version`、`bytes`、`sha256` 更新为新值，运行 `npm run offline:verify` 校验。
+
 ## 使用
 
 侧边栏出现 **QQ 机器人** 后：
 
 1. **总览**：查看 QQ / NapCat / Koishi / 机器人状态；未安装 NapCat 时点「安装 NapCat」
-2. 安装器里完成授权、切换入口并用手机 QQ 扫码登录
-3. 点「写入 OneBot 配置」（自动写 `ws://127.0.0.1:5140/onebot` 并热应用）
+2. Windows 下内置包会直接解压安装；macOS 会写入 QQ 入口并弹出一次管理员授权。随后用手机 QQ 扫码登录
+3. 登录后配置会自动写入（也可点「写入 OneBot 配置」手动重写 `ws://127.0.0.1:5140/onebot` 并热应用）
 4. 点「一键启动全部」；状态变为 NapCat 运行、Koishi 运行、机器人在线
 5. **插件**：管理 Koishi 插件；安装后按需重启 Koishi
 6. **功能**：查看所有 Feature；其他插件注册的功能也会出现在这里

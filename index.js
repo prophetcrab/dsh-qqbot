@@ -748,8 +748,10 @@ async function runFullSetup({ setup, napcat, koishi, settings, logger }) {
   }
 
   const napcatAfter = await napcat.status()
-  if (napcatAfter.installed === true) {
+  if (napcatAfter.installed === true && Array.isArray(napcatAfter.accounts) && napcatAfter.accounts.length > 0) {
     push('napcat-configure', await napcat.configure())
+  } else if (napcatAfter.installed === true) {
+    steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '登录 QQ 后自动写入 OneBot 配置' })
   } else {
     steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '等待 NapCat 安装器完成安装' })
   }
@@ -764,22 +766,25 @@ async function runFullSetup({ setup, napcat, koishi, settings, logger }) {
   }
 
   push('koishi-start', await koishi.start())
+  let started = null
   if (napcatAfter.installed === true) {
-    push('napcat-start', await napcat.start())
+    started = await napcat.start()
+    push('napcat-start', started)
   } else {
     steps.push({ step: 'napcat-start', ok: true, skipped: true, message: '等待 NapCat 安装完成' })
   }
+  const loggedIn = started?.loggedIn === true || login?.loggedIn === true
   return {
     ok: steps.every((step) => step.ok !== false),
     steps,
     ready: deps.ok === true || deps.alreadyInstalled === true,
     napcatInstalled: napcatAfter.installed === true,
-    loggedIn: login?.loggedIn === true,
+    loggedIn,
     message: napcatAfter.installed !== true
       ? 'Koishi 已就绪；NapCat 安装器已打开，完成安装后再点一次「一键安装并配置」'
-      : login?.loggedIn === true
+      : loggedIn
         ? '环境已就绪，机器人已登录'
-        : '环境已就绪；请用手机扫描二维码登录 QQ',
+        : '环境已就绪；请用手机扫描二维码登录 QQ，登录后自动写入 OneBot 配置',
   }
 }
 

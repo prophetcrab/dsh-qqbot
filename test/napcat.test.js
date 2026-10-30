@@ -27,6 +27,9 @@ function makeSettings(overrides = {}) {
   return resolveSettings({
     koishiPort: 5140,
     reversePath: '/onebot',
+    // These cases exercise the GitHub download path; the offline payload has
+    // its own suite (test/offline.test.js).
+    offlineInstall: false,
     installerDir: join(tmpdir(), `dsh-qqbot-test-installer-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     ...overrides,
   })

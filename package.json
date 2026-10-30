@@ -1,6 +1,6 @@
 {
   "name": "dsh-qqbot",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "QQ bot control center for DeepSeek Harness: one-click NapCat/Koishi setup, lifecycle management, a Koishi plugin manager, and an extensible feature registry.",
   "license": "MIT",
   "author": "prophetcrab",
@@ -35,6 +35,7 @@
     "scripts",
     "template",
     "lib",
+    "vendor",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -58,6 +59,7 @@
     "test": "node --test test/*.test.js",
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs",
+    "offline:verify": "node scripts/verify-offline.mjs",
     "check": "npm test && npm run smoke:host && npm run smoke:client"
   }
 }
