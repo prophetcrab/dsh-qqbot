@@ -1,11 +1,11 @@
 /**
- * AI 群聊插件：把群消息作为上下文，触发时调用 DSH 的本地 AI 桥
- * （`/qqbot/ai/chat`），由 DSH 复用自己已配置的模型/API Key 生成回复。
+ * AI 群聊插件。
  *
- * 触发方式：
- * - `mention`：只响应 @机器人（默认）
- * - `always`：目标群（权限白名单内的群）里的普通消息也自动接话
- * - 所有群消息都会进入该群的短期上下文，因此 AI 能“看到”前文
+ * - 每个 (群, QQ) 的长期画像由 DSH 侧维护并在系统提示词第二段注入
+ * - 群聊最近最多 100 条作为背景上下文；只针对当前消息回复
+ * - 触发规则：@机器人 / 回复机器人 必定触发；否则按 replyProbability 随机；
+ *   对某人回复后，接下来 followUpMinutes 分钟内此人的消息继续回复
+ * - 支持把当前消息里的图片送给 DSH 多模态模型
  */
 import { Context, Schema, h } from 'koishi'
 import { mkdirSync, readFileSync, watchFile, writeFileSync } from 'node:fs'
@@ -16,7 +16,8 @@ export const inject: string[] = []
 
 export interface Config {
   enabled: boolean
-  replyMode: 'mention' | 'always'
+  replyProbability: number
+  followUpMinutes: number
   groupOnly: boolean
   historyLimit: number
   maxReplyChars: number
@@ -25,24 +26,35 @@ export interface Config {
   discoveryFile: string
   stateFile: string
   systemPrompt: string
+  imageLimit: number
+  imageMaxBytes: number
 }
 
 export const Config: Schema<Config> = Schema.object({
   enabled: Schema.boolean().default(true).description('是否启用 AI 聊天'),
-  replyMode: Schema.union(['mention', 'always'] as const).default('mention')
-    .description('mention=只响应 @机器人；always=目标群内普通消息也自动回复（仍受权限白名单限制）'),
-  groupOnly: Schema.boolean().default(true).description('是否只处理群聊（群内需 @机器人）'),
-  historyLimit: Schema.number().default(12).min(0).max(50).description('每个群保留并发送的历史消息条数'),
-  maxReplyChars: Schema.number().default(1200).min(100).max(4000).description('单条回复最大字符数（超长自动分条）'),
-  timeoutMs: Schema.number().default(120000).min(5000).max(600000).description('调用 DSH AI 桥的超时时间'),
+  replyProbability: Schema.number().default(0.15).min(0).max(1)
+    .description('未被 @ / 回复 时的随机回复概率（0~1）'),
+  followUpMinutes: Schema.number().default(3).min(0).max(60)
+    .description('回复某人后，多少分钟内继续回复此人的消息'),
+  groupOnly: Schema.boolean().default(true).description('是否只处理群聊'),
+  historyLimit: Schema.number().default(100).min(0).max(200)
+    .description('向上保留并发送的群聊背景消息条数（最多 100 条）'),
+  maxReplyChars: Schema.number().default(1200).min(100).max(4000)
+    .description('单条回复最大字符数（超长自动分条）'),
+  timeoutMs: Schema.number().default(120000).min(5000).max(600000)
+    .description('调用 DSH AI 桥的超时时间'),
   endpoint: Schema.string().default('').description('DSH AI 桥地址；留空则读取 discoveryFile'),
   discoveryFile: Schema.string().default('data/ai.json').description('DSH 写入的 AI 桥发现文件（相对项目根目录）'),
   stateFile: Schema.string().default('data/ai-chat-state.json').description('AI 监听/回复诊断状态文件（相对项目根目录）'),
   systemPrompt: Schema.string().default('').description('额外系统提示词；留空使用 DSH 侧默认'),
+  imageLimit: Schema.number().default(4).min(0).max(6).description('每条消息最多读取的图片数'),
+  imageMaxBytes: Schema.number().default(6 * 1024 * 1024).min(1024 * 1024).max(10 * 1024 * 1024)
+    .description('单张图片最大字节数'),
 })
 
 interface HistoryMessage {
   role: 'user' | 'assistant'
+  name?: string
   text: string
 }
 
@@ -52,7 +64,11 @@ interface Discovery {
   model?: string
 }
 
-/** 从 DSH 写入的发现文件读取 AI 桥地址。 */
+interface InboundImage {
+  mediaType: string
+  data: string
+}
+
 function readDiscovery(file: string): Discovery | null {
   try {
     const parsed = JSON.parse(readFileSync(file, 'utf8'))
@@ -89,17 +105,89 @@ function hasMention(session: any, selfId: string): boolean {
   return elements.some((element: any) => element?.type === 'at' && String(element?.attrs?.id ?? '') === selfId)
 }
 
+/** 是否在回复机器人的消息（引用消息的发送者是机器人）。 */
+export function isReplyToSelf(session: any, selfId: string): boolean {
+  const quote = session?.quote
+  const candidates = [
+    quote?.user?.id,
+    quote?.userId,
+    quote?.author?.id,
+    quote?.member?.user?.id,
+    session?.quoteUserId,
+  ]
+  return candidates.some((candidate) => candidate !== undefined && candidate !== null && String(candidate) === selfId)
+}
+
 function senderName(session: any): string {
   return String(session?.author?.name ?? session?.username ?? session?.userId ?? '群友')
+}
+
+/** Image URLs present on the current message. */
+export function collectImageUrls(session: any, limit: number): string[] {
+  const elements = Array.isArray(session?.elements) ? session.elements : []
+  const urls: string[] = []
+  for (const element of elements) {
+    if (element?.type !== 'image' && element?.type !== 'img') continue
+    const raw = element?.attrs?.src ?? element?.attrs?.url ?? element?.attrs?.file
+    const url = typeof raw === 'string' ? raw.trim() : ''
+    if (!/^https?:\/\//iu.test(url)) continue
+    if (!urls.includes(url)) urls.push(url)
+    if (urls.length >= limit) break
+  }
+  return urls
+}
+
+function mediaTypeOf(contentType: string | null, url: string): string {
+  const type = String(contentType ?? '').split(';')[0].trim().toLowerCase()
+  if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp' || type === 'image/gif') return type
+  const match = /\.(jpe?g|png|webp|gif)(?:\?|$)/iu.exec(url)
+  if (match !== null) {
+    const ext = match[1].toLowerCase()
+    if (ext === 'jpg') return 'image/jpeg'
+    return `image/${ext}`
+  }
+  return 'image/jpeg'
+}
+
+/** Download current-message images for multimodal inference. */
+export async function downloadImages(session: any, config: Config, fetchImpl: typeof fetch = fetch): Promise<InboundImage[]> {
+  const urls = collectImageUrls(session, Math.max(0, config.imageLimit))
+  const images: InboundImage[] = []
+  for (const url of urls) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 12000)
+      timer.unref?.()
+      let response: Response
+      try {
+        response = await fetchImpl(url, { signal: controller.signal })
+      } finally {
+        clearTimeout(timer)
+      }
+      if (response.ok !== true) continue
+      const type = mediaTypeOf(response.headers.get('content-type'), url)
+      const buffer = Buffer.from(await response.arrayBuffer())
+      if (buffer.byteLength === 0 || buffer.byteLength > config.imageMaxBytes) continue
+      images.push({ mediaType: type, data: buffer.toString('base64') })
+    } catch {
+      // ignore a broken image; text still goes through
+    }
+  }
+  return images
 }
 
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger('ai-chat')
   const history = new Map<string, HistoryMessage[]>()
   const pending = new Set<string>()
+  const followUntil = new Map<string, number>()
   const discoveryPath = resolve(process.cwd(), config.discoveryFile)
   const statePath = resolve(process.cwd(), config.stateFile)
-  const state: any = { replyMode: config.replyMode, lastInbound: null, lastReply: null, updatedAt: null }
+  let discovery: Discovery | null = readDiscovery(discoveryPath)
+  const probability = Math.min(1, Math.max(0, Number(config.replyProbability) || 0))
+  const followMs = Math.max(0, Number(config.followUpMinutes) || 0) * 60 * 1000
+
+  const state: any = { replyProbability: probability, followUpMinutes: config.followUpMinutes, lastInbound: null, lastReply: null, updatedAt: null }
   const persistState = (): void => {
     try {
       state.updatedAt = new Date().toISOString()
@@ -109,9 +197,7 @@ export function apply(ctx: Context, config: Config): void {
       // diagnostics only
     }
   }
-  let discovery: Discovery | null = readDiscovery(discoveryPath)
 
-  // DSH 可能在 Koishi 启动后才监听端口/写入发现文件；轮询文件即可自动接上。
   try {
     watchFile(discoveryPath, { interval: 2000 }, () => {
       const next = readDiscovery(discoveryPath)
@@ -131,6 +217,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   const keyOf = (session: any): string => String(session?.guildId ?? session?.channelId ?? session?.userId ?? 'unknown')
+  const followKey = (session: any): string => `${keyOf(session)}:${String(session?.userId ?? '')}`
 
   const pushHistory = (key: string, message: HistoryMessage): void => {
     const list = history.get(key) ?? []
@@ -138,6 +225,17 @@ export function apply(ctx: Context, config: Config): void {
     const cap = Math.max(2, config.historyLimit * 2 + 2)
     if (list.length > cap) list.splice(0, list.length - cap)
     history.set(key, list)
+  }
+
+  const buildRequestMessages = (key: string, current: HistoryMessage): HistoryMessage[] => {
+    const background = (history.get(key) ?? []).slice(-Math.max(0, config.historyLimit))
+    return [
+      ...background.map((item) => ({
+        role: item.role,
+        text: `[背景] ${item.role === 'assistant' ? 'AI' : item.name ?? '群友'}：${item.text}`,
+      })),
+      { role: 'user', text: `[当前消息] ${current.name ?? '群友'}：${current.text}` },
+    ]
   }
 
   ctx.middleware(async (session, next) => {
@@ -150,22 +248,38 @@ export function apply(ctx: Context, config: Config): void {
     const rawText = h.select(elements, 'text').join('').trim()
     const content = rawText !== '' ? rawText : (typeof session.content === 'string' ? session.content.trim() : '')
     const key = keyOf(session)
+    const name = senderName(session)
+    const isCommand = content.startsWith('/')
+    const imageUrls = collectImageUrls(session, config.imageLimit)
 
     const mentioned = hasMention(session, String(session.selfId))
-    const isCommand = content.startsWith('/')
-    const shouldReply = config.replyMode === 'always' ? (!isCommand && content !== '') : mentioned
+    const replied = isReplyToSelf(session, String(session.selfId))
+    const forced = mentioned || replied
+    const inFollowUp = (followUntil.get(followKey(session)) ?? 0) > Date.now()
+    const hasContent = content !== '' || imageUrls.length > 0
+    const randomHit = !forced && !inFollowUp && hasContent && Math.random() < probability
+    const shouldReply = !isCommand && hasContent && (forced || inFollowUp || randomHit)
+    const reason = forced ? (mentioned ? 'mention' : 'reply') : inFollowUp ? 'follow-up' : randomHit ? 'probability' : 'none'
+
     state.lastInbound = {
       at: new Date().toISOString(),
       groupId: key,
+      userId: String(session.userId ?? ''),
+      sender: name,
       text: content.slice(0, 200),
-      mentioned,
+      mention: mentioned,
+      replyToBot: replied,
+      followUp: inFollowUp,
+      images: imageUrls.length,
+      replyProbability: probability,
       shouldReply,
+      reason,
     }
     persistState()
+
     if (!shouldReply) {
-      // 所有普通群消息都进入上下文，AI 才能理解前文。
       if (content !== '' && !isCommand && content.length <= 2000) {
-        pushHistory(key, { role: 'user', text: `${senderName(session)}：${content}` })
+        pushHistory(key, { role: 'user', name, text: content })
       }
       return next()
     }
@@ -175,20 +289,18 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
 
-    const prompt = content !== '' ? content : '（对方 @ 了你但没有输入文字）'
-
+    const prompt = content !== '' ? content : '（对方发送了图片但没有文字）'
     const endpoint = endpointOf()
     if (endpoint === null) {
       await session.send('AI 还没有连接上 DSH（请在 DSH 面板确认 AI 状态，或重启 Koishi）')
       return
     }
 
-    const messages: HistoryMessage[] = [
-      ...(history.get(key) ?? []).slice(-Math.max(0, config.historyLimit)),
-      { role: 'user', text: `${senderName(session)}：${prompt}` },
-    ]
+    const current: HistoryMessage = { role: 'user', name, text: prompt }
+    const messages = buildRequestMessages(key, current)
     pending.add(key)
     try {
+      const images = imageUrls.length > 0 ? await downloadImages(session, config) : []
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), Math.max(5000, config.timeoutMs))
       timer.unref?.()
@@ -199,6 +311,10 @@ export function apply(ctx: Context, config: Config): void {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             messages,
+            images,
+            groupId: key,
+            userId: String(session.userId ?? ''),
+            userName: name,
             ...(config.systemPrompt !== '' ? { system: config.systemPrompt } : {}),
           }),
           signal: controller.signal,
@@ -208,17 +324,19 @@ export function apply(ctx: Context, config: Config): void {
       }
       const data: any = await response.json().catch(() => null)
       if (data === null || data.ok !== true || typeof data.reply !== 'string') {
-        const reason = data?.error ?? `HTTP ${response.status}`
-        logger.warn('AI 回复失败：%s', reason)
-        state.lastReply = { at: new Date().toISOString(), ok: false, error: String(reason).slice(0, 200) }
+        const error = String(data?.error ?? `HTTP ${response.status}`)
+        logger.warn('AI 回复失败：%s', error)
+        state.lastReply = { at: new Date().toISOString(), ok: false, error: error.slice(0, 200) }
         persistState()
-        await session.send(`AI 暂时不可用：${String(reason).slice(0, 200)}`)
+        await session.send(`AI 暂时不可用：${error.slice(0, 200)}`)
         return
       }
       const reply = String(data.reply).trim()
       if (reply === '') return
+      if (followMs > 0) followUntil.set(followKey(session), Date.now() + followMs)
+      pushHistory(key, current)
       pushHistory(key, { role: 'assistant', text: reply })
-      state.lastReply = { at: new Date().toISOString(), ok: true, replyPreview: reply.slice(0, 200) }
+      state.lastReply = { at: new Date().toISOString(), ok: true, replyPreview: reply.slice(0, 200), followUpUntil: followUntil.get(followKey(session)) ?? null }
       persistState()
       for (const part of splitReply(reply, config.maxReplyChars)) {
         await session.send(part)

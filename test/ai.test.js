@@ -128,3 +128,86 @@ test('chat: persona card is the first system segment, extra prompt follows', asy
   assert.match(captured.system, /额外规则：不要刷屏/u)
   assert.ok(captured.system.indexOf('【角色设定】') < captured.system.indexOf('额外规则'))
 })
+
+
+test('chat: profile is the second system segment and focus instruction follows', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { saveProfileStore } = await import('../lib/profiles.js')
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-ai-profile-'))
+  const profilesPath = join(dir, 'profiles.json')
+  await saveProfileStore(profilesPath, {
+    version: 1,
+    profiles: {
+      'g1:20000': {
+        groupId: 'g1', qq: '20000', nickname: '小明', summary: '喜欢打游戏',
+        personality: '话多', style: '网络用语', relationship: '常和机器人互怼',
+        interests: ['游戏'], recent: '刚聊了新番', interactions: 3,
+      },
+    },
+  })
+  let captured = null
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    llm: {
+      stream: async function* (options) {
+        if (options.system?.includes('【角色设定】')) captured = options
+        yield { type: 'text-delta', index: 0, text: '好' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({
+    ctx: { get: (name) => map[name] ?? null },
+    settings,
+    logger,
+    profilesPath,
+  })
+  await ai.chat({
+    messages: [{ role: 'user', text: '[背景] A：旧消息' }, { role: 'user', text: '[当前消息] 小明：你好' }],
+    groupId: 'g1',
+    userId: '20000',
+    userName: '小明',
+  })
+  assert.ok(captured.system.indexOf('【角色设定】') >= 0)
+  assert.ok(captured.system.indexOf('【用户画像】') > captured.system.indexOf('【角色设定】'))
+  assert.ok(captured.system.indexOf('【回复要求】') > captured.system.indexOf('【用户画像】'))
+  assert.match(captured.system, /昵称：小明/u)
+  await rm(dir, { recursive: true, force: true })
+})
+
+test('chat: current-message images are stored as attachments and attached to the prompt', async () => {
+  let captured = null
+  const saved = []
+  const map = {
+    agentDefaultModel: { currentSelection: () => ({ provider: 'p', model: 'm' }) },
+    attachments: {
+      saveImages: async (inputs) => {
+        saved.push(...inputs)
+        return [{ attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 1, height: 1 }]
+      },
+    },
+    llm: {
+      stream: async function* (options) {
+        captured = options
+        yield { type: 'text-delta', index: 0, text: '看到图片了' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    },
+  }
+  const ai = new AiChatService({ ctx: { get: (name) => map[name] ?? null }, settings, logger })
+  const result = await ai.chat({
+    messages: [{ role: 'user', text: '看图' }],
+    images: [{ mediaType: 'image/png', data: Buffer.from([1, 2, 3, 4]).toString('base64') }],
+  })
+  assert.equal(result.ok, true)
+  assert.equal(saved.length, 1)
+  assert.equal(saved[0].mediaType, 'image/png')
+  const last = captured.messages.at(-1)
+  assert.equal(last.role, 'user')
+  assert.deepEqual(last.content.at(-1), {
+    type: 'image',
+    attachment: { attachmentId: 'att-1', mediaType: 'image/png', bytes: 4, width: 1, height: 1 },
+  })
+})

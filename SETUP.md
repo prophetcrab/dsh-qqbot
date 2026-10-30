@@ -69,9 +69,9 @@ node scripts/install-profile.mjs --profile desktop --install
 
 机器人上线后 AI 聊天默认已启用，直接复用 DSH 当前模型（无需再填 API Key）：
 
-1. 在权限白名单里的目标群直接说话（`replyMode: always` 会自动接话），也可以 @机器人（不需要 `/ai` 指令）
+1. 在权限白名单里的目标群直接说话；被 @机器人 或回复机器人必定回复，其他消息按 `replyProbability` 概率回复；对同一人回复后 3 分钟内继续跟进
 2. AI 会读取本群最近消息作为上下文后回复
-3. 触发方式/上下文：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`replyMode: always|mention`、`historyLimit`）
+3. 触发方式/上下文：编辑 `qq-bot/koishi.yml` 的 `./plugins/ai-chat`（`replyProbability`、`followUpMinutes`、`historyLimit`）
 4. 人设：DSH 面板「AI 聊天」卡片里点开「人设卡」，编辑角色/语气/性格/行为准则/few-shot 示例并保存；它作为系统提示词第一段，保存在 `qq-bot/data/persona.json`
 5. 调整模型/提示词：在 `cordis.patch.yml` 配 `aiProvider/aiModel/aiSystemPrompt`；DSH 面板「AI 聊天」卡片可点「测试 AI」验证链路
 6. 如果 AI 未接入：先确认 DSH 已配置模型（`/qqbot/ai/status` 返回 available=true），再重启 Koishi（它会重新读取 `data/ai.json`）

@@ -115,8 +115,11 @@ node scripts/install-profile.mjs --profile desktop --install
 - DSH 侧提供 `/qqbot/ai/chat` 本地桥：通过 harness 自带的 `ctx.llm` 服务调用**当前 DSH 已配置的 provider/model 和凭据**，不复制、不保存 API Key。
 - provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
 - 端点自动写入 `qq-bot/data/ai.json`，Koishi 的 `ai-chat` 插件启动时读取；DSH 端口变化后文件会更新。
-- 默认 `replyMode: mention` 只响应 **@机器人**；设成 `replyMode: always` 后，权限白名单里的**目标群普通消息也会自动接话**（不使用 `/ai` 等指令前缀）。普通群消息会进入该群短期上下文，AI 能理解前文。
-- 上下文条数/超时/回复长度在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
+- 触发规则：**@机器人** 或 **回复机器人** 必定回复；其他消息按 `replyProbability` 概率回复；对某人回复后 `followUpMinutes`（默认 3）分钟内继续回复此人。
+- 上下文：群聊最多向上取 **100 条**作为背景，并明确要求只针对**当前消息**回复；背景仅用于理解话题/语气。
+- **长期记忆**：按 (群, QQ) 自动维护人物画像，每次回复后后台更新；下一条回复作为系统提示词**第二段**注入。
+- **读图**：当前消息里的图片由 Koishi 下载，经 DSH attachment 服务作为多模态图片送入模型。
+- 上下文/概率/超时在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
 
 ```yaml
 # cordis.patch.yml（可选覆盖）
@@ -133,11 +136,12 @@ node scripts/install-profile.mjs --profile desktop --install
 ```yaml
 # qq-bot/koishi.yml（触发 + 上下文）
 ./plugins/ai-chat:ai7k2m:
-  replyMode: always   # always=目标群自动接话；mention=只响应 @机器人
-  historyLimit: 12    # 每个群保留的上下文条数
+  replyProbability: 0.15   # 未被 @/回复 时的随机回复概率
+  followUpMinutes: 3       # 回复某人后继续跟进该人的分钟数
+  historyLimit: 100        # 背景上下文最多 100 条
 ```
 
-人设卡保存在 `qq-bot/data/persona.json`，也可直接编辑该文件：
+人设卡保存在 `qq-bot/data/persona.json`；人物画像保存在 `qq-bot/data/profiles.json`（按 `群号:QQ号` 分条），也可直接编辑这些文件：
 
 ```json
 {
@@ -234,6 +238,8 @@ dsh-qqbot/
 │   ├── contacts.js           # 群/好友列表代理（Koishi /api/qqbot/contacts）
 │   ├── messages.js           # 消息流代理（Koishi /api/qqbot/messages）
 │   ├── ai.js                 # AI 桥：复用 ctx.llm 调用 DSH 当前模型
+│   ├── persona.js            # 人设卡（系统提示词第一段）
+│   ├── profiles.js           # 按 群:QQ 维护的长期人物画像（系统提示词第二段）
 │   ├── setup.js              # 环境自举：模板建项目 + 离线依赖解压 / npm 回退
 │   ├── features.js           # FeatureRegistry
 │   └── features/             # 内置 Feature（含 access）
@@ -271,7 +277,7 @@ npm run check     # 全部
 
 ### 已验证
 
-- 单元测试 118/118 通过（含 macOS/Windows 分支、AI 桥与人设卡：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 7、人设 5）
+- 单元测试 127/127 通过（含 macOS/Windows 分支、AI 桥、人设卡与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 10、权限 7、群友列表 3、消息 3、Feature 2、AI 9、人设 5、画像 7）
 - Host 冒烟：31 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表

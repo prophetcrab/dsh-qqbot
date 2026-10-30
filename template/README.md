@@ -47,15 +47,22 @@ qq-bot/
 
 ## AI 聊天
 
-`plugins/ai-chat`：群消息进入短期上下文；`replyMode: always` 时目标群普通消息自动接话，`mention` 时只响应 @机器人（都不使用 `/ai` 指令）。触发后调用 DSH 的 `/qqbot/ai/chat` 桥（复用 DSH 模型和凭据，不保存 API Key）。配置在 `koishi.yml`：
+`plugins/ai-chat`：群聊最多 100 条背景上下文，触发后调用 DSH 的 `/qqbot/ai/chat` 桥（复用 DSH 模型和凭据，不保存 API Key）。
+
+- **@机器人** 或 **回复机器人**：必定回复
+- 其他消息：按 `replyProbability` 概率回复
+- 对某人回复后 3 分钟内继续回复此人（`followUpMinutes`）
+- 当前消息图片会送多模态模型
+- 每个人按 QQ 号维护长期画像，由 DSH 作为系统提示词第二段注入
 
 ```yaml
 ./plugins/ai-chat:ai7k2m:
-  replyMode: always   # always | mention
-  historyLimit: 12
+  replyProbability: 0.15
+  followUpMinutes: 3
+  historyLimit: 100
 ```
 
-DSH 端会把 `data/ai.json`（端点、provider、model）写好，插件自动读取；DSH 端口变化后自动更新。AI 的角色设定/语气/性格/few-shot 在 DSH 面板「AI 聊天 → 人设卡」编辑，保存为 `data/persona.json`，由 DSH 作为系统提示词第一段注入。
+DSH 端会把 `data/ai.json`（端点、provider、model）写好，插件自动读取；DSH 端口变化后自动更新。人设卡在 DSH 面板编辑，保存为 `data/persona.json`；人物画像保存在 `data/profiles.json`。
 
 ## 运行时目录
 

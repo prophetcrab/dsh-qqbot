@@ -62,7 +62,8 @@ export async function apply(ctx, config) {
   const plugins = new KoishiPluginsManager({ koishi, settings, logger: ctx.logger('qqbot/plugins') })
   const setup = new SetupManager({ settings, logger: ctx.logger('qqbot/setup') })
   const personaPath = join(settings.projectDir, 'data', 'persona.json')
-  const ai = new AiChatService({ ctx, settings, personaPath, logger: ctx.logger('qqbot/ai') })
+  const profilesPath = join(settings.projectDir, 'data', 'profiles.json')
+  const ai = new AiChatService({ ctx, settings, personaPath, profilesPath, logger: ctx.logger('qqbot/ai') })
   let lastAiDiscovery = ''
   /** Publish the local AI bridge endpoint for the Koishi ai-chat plugin. */
   const ensureAiEndpoint = async () => {
@@ -333,10 +334,14 @@ export async function apply(ctx, config) {
     }))
 
     route('/qqbot/ai/chat', (req, res) => only(req, res, ['POST'], async () => {
-      const body = await readBody(req)
+      const body = await readBody(req, 40 * 1024 * 1024)
       const messages = Array.isArray(body.messages) ? body.messages : []
       const result = await ai.chat({
         messages,
+        images: Array.isArray(body.images) ? body.images : [],
+        ...(typeof body.groupId === 'string' ? { groupId: body.groupId } : {}),
+        ...(typeof body.userId === 'string' ? { userId: body.userId } : {}),
+        ...(typeof body.userName === 'string' ? { userName: body.userName } : {}),
         ...(typeof body.system === 'string' ? { system: body.system } : {}),
       })
       sendJson(res, 200, result)
