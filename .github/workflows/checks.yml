@@ -11,6 +11,8 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      QQBOT_SOURCE: ${{ github.workspace }}/qq-bot
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4

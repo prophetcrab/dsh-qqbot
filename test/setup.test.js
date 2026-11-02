@@ -177,7 +177,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
   const settings = await makeSettings(root)
   const bundleDir = join(templateDir, 'runtime-bundles')
   await mkdir(bundleDir, { recursive: true })
-  const bundle = join(bundleDir, `node_modules-${process.platform}-${process.arch}.tar.gz`)
+  const bundle = join(bundleDir, 'node_modules-darwin-arm64.tar.gz')
   await writeFile(bundle, 'fake-bundle')
   let spawned = 0
   const setup = new SetupManager({
@@ -198,7 +198,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
   await setup.ensureProject()
   const status = await setup.status()
   assert.equal(status.bundleAvailable, true)
-  assert.equal(status.bundleKey, `${process.platform}-${process.arch}`)
+  assert.equal(status.bundleKey, 'darwin-arm64')
   await rm(join(settings.projectDir, 'node_modules'), { recursive: true, force: true })
   const result = await setup.installDeps()
   assert.equal(result.ok, true)
@@ -212,7 +212,7 @@ test('offline bundle: ensureProject extracts bundled dependencies', async () => 
   const settings = await makeSettings(root)
   const bundleDir = join(templateDir, 'runtime-bundles')
   await mkdir(bundleDir, { recursive: true })
-  await writeFile(join(bundleDir, `node_modules-${process.platform}-${process.arch}.tar.gz`), 'fake')
+  await writeFile(join(bundleDir, 'node_modules-darwin-arm64.tar.gz'), 'fake')
   const setup = new SetupManager({
     settings,
     logger,
