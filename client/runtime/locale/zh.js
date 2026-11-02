@@ -118,7 +118,7 @@ export const zh = {
   aiSettingsSubtitle: '群里 AI 聊天的运行参数。',
   aiSettingsEnabled: '启用 AI 回复',
   aiSettingsProbability: '回复概率（%）',
-  aiSettingsProbabilityHint: '符合条件的消息中机器人回复的百分比。',
+  aiSettingsProbabilityHint: '基础回复概率；高注意力会提升，低注意力会降低。',
   aiSettingsFollowUp: '跟进窗口（分钟）',
   aiSettingsHistory: '上下文条数',
   aiSettingsBatchWindow: '合并等待 (ms)',

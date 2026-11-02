@@ -118,7 +118,7 @@ export const en = {
   aiSettingsSubtitle: 'Runtime behavior of the group AI chat.',
   aiSettingsEnabled: 'Enable AI replies',
   aiSettingsProbability: 'Reply probability (%)',
-  aiSettingsProbabilityHint: 'Percent of eligible messages the bot replies to.',
+  aiSettingsProbabilityHint: 'Base reply chance; high attention raises it and low attention lowers it.',
   aiSettingsFollowUp: 'Follow-up window (minutes)',
   aiSettingsHistory: 'Context messages',
   aiSettingsBatchWindow: 'Batch window (ms)',
