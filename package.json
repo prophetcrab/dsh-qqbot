@@ -1,7 +1,7 @@
 {
   "name": "dsh-qqbot",
-  "version": "0.3.0-mac.1",
-  "description": "macOS-only QQ bot control center for DeepSeek Harness: bundled offline NapCat/Koishi setup and lifecycle management.",
+  "version": "0.4.0-mac.1",
+  "description": "macOS-only, plugin-based QQ bot control center for DeepSeek Harness.",
   "license": "MIT",
   "author": "prophetcrab",
   "homepage": "https://github.com/prophetcrab/dsh-qqbot#readme",
@@ -56,13 +56,14 @@
     }
   },
   "scripts": {
-    "test": "node --test test/*.test.js test/host/*.test.js",
+    "test": "node --test test/*.test.js test/host/*.test.js test/client/*.test.js",
     "test:host": "node --test test/host/*.test.js",
     "build:client": "node scripts/build-client.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs",
     "offline:verify": "node scripts/verify-offline.mjs",
-    "check": "npm test && npm run smoke:host && npm run smoke:client && npm run check:architecture"
+    "check": "npm test && npm run build:client && npm run smoke:host && npm run smoke:client && npm run check:architecture && npm run offline:verify",
+    "test:client": "node --test test/client/*.test.js"
   }
 }

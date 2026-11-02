@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SetupManager } from '../lib/setup.js'
+import { SetupManager } from '../host/services/setup/index.js'
 
 const logger = { info() {}, warn() {}, error() {}, debug() {} }
 

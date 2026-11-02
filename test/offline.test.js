@@ -19,8 +19,8 @@ import {
   readManifest,
   resolvePayload,
   verifyArchive,
-} from '../lib/offline.js'
-import { run as execFileRun } from '../lib/util.js'
+} from '../host/services/napcat/offline.js'
+import { run as execFileRun } from '../host/platform/mac/index.js'
 
 async function tempDir(t) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-offline-'))

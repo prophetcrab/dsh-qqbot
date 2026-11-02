@@ -82,6 +82,7 @@ test('群消息进入上下文，@机器人 触发时把背景 + 当前消息发
   assert.ok(!sent[0].text.includes('[背景]'))
   assert.match(calls[0].body.background, /今天天气不错/u)
   assert.match(calls[0].body.background, /你们在聊什么/u)
+  assert.equal(calls[0].body.apiVersion, 1)
   assert.equal(calls[0].body.groupId, GROUP)
   assert.equal(calls[0].body.userId, USER)
   assert.equal(typeof calls[0].body.userName, 'string')
@@ -375,6 +376,7 @@ test('extractQuote：提取被引用消息的文字/图片/发送者', () => {
     },
   }
   const quote = aiChat.extractQuote(session, SELF_ID, 4)
+  assert.ok(quote !== null)
   assert.equal(quote.userName, '小明')
   assert.equal(quote.text, '这张图好看吗[图片]')
   assert.deepEqual(quote.imageUrls, [IMAGE_URL])

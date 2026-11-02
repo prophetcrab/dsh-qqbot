@@ -6,7 +6,7 @@
  */
 
 import { join } from 'node:path'
-import { defaultVendorDir, readManifest, verifyArchive } from '../lib/offline.js'
+import { defaultVendorDir, readManifest, verifyArchive } from '../host/services/napcat/offline.js'
 
 const vendorDir = defaultVendorDir()
 const manifest = await readManifest(vendorDir)

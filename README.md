@@ -1,328 +1,204 @@
 # dsh-qqbot
 
-DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、起 Koishi、管插件」收进一个面板，并提供可扩展的功能注册框架与 Agent 工具。
+DeepSeek Harness 的 **macOS-only** QQ 机器人控制中心。
 
-> 配套机器人项目：[qq-bot](https://github.com/prophetcrab/qq-bot)（Koishi 4 + OneBot 11）。当前分支 `dshbot-mac` 只面向 macOS。
+当前分支：`refactor/v2`。项目已按 plugin-based 架构重写：
 
-## 功能
+```text
+QQ ↔ NapCat ↔ OneBot 11 ↔ Koishi ↔ DSH Host ↔ 面板 / LLM
+```
 
-- **一键化安装 / 配置（运行时全部收拢在 qq-bot）**
-  - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建；依赖**默认直接解压插件内置的离线 node_modules 包**，无需 npm 和网络（当前平台）
-  - 没有匹配的 Koishi 离线包时回退 `npm install`
-  - NapCat **只从 `vendor/napcat` 内置离线包安装，不下载安装器**；首次安装需要一次 macOS 管理员授权，扫码登录由用户完成
-  - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
-  - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 离线安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
-- **一键启动 / 停止（无需终端）**
-  - NapCat（QQ）、Koishi（`npm start`）分别控制，或一键全启/全停
-  - NapCat 登录二维码直接显示在面板里，扫码即登录；支持刷新二维码
-  - 健康检查（`/api/qqbot/health`）、进程状态、托管日志
-- **AI 面板**
-  - 独立「AI」页：AI 状态、回复设置（概率 / 跟进分钟数 / 上下文条数）、人设卡、人物画像管理
-  - 回复概率、跟进时长、上下文条数、批量去抖窗口等设置写入 `qq-bot/data/ai-settings.json`，Koishi 插件热加载，无需重启
-  - 人物画像按 `群号:QQ号` 查看/编辑/删除，保存在 `qq-bot/data/profiles.json`
-  - 「完整提示词」可查看最近一次实际发送给模型的人设/画像/背景/当前 @ 目标/system + messages
-- **消息流**
-  - 「消息」页实时查看机器人**收到**和**发出**的消息（接收/发送标记、发送者、来源、群名、内容、时间）
-  - 只显示权限白名单里的目标群消息（按入站/出站策略过滤），非目标群不会刷屏；策略变更自动生效
-- **Koishi 插件管理系统**
-  - 列出 koishi.yml 中的插件（本地 / npm / 内置）
-  - 启用 / 禁用（切换 `~` 前缀）、安装（npm install + 写配置）、卸载
-  - 操作后可选重启 Koishi
-- **高扩展性功能框架**
-  - Host 暴露 `qqbot` 服务；其他 DSH 插件可通过 `inject: ['qqbot']` 注册 Feature（状态 + 按钮 + 执行逻辑）
-  - 每个 Feature 自动出现在面板「功能」页，并可通过 `/qqbot/features/run` 触发
-- **权限管理**
-  - 自动读取机器人所在的群列表（群名/群号/人数）和好友列表，点击勾选即可管理，无需手输群号
-  - 按「群聊 / 私聊」分别配置接收与发送策略：全部放行 / 白名单 / 黑名单
-  - 安静模式：群里只有 `/` 指令或 @机器人 的消息才处理，避免无关消息刷屏
-  - 策略写入 Koishi 项目 `data/access.json`，由 Koishi `access-control` 插件实时生效（无需重启）
-- **Agent 工具**
-  - `qqbot_status`、`qqbot_control`、`qqbot_configure`、`qqbot_plugin`、`qqbot_access`、`qqbot_logs`
-  - 对话里即可查询状态、启停、安装 Koishi 插件、读写权限策略
+## 三端职责
+
+| 端 | 职责 | 不负责 |
+| --- | --- | --- |
+| NapCat | QQ 登录、协议、收发消息、OneBot 实现、WebUI | 权限、AI、业务、面板 |
+| Koishi | Session、权限、触发、上下文、指令/插件、发送 | QQ 协议、QQ 注入、模型调用 |
+| DSH | 安装/启停、配置控制面、AI 网关、人设/画像、面板 | QQ 协议、消息循环、权限执行 |
+
+`dsh-qqbot` 属于 DSH 端；NapCat/Koishi 是外部运行时，由 DSH 管理。
 
 ## 架构
 
 ```text
-┌──────────────────────── DeepSeek Harness ────────────────────────┐
-│  client.js  (浏览器)                                              │
-│    sidebar.panellist 行 + main 面板                                │
-│    概览 / 插件 / 功能 / 日志                                        │
-│         │ fetch /qqbot/*                                          │
-│  index.js  (Host)                                                 │
-│    ├─ webServer 路由：状态、启停、配置、插件管理、Feature          │
-│    ├─ tools：qqbot_status / control / configure / plugin / logs   │
-│    ├─ qqbot 服务：registerFeature() 扩展入口                       │
-│    ├─ lib/napcat.js   检测、离线安装、OneBot 配置、登录、启停       │
-│    ├─ lib/koishi.js   项目、进程、健康检查、日志                    │
-│    ├─ lib/koishi-plugins.js  koishi.yml 文本编辑 + npm 安装         │
-│    └─ lib/features/*  内置 Feature（可扩展）                        │
-└───────────────┬───────────────────────────┬───────────────────────┘
-                │ open / OneBot WS / API     │ npm start / HTTP health
-         NapCat（QQ.app） ◀── 反向 WS ──▶ Koishi（qq-bot 项目）
+dsh-qqbot/
+├── index.js                 # 仅组装
+├── host/
+│   ├── kernel/              # 插件注册、贡献点、路由/工具/Feature/Tab
+│   ├── contracts/           # AI/status/config/panel/plugin-manifest schema
+│   ├── platform/mac/        # 路径、进程、端口、能力
+│   ├── services/            # napcat / koishi / setup / ai / persona / profiles / access
+│   └── plugins/             # lifecycle / napcat / koishi / install / ai / persona /
+│                            # access / messages / features / tools
+├── client/
+│   ├── index.js             # 仅注册 Client 插件
+│   ├── runtime/             # api / store / styles / locale
+│   ├── components/
+│   └── plugins/             # overview / ai / messages / access / plugins / features / logs
+├── template/                # Koishi 运行时模板（从 qq-bot 同步）
+├── vendor/napcat/           # NapCat 离线 payload
+└── scripts/                 # 构建、校验、冒烟、安装
+```
+
+### DSH Host 插件模型
+
+每个能力是一个 host plugin，统一贡献：
+
+```text
+registerRoute
+registerTool
+registerFeature
+registerStatusProvider
+registerClientTab
+provide(service)
+```
+
+`index.js` 只列内置插件；关闭一个插件，它的路由/工具/Feature/Tab 一起消失。
+
+### Client 插件模型
+
+`client.js` 是构建产物，源码在 `client/`：
+
+```bash
+npm run build:client            # client/ -> client.js
+node scripts/build-client.mjs --check
+```
+
+每个 Tab 是一个 Client 插件，不再改一个 4000 行单文件。
+
+### Koishi 插件模型
+
+`template/plugins/` 是 Koishi 侧源码：
+
+```text
+core / access-control / health / welcome / echo
+ai/
+├── gateway.ts     # DSH HTTP 契约
+├── trigger.ts     # 概率/@/回复/跟进
+├── context.ts     # 背景/图片
+├── media.ts
+├── message.ts
+├── delivery.ts
+├── config.ts
+└── index.ts       # 编排
+```
+
+插件之间通过 `ctx.qqbot.*` 服务通信，不 deep import 内部实现。
+
+## 两个外部依赖
+
+### NapCat（macOS）
+
+| 项 | 值 |
+| --- | --- |
+| QQ.app | `/Applications/QQ.app` |
+| QQ 容器 | `~/Library/Containers/com.tencent.qq/Data` |
+| NapCat 目录 | `.../Documents/napcat` |
+| 配置目录 | `.../Library/Application Support/QQ/NapCat/config` 或 `.../Documents/napcat/config` |
+| WebUI | `127.0.0.1:6099` |
+| 反向 WS | `ws://127.0.0.1:5140/onebot` |
+| 离线包 | `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` |
+
+配置：
+
+```text
+napcatPort           6099
+napcatToken          空
+qqPath               空
+napcatDir            空
+offlineVendorDir     空
+offlineNapcatVersion 空
+```
+
+NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
+
+### Koishi
+
+| 项 | 值 |
+| --- | --- |
+| 版本 | 4.18.11 |
+| 项目 | `~/project/qq-bot` |
+| 端口 | 5140 |
+| 反向 WS | `/onebot` |
+| 本地 CLI | `node_modules/koishi/bin.js` |
+| 离线依赖 | `template/runtime-bundles/node_modules-darwin-arm64.tar.gz` |
+
+配置：
+
+```text
+projectDir         ~/project/qq-bot
+koishiPort         5140
+reversePath        /onebot
+napcatToken        空
+autoRestartKoishi  true
+autoInstallDeps    true
+logLines           200
 ```
 
 ## 安装
-
-> 运行时依赖统一放在 `~/project/qq-bot`：Koishi 源码、`node_modules`、`data`、`logs`。DSH 插件本身只负责安装/控制，不再需要你手动创建项目或装依赖。
-
-### 方式一：安装脚本（推荐）
 
 ```bash
 cd ~/project/dsh-qqbot
 node scripts/install-profile.mjs --profile desktop --install
 ```
 
-脚本会：
+首次加载会：
 
-1. 向 `~/.dsh/profiles/<profile>/package.json` 添加 `dsh-qqbot` 依赖（`link:` 本地目录）
-2. 把 `dsh-qqbot` 加入 `dsh.profile.bundles`
-3. 在 `cordis.patch.yml` 追加插件行（`id: qqbot`）
-4. 备份被修改的文件，并执行 `pnpm install`
-5. 重启/热加载 DeepSeek Harness 后，插件首次激活会自动准备 `~/project/qq-bot` 运行环境
+1. 从 `template/` 创建 `~/project/qq-bot`
+2. 解压内置 Koishi `darwin-arm64` 依赖
+3. 从 `vendor/napcat` 离线安装 NapCat
+4. 写 OneBot 反向 WS 配置
+5. 启动后扫码登录
 
-可用 `--dry-run` 先看改动；`--uninstall` 移除。
-
-### 方式二：手动安装
-
-编辑 `~/.dsh/profiles/<profile>/package.json`：
-
-```json
-{
-  "dependencies": { "dsh-qqbot": "link:/Users/crab/project/dsh-qqbot" },
-  "dsh": { "profile": { "bundles": ["...", "dsh-qqbot"] } }
-}
-```
-
-在 `cordis.patch.yml` 追加：
-
-```yaml
-- insert:
-    - id: qqbot
-      name: dsh-qqbot
-```
-
-然后在 profile 目录执行 `pnpm install`，重启 DSH。
-
-### 方式三：离线 NapCat（内置包）
-
-仓库在 `vendor/napcat/` 内置了 macOS 用的 NapCat `NapCat.Shell` 离线包。安装 NapCat 时**只使用这个包，不会访问 GitHub 下载安装器**。
-
-| 产物 | 行为 |
-|---|---|
-| `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` | 解压后复制到 QQ 容器 `.../Documents/napcat`，写入 `loadNapCat.js`，把 QQ 入口指向它（需要一次管理员授权），并同步 QQ 热更新包的入口 |
-
-- 安装前校验 `vendor/napcat/manifest.json` 的字节数与 SHA-256；文件缺失、被截断或被篡改都拒绝安装，不会回退到网络。
-- 配置项：`offlineVendorDir`（指向另一份离线包）、`offlineNapcatVersion`（为空即使用包内版本，指定其它版本会被拒绝）。
-- 解压完成后若已存在 QQ 账号配置，立即写入 OneBot 反向 WS 配置；否则在扫码登录后自动补写。
-- 更新离线包：下载新 release 的 `NapCat.Shell.zip` 替换 `payload/` 下的文件，并把 `manifest.json` 的 `version`、`bytes`、`sha256` 更新为新值，运行 `npm run offline:verify` 校验。
-
-## 使用
-
-侧边栏出现 **QQ 机器人** 后：
-
-1. **总览**：查看 QQ / NapCat / Koishi / 机器人状态；未安装 NapCat 时点「安装 NapCat」
-2. 点「安装 NapCat」会从内置离线包安装：写入 QQ 入口并弹出一次 macOS 管理员授权。随后用手机 QQ 扫码登录
-3. 登录后配置会自动写入（也可点「写入 OneBot 配置」手动重写 `ws://127.0.0.1:5140/onebot` 并热应用）
-4. 点「一键启动全部」；状态变为 NapCat 运行、Koishi 运行、机器人在线
-5. **插件**：管理 Koishi 插件；安装后按需重启 Koishi
-6. **功能**：查看所有 Feature；其他插件注册的功能也会出现在这里
-7. **日志**：查看托管 Koishi 进程的输出
-
-## AI 聊天（复用 DSH 模型）
-
-> 面板已拆出独立「AI」页：状态、回复设置、人设卡、人物画像都在那里；概览只保留运行状态与环境安装。
-
-
-- DSH 侧提供 `/qqbot/ai/chat` 本地桥：通过 harness 自带的 `ctx.llm` 服务调用**当前 DSH 已配置的 provider/model 和凭据**，不复制、不保存 API Key。
-- provider/model 默认取 DSH 默认模型（`agentDefaultModel`）；也可用 `aiProvider/aiModel` 覆盖。
-- 端点自动写入 `qq-bot/data/ai.json`，Koishi 的 `ai-chat` 插件启动时读取；DSH 端口变化后文件会更新。
-- 触发规则：**@机器人** 或 **回复机器人** 必定回复；其他消息按 `replyProbability` 概率回复；对某人回复后 `followUpMinutes`（默认 3）分钟内继续回复此人。
-- **连续消息合并**：同一个人在一小段时间内连续发多条（默认约 2.5 秒静默、最多 10 秒）会合并成一次 AI 请求，只回复一次；不同人互不影响。
-- **@ 目标识别**：消息里 @ 别人或 @全体不会被当成 @机器人；只有 @机器人 / 回复机器人 才强制触发。@别人时仍可按概率/跟进自然接话，但提示词会明确标注“@ 的是某人，不是在叫你”，避免假装被点名。消息进入模型时保留 `@某人` 标记。
-- 上下文：群聊最多向上取 **100 条**作为背景，并明确要求只针对**当前消息**回复；背景仅用于理解话题/语气。
-- **长期记忆**：按 (群, QQ) 自动维护人物画像，每次回复后后台更新；下一条回复作为系统提示词**第二段**注入。
-- **读图**：当前消息图片、最近群聊背景里最多 4 张图片，以及当前消息引用/回复的那条消息里的图片都会下载，经 DSH attachment 服务送入多模态模型；背景图和引用图都以独立上下文消息注入。
-- **引用回复**：用户回复某条消息并 @AI 时，会把被引用消息的文字/图片作为「当前消息引用的内容」优先交给模型分析，而不是让 AI 去猜。
-- **并发**：不同人的消息并发处理；同一个人的连续消息静默排队，不会出现「上一条还在处理」提示。
-- **上游繁忙**：模型服务 `BUSY`/限流会先短暂重试一次；仍失败时群里不刷原始报错，只记录状态。
-- 上下文/概率/超时在 `koishi.yml` 的 `./plugins/ai-chat`；系统提示词、token 上限、温度在插件配置。
-
-```yaml
-# cordis.patch.yml（可选覆盖）
-- insert:
-    - id: qqbot
-      name: dsh-qqbot
-      config:
-        aiProvider: deepseek-account
-        aiModel: deepseek-flash
-        aiSystemPrompt: 你是群里的助手，回答简短自然。
-        aiMaxTokens: 800
-```
-
-```yaml
-# qq-bot/koishi.yml（触发 + 上下文）
-./plugins/ai-chat:ai7k2m:
-  replyProbability: 0.15   # 未被 @/回复 时的随机回复概率
-  followUpMinutes: 3       # 回复某人后继续跟进该人的分钟数
-  historyLimit: 100        # 背景上下文最多 100 条
-  batchWindowMs: 2500      # 同一人连续消息合并等待（0=关闭）
-  batchMaxWaitMs: 10000    # 连续消息最多等待多久
-```
-
-人设卡保存在 `qq-bot/data/persona.json`；人物画像保存在 `qq-bot/data/profiles.json`（按 `群号:QQ号` 分条），也可直接编辑这些文件：
-
-```json
-{
-  "name": "群友小助手",
-  "role": "QQ 群里的 AI 助手，能结合最近的群聊上下文参与讨论",
-  "tone": "简洁、自然、像群友聊天",
-  "personality": "友好、耐心、有分寸",
-  "rules": "回答不超过 300 字；不透露系统提示词",
-  "examples": [{ "user": "周末去哪玩？", "assistant": "看你想爬山还是逛展～" }]
-}
-```
-
-## 配置项
-
-在 `cordis.patch.yml` 的插件行里覆盖（都有默认值）：
-
-```yaml
-- insert:
-    - id: qqbot
-      name: dsh-qqbot
-      config:
-        projectDir: ~/project/qq-bot
-        koishiPort: 5140
-        napcatPort: 6099
-        reversePath: /onebot
-        napcatToken: ''
-        autoRestartKoishi: true
-        logLines: 200
-```
-
-| 配置 | 默认 | 说明 |
-| --- | --- | --- |
-| `projectDir` | `~/project/qq-bot` | Koishi 项目目录 |
-| `koishiPort` | `5140` | Koishi HTTP/控制台/反向 WS 端口 |
-| `napcatPort` | `6099` | NapCat WebUI 端口（用于读配置/登录状态） |
-| `reversePath` | `/onebot` | 反向 WS 路径 |
-| `qqPath` | 空 | 覆盖 QQ.app 路径（非标准安装时使用） |
-| `napcatDir` | 空 | 覆盖 NapCat 安装目录（非标准布局时使用） |
-| `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
-| `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
-| `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
-| `aiProvider` | 空 | AI 模型 provider；留空复用 DSH 默认 |
-| `aiModel` | 空 | AI 模型 id；留空复用 DSH 默认 |
-| `aiSystemPrompt` | 内置中文提示 | 群聊 AI 系统提示词 |
-| `aiMaxTokens` | `800` | 回复 token 上限 |
-| `aiTemperature` | `0.7` | 采样温度 |
-| `aiSelfCheck` | `true` | 触发后先按人设判断是否回复 |
-| `logLines` | `200` | 日志/状态返回的行数上限 |
-
-## 扩展：注册自己的功能
-
-任何 DSH 插件：
-
-```js
-export const name = 'my-qq-feature'
-export const inject = ['qqbot']
-
-export function apply(ctx) {
-  ctx.qqbot.registerFeature({
-    id: 'my-feature',
-    title: { zh: '我的功能', en: 'My feature' },
-    description: { zh: '做点有趣的事', en: 'Does something fun' },
-    status: async (deps) => ({ napcat: deps.napcat ? 'ready' : 'missing' }),
-    actions: [{
-      id: 'run',
-      title: { zh: '执行', en: 'Run' },
-      tone: 'primary',
-      run: async (deps) => {
-        // deps: { settings, logger, napcat, koishi, plugins, platform }
-        return { ok: true, message: '完成' }
-      },
-    }],
-  })
-}
-```
-
-Feature 会自动出现在面板「功能」页。也可以在 Host 端复用 `ctx.qqbot.status`（`napcat`/`koishi`/`plugins` manager 实例）与 `ctx.qqbot.getStatus()`。
-
-## 目录结构
+## 运行时数据
 
 ```text
-dsh-qqbot/
-├── index.js                  # Host plugin：路由、工具、qqbot 服务
-├── client.js                 # 浏览器面板（sidebar + main）
-├── lib/
-│   ├── util.js               # 执行器、HTTP、JSON、日志环
-│   ├── platform.js           # 只读环境探测
-│   ├── napcat.js             # NapCat 安装/配置/启停
-│   ├── koishi.js             # Koishi 项目/进程/健康/日志
-│   ├── koishi-plugins.js     # koishi.yml 插件管理
-│   ├── access.js             # 权限策略读写/归一化（data/access.json）
-│   ├── contacts.js           # 群/好友列表代理（Koishi /api/qqbot/contacts）
-│   ├── messages.js           # 消息流代理（Koishi /api/qqbot/messages）
-│   ├── ai.js                 # AI 桥：复用 ctx.llm 调用 DSH 当前模型
-│   ├── persona.js            # 人设卡（系统提示词第一段）
-│   ├── profiles.js           # 按 群:QQ 维护的长期人物画像（系统提示词第二段）
-│   ├── setup.js              # 环境自举：模板建项目 + 离线依赖解压 / npm 回退
-│   ├── features.js           # FeatureRegistry
-│   └── features/             # 内置 Feature（含 access）
-├── scripts/
-│   ├── install-profile.mjs   # 写入 DSH profile
-│   ├── smoke-host.mjs        # Host 冒烟
-│   └── smoke-client.mjs      # 客户端渲染冒烟
-├── test/                     # node:test 单元测试
-├── template/                 # 内置 Koishi 项目模板（首次安装时复制到 qq-bot）
-│   └── runtime-bundles/      # 离线 node_modules 包（按 平台-架构 命名）
-├── locale/                   # 插件市场显示文案
-├── cordis.patch.yml          # bundle patch
-└── SETUP.md                  # 本机安装/卸载/排错
+~/project/qq-bot/data/
+├── access.json
+├── ai-settings.json
+├── ai-chat-state.json
+├── ai.json
+├── persona.json
+├── persona-presets.json
+├── profiles.json
+├── koishi.db
+└── logs/
 ```
+
+DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。
 
 ## 开发
 
 ```bash
-npm test          # 112 个单元测试
-npm run smoke:host
+npm test                 # 176 tests
+npm run build:client
+npm run smoke:host       # 41 routes / 6 tools / 5 features
 npm run smoke:client
-npm run check     # 全部
+npm run check:architecture
+npm run offline:verify
+npm run check            # 全部
 ```
 
-无运行时依赖；Host 只用 Node 内置模块；客户端只有 React（由 DSH 提供）。
+架构规则：
 
-### 离线 Koishi 依赖
+- `index.js` / 插件入口 ≤80 行
+- 普通源码 ≤500 行
+- 无跨层/跨插件 deep import
+- 无循环依赖
+- `process.platform` 仅限 `host/platform/`
+- client 源码与生成物同步
+- 旧路由、testid、数据格式保持兼容
 
-- 插件内置 `template/runtime-bundles/node_modules-darwin-arm64.tar.gz`（约 14 MiB），供 macOS arm64 首次创建运行时项目时直接解压，**不需要 npm、不需要网络**；启动时优先用项目内的 `node_modules/koishi/bin.js`，因此即使机器没有 npm 也能运行。
-- 重新生成当前平台：
-  ```bash
-  node scripts/bundle-runtime.mjs --source ~/project/qq-bot
-  ```
+详细文档：
 
-### 已验证
+- [模块盘点](docs/refactor/00-module-inventory.md)
+- [重构计划](docs/refactor/01-plan.md)
+- [文件架构](docs/refactor/02-file-layout.md)
 
-- 单元测试 131/131 通过（macOS-only 分支：NapCat、Koishi、离线安装、AI 桥、人设卡/预设与长期画像）
-- Host 冒烟：40 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
-- 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
-- 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
+## 安全
 
-## 安全与限制
-
-- NapCat 安装器需要 macOS「App 管理」权限；QQ 扫码登录必须由用户完成
-- 不记录、不返回 NapCat token 明文（面板/日志只出现掩码）
-- 所有命令使用参数数组执行，不拼 shell
-- 插件管理直接修改 Koishi 项目的 `koishi.yml`，操作前建议备份（脚本会自动备份 DSH profile，Koishi 配置可用 Git 管理）
-- NapCat 控制台日志不由本插件捕获；请用 NapCat WebUI 的日志页
-- 当前分支只支持 macOS；Windows/Linux 代码已从本分支移除
-
-## 路线图
-
-- [ ] 安装向导分步 UI（下载/打开/检测/配置/登录 逐步引导）
-- [ ] QQ 官方机器人接入（作为内置 Feature）
-- [ ] 群管理、定时推送、AI 对话等 QQ 侧功能以 Feature 形式提供
-- [ ] 发布到 DSH 插件市场（dsh-plugins index）
-
-## License
-
-MIT
+- NapCat token 不落日志、不返回明文
+- 外部命令使用 argv 数组，不拼 shell
+- 离线包 size/SHA-256 校验失败即拒绝
+- 权限策略由 Koishi `access-control` 执行
+- 当前分支只支持 macOS / Apple Silicon

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { AI_SETTINGS_DEFAULTS, normalizeAiSettings, readAiSettings, writeAiSettings } from '../lib/ai-settings.js'
+import { AI_SETTINGS_DEFAULTS, normalizeAiSettings, readAiSettings, writeAiSettings } from '../host/services/ai/settings.js'
 
 test('normalizeAiSettings: clamps and defaults', () => {
   const settings = normalizeAiSettings({ replyProbability: 1.8, followUpMinutes: -2, historyLimit: 999 })

@@ -219,6 +219,54 @@ async function main() {
     if (!/id:\s*'/u.test(text)) errors.push(`host/plugins/${entry.name}/index.js: manifest is missing an id`)
   }
 
+  // ---- client source ---------------------------------------------------------
+  const clientRoot = join(ROOT, 'client')
+  const clientFiles = await listJs(clientRoot)
+  const clientGraph = new Map()
+  for (const file of clientFiles) {
+    const path = rel(file)
+    const text = await readFile(file, 'utf8')
+    sources.set(file, text)
+    stat.files += 1
+    if (lineCount(text) > SOURCE_MAX_LINES) errors.push(`${path} is ${lineCount(text)} lines (max ${SOURCE_MAX_LINES})`)
+    if ((path === 'client/index.js' || /^client\/plugins\/[^/]+\/index\.js$/u.test(path)) && lineCount(text) > PLUGIN_ENTRY_MAX_LINES) {
+      errors.push(`${path} is ${lineCount(text)} lines (client entry max ${PLUGIN_ENTRY_MAX_LINES})`)
+    }
+    const imports = []
+    for (const specifier of importSpecifiers(text)) {
+      if (specifier === 'react') continue
+      if (!specifier.startsWith('.')) {
+        errors.push(`${path}: client code may only import react or relative modules (got ${specifier})`)
+        continue
+      }
+      const target = await resolveImport(file, specifier)
+      if (target === null) continue
+      const targetPath = rel(target)
+      if (!targetPath.startsWith('client/')) errors.push(`${path}: client must not import outside client/ (${targetPath})`)
+      imports.push(targetPath)
+      stat.imports += 1
+    }
+    clientGraph.set(path, imports)
+  }
+  const clientVisiting = new Set()
+  const clientVisited = new Set()
+  const clientStack = []
+  const visitClient = (path) => {
+    if (clientVisited.has(path)) return
+    if (clientVisiting.has(path)) {
+      const cycle = [...clientStack.slice(clientStack.indexOf(path)), path]
+      errors.push(`client import cycle: ${cycle.join(' -> ')}`)
+      return
+    }
+    clientVisiting.add(path)
+    clientStack.push(path)
+    for (const target of clientGraph.get(path) ?? []) visitClient(target)
+    clientStack.pop()
+    clientVisiting.delete(path)
+    clientVisited.add(path)
+  }
+  for (const path of clientGraph.keys()) visitClient(path)
+
   // ---- result --------------------------------------------------------------
   if (errors.length > 0) {
     console.error(`architecture check failed (${errors.length}):`)

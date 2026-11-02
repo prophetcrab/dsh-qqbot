@@ -50,6 +50,8 @@ const defaultPlatform = { detectNapcat, detectQq, findProcess, hostPlatform, kil
 /**
  * Owns every NapCat side effect for the QQ bot control center.
  */
+
+
 export class NapcatManager {
   constructor(options = {}) {
     const source = options !== null && typeof options === 'object' ? options : {}

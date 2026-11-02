@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchContacts, normalizeContacts } from '../lib/contacts.js'
+import { fetchContacts, normalizeContacts } from '../host/plugins/napcat/contacts.js'
 
 test('normalizeContacts: groups, friends, sorting and missing fields', () => {
   const contacts = normalizeContacts({

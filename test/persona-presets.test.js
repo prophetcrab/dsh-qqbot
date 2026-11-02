@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { loadPresetStore, normalizePreset, removePreset, savePresetStore, upsertPreset } from '../lib/persona-presets.js'
+import { loadPresetStore, normalizePreset, removePreset, savePresetStore, upsertPreset } from '../host/services/persona/presets.js'
 
 const persona = { name: '猫娘', role: '群里的猫娘', tone: '软萌', personality: '好奇', rules: '句尾带喵', examples: [] }
 

@@ -7,7 +7,7 @@
  *   node scripts/bundle-runtime.mjs --arch arm64
  *
  * The resulting `template/runtime-bundles/node_modules-<platform>-<arch>.tar.gz`
- * is extracted by lib/setup.js when the runtime project is created, so the
+ * is extracted by host/services/setup when the runtime project is created, so the
  * target machine needs neither npm nor network for Koishi dependencies.
  *
  * This branch is macOS-only. The default target is darwin-arm64; `--arch x64`

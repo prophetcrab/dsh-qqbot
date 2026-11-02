@@ -28,6 +28,9 @@
 > NapCat 的配置和插件位于 `~/Library/Containers/com.tencent.qq/Data/Documents/napcat`。
 > NapCat 与原版 QQ 可以同时运行，但必须登录**不同**的 QQ 账号。
 
+#### 其他平台
+
+Windows / Linux / Docker 请按 <https://napneko.github.io/guide/boot/Shell> 安装。若 NapCat 跑在另一台机器上，下文 URL 中的 `127.0.0.1` 换成 Koishi 所在机器的内网/公网 IP，并保证双方网络互通（或在 NapCat 侧使用正向 WS）。
 
 ### 2. 配置 NapCat 与 Koishi 的连接
 

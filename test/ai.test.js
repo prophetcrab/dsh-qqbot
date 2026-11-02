@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { AiChatService, normalizeMessages, sanitizeReply } from '../lib/ai.js'
+import { AiChatService } from '../host/services/ai/index.js'
+import { normalizeMessages, sanitizeReply } from '../host/services/ai/text.js'
 
 const logger = { info() {}, warn() {}, error() {}, debug() {} }
 
@@ -134,7 +135,7 @@ test('chat: profile is the second system segment and focus instruction follows',
   const { mkdtemp, rm } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const { saveProfileStore } = await import('../lib/profiles.js')
+  const { saveProfileStore } = await import('../host/services/profiles/index.js')
   const dir = await mkdtemp(join(tmpdir(), 'dsh-ai-profile-'))
   const profilesPath = join(dir, 'profiles.json')
   await saveProfileStore(profilesPath, {

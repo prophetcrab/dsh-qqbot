@@ -12,7 +12,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { KoishiManager, findPidByPort } from '../lib/koishi.js'
+import { KoishiManager } from '../host/services/koishi/index.js'
+import { findPidByPort } from '../host/services/koishi/helpers.js'
 
 const QUIET_LOGGER = { info() {}, warn() {}, error() {}, debug() {} }
 const TEST_PORT = 5199

@@ -11,14 +11,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import {
-  NapcatManager,
-  listWebsocketClients,
-  maskOnebotConfig,
-  upsertWebsocketClient,
-} from '../lib/napcat.js'
-import { resolveSettings } from '../lib/platform.js'
-import { maskToken, sha256Hex } from '../lib/util.js'
+import { NapcatManager } from '../host/services/napcat/index.js'
+import { listWebsocketClients, maskOnebotConfig, upsertWebsocketClient } from '../host/services/napcat/onebot-config.js'
+import { resolveSettings } from '../host/platform/mac/index.js'
+import { maskToken, sha256Hex } from '../host/platform/mac/paths.js'
 
 const noopLogger = { info() {}, warn() {}, error() {} }
 

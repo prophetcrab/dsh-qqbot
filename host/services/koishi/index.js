@@ -7,7 +7,6 @@
  *
  * @module host/services/koishi
  */
-
 import { spawn as spawnProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -51,7 +50,6 @@ import {
   toPort,
   truncateOutput,
 } from './helpers.js'
-
 export class KoishiManager {
   constructor(options = {}) {
     const settings = options.settings ?? {}
