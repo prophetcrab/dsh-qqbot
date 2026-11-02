@@ -212,9 +212,9 @@ lastTriggerAt = now
 
 这样可以避免同一个计数条件反复触发。
 
-### 5.2 speak=false 的语义
+### 5.2 speak.enabled=false 的语义
 
-分析返回 `speak=false` 时：
+分析返回 `speak.enabled=false` 时：
 
 ```text
 不进入生成
@@ -510,30 +510,39 @@ unknown      未知转发类型
 
 ### 10.2 输出
 
-分析只输出两个主判断：
+分析仍然只有两个顶层判断：
 
 ```json
 {
-  "speak": false,
+  "speak": {
+    "enabled": false
+  },
   "update": {
     "userProfile": false,
     "groupState": true
   },
-  "targetMessageIds": [],
   "reason": "这一轮补充了群话题，但没有必要插话"
 }
 ```
 
-或：
+需要发言时，`speak` 再细分方向：
 
 ```json
 {
-  "speak": true,
+  "speak": {
+    "enabled": true,
+    "kind": "reply",
+    "replyType": "quote",
+    "target": {
+      "qq": "20000",
+      "nickname": "小明",
+      "messageId": "m105"
+    }
+  },
   "update": {
     "userProfile": true,
     "groupState": false
   },
-  "targetMessageIds": ["m105"],
   "reason": "小明直接问了机器人一个问题"
 }
 ```
@@ -542,11 +551,30 @@ unknown      未知转发类型
 
 | 字段 | 规则 |
 | --- | --- |
-| `speak` | 是否发言；`false` 时不进入生成 |
-| `update.userProfile` | 是否值得更新当前用户画像 |
-| `update.groupState` | 是否值得更新群状态 |
-| `targetMessageIds` | `speak=true` 时必填；优先当前消息 |
+| `speak.enabled` | 是否发言；false 时不进入 speaking 状态 |
+| `speak.kind` | `statement` 或 `reply` |
+| `speak.replyType` | kind=reply 时：`normal` / `quote` / `action` / `at` |
+| `speak.target.qq` | 回复/@/戳的对象 QQ |
+| `speak.target.messageId` | 引用回复的目标消息；quote 必填 |
+| `update.*` | 是否更新画像/群状态，独立于发言 |
 | `reason` | 一句话解释，仅用于日志/调试 |
+
+`statement` 不带 target：
+
+```json
+{
+  "speak": {
+    "enabled": true,
+    "kind": "statement",
+    "replyType": null
+  },
+  "update": {
+    "userProfile": false,
+    "groupState": false
+  },
+  "reason": "群里的讨论值得发表一句主观看法"
+}
+```
 
 ### 10.3 两个判断的边界
 
@@ -570,7 +598,50 @@ update.groupState
 也可以只更新画像
 ```
 
-### 10.4 update 不是写入
+### 10.4 发言状态
+
+`speak.enabled=true` 后，进入 `speaking` 状态，分成两个方向。
+
+#### statement：主动发言
+
+```text
+不针对某条消息
+发表主观观点、吐槽、感想
+不需要 target
+```
+
+例子：
+
+```text
+这空调开得跟没开一样。
+我觉得这方案不太靠谱。
+```
+
+#### reply：回复
+
+必须带 target：
+
+```text
+normal  普通回复
+quote   引用回复：带被引用消息
+action  动作回复：戳一戳
+at      @回复：带 @
+```
+
+四种回复类型第一版互斥，不允许同时 quote + at + action。
+
+### 10.5 四种回复的定义
+
+| 类型 | 发送行为 | 必需 target |
+| --- | --- | --- |
+| normal | 直接发送文字，不引用、不 @、不戳 | qq/messageId 可选 |
+| quote | 带 reply 元素引用目标消息 | messageId |
+| action | 发送戳一戳动作 | qq |
+| at | 带 at 元素 @ 目标用户 | qq |
+
+`action` 第一版建议只戳，不附带文本；文本回复走 normal/at/quote。
+
+### 10.6 update 不是写入
 
 分析模型只负责打标记，不直接写文件。
 
@@ -587,7 +658,7 @@ update 失败
 
 更新器必须有独立的 schema、长度限制和失败重试；不能复用分析模型的自由文本。
 
-### 10.5 分析提示原则
+### 10.7 分析提示原则
 
 ```text
 你是群聊参与者，不是客服。
@@ -596,8 +667,9 @@ update 失败
 别人已经回答、话题与你无关、或者你刚说过话，可以不发言。
 
 同时判断：
-1. 这段对话是否包含值得长期记住的用户信息
-2. 群话题/参与者/未解决问题是否发生了值得记录的变化
+1. 是否发言；如果发言，是 statement 还是 reply；如果是 reply，选 normal/quote/action/at
+2. 这段对话是否包含值得长期记住的用户信息
+3. 群话题/参与者/未解决问题是否发生了值得记录的变化
 ```
 
 输出必须是严格 JSON，不要输出解释性前后缀。
@@ -610,12 +682,20 @@ idle
 collecting
   ↓ 触发条件
 analyzing
-  ├── speak=false → update(可选) → cooldown → idle
-  └── speak=true  → update(可选) + replying → cooldown → idle
+  ├── speak.enabled=false → update(可选) → cooldown → idle
+  └── speak.enabled=true
+        ├── statement
+        └── reply
+              ├── normal
+              ├── quote
+              ├── action
+              └── at
+        ↓
+      speaking → cooldown → idle
 ```
 
 `update` 是异步旁路，不阻塞发言。  
-每个群同一时间只允许一个 `analyzing` 或 `replying`。
+每个群同一时间只允许一个 `analyzing` 或 `speaking`。
 
 ### 11.1 分析期间的触发
 
@@ -646,13 +726,15 @@ direct 仍可标记 pendingForced
 
 ## 12. 回复生成
 
-`speak = true` 时进入第二阶段。
+`speak.enabled = true` 时进入第二阶段。
 
 ### 输入
 
 ```text
 分析素材（同一份）
-targetMessageIds
+speak.kind
+speak.replyType
+speak.target
 机器人上一句
 角色核心摘要
 当前情绪
@@ -663,13 +745,17 @@ targetMessageIds
 
 ```text
 一段回复文本
+（action 回复可以是零文本）
 ```
 
 ### 生成原则
 
 ```text
-只针对目标消息回复
-不要总结整个窗口
+statement：发表主观看法，不假装在回复某条消息
+reply：只针对 speak.target 回复，不要总结整个窗口
+quote：文本不要重复引用全文
+at：文本里不要手写 @，由发送层插入
+action：第一版只传动作，不生成文本
 不要复述背景
 保持人设
 允许短句/反问/吐槽
@@ -686,6 +772,38 @@ sanitize
 → group cooldown
 ```
 
+### 12.1 消息延迟
+
+只在 `speak.enabled=true` 时计算；不回复不延迟。
+
+第一版建议：
+
+```text
+首条消息前：
+  delay = clamp(350 + text.length * 18, 350, 2200) ms
+
+分条之间：
+  gap = clamp(300 + part.length * 15, 300, 1200) ms
+
+action 戳一戳：
+  200–500 ms 后执行
+
+action 后如果还有文本：
+  再等 300–600 ms
+```
+
+规则：
+
+```text
+短句更快
+长句更慢
+不要固定延迟
+不要每条回复都分段
+分段由内容决定，不为了分段而分段
+```
+
+延迟放在 Koishi 发送队列里，不阻塞中间件。
+
 ## 13. 分析后的反馈
 
 每次触发都记录一条闭环日志：
@@ -696,12 +814,19 @@ sanitize
   "groupId": "1026855069",
   "trigger": "mention",
   "materialMessageIds": ["m6", "...", "m105"],
-  "speak": true,
+  "speak": {
+    "enabled": true,
+    "kind": "reply",
+    "replyType": "quote",
+    "target": {
+      "qq": "20000",
+      "messageId": "m105"
+    }
+  },
   "update": {
     "userProfile": true,
     "groupState": false
   },
-  "targetMessageIds": ["m105"],
   "analysisMs": 812,
   "replyMs": 1300,
   "sent": true,
@@ -750,7 +875,10 @@ sanitize
 | 情况 | 行为 |
 | --- | --- |
 | 分析调用失败 | direct 触发走简单兜底；普通触发 ignore |
-| 分析输出 JSON 损坏 | ignore，记录原始输出片段 |
+| 分析输出 JSON 损坏 | speak.enabled=false，记录原始输出片段 |
+| quote 目标消息不存在 | 降级为 normal |
+| at/action 目标不存在 | 降级为 normal，无法降级则 speak.enabled=false |
+| action 发送失败 | 记录失败，不自动重发 |
 | 生成调用失败 | 重试一次；仍失败则不刷屏 |
 | 发送失败 | 记录，不立即重发 |
 | 群级已在分析 | direct 排队，普通触发丢弃 |
@@ -787,8 +915,8 @@ time 触发至少 2 个不同发送者
 ```text
 一条消息不调用 LLM
 一个触发只分析一次
-只有 speak=true 才生成
-speak=false 不生成
+只有 speak.enabled=true 才生成
+speak.enabled=false 不生成
 ```
 
 ## 18. 持久化
@@ -844,14 +972,14 @@ envelope：普通/引用/转发/回复转发/超限
 render：层级、发送者、时间、去重、截断
 trigger：@/引用/x/y/同时满足/无新消息
 state：单分析在途/direct 排队/count 丢弃
-cooldown：speak=true / speak=false 后行为
+cooldown：speak.enabled=true / false 后行为
 ```
 
 ### 集成测试
 
 ```text
 fake clock 推进 5 分钟
-fake LLM 返回 speak=false / speak=true 与 update 组合
+fake LLM 返回不发言、statement、四种 reply 与 update 组合
 伪造 105 条消息验证素材只取 100 条
 两个用户同时 @ 验证只产生一个分析
 ```
@@ -871,8 +999,11 @@ fake LLM 返回 speak=false / speak=true 与 update 组合
 100 条是素材上限，不是触发条件
 count/time 触发只分析一次
 分析期间 direct 会补一次
-speak=false 不生成回复
-speak=true 只针对目标消息
+speak.enabled=false 不生成回复
+statement 不针对目标消息
+reply 只针对目标消息
+四种 replyType 发送行为正确
+延迟随文本长度变化
 回复后进入冷却
 同一群不会连续刷屏
 闭环日志可解释每次决策
@@ -882,9 +1013,12 @@ speak=true 只针对目标消息
 
 1. `x` 已定：5 条
 2. `y` 建议 30 分钟，待确认
-3. direct 触发是否允许 `speak=false`
-4. `update.userProfile` 的判断标准与证据门槛
-5. `update.groupState` 的具体字段和更新频率
-6. 转发记录优先从当前消息取，还是调用适配器 API 展开
-7. 分析日志保留多久
-8. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
+3. direct 触发是否允许 `speak.enabled=false`
+4. `action` 回复是否允许附带文本，还是只戳
+5. 四种 replyType 是否需要组合（例如 quote + at）
+6. 消息延迟公式的最终参数
+7. `update.userProfile` 的判断标准与证据门槛
+8. `update.groupState` 的具体字段和更新频率
+9. 转发记录优先从当前消息取，还是调用适配器 API 展开
+10. 分析日志保留多久
+11. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
