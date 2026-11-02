@@ -5,7 +5,7 @@
  * to this repository. The archive is verified by size and SHA-256 before use.
  * This build never downloads NapCat: installation is strictly offline.
  *
- * @module lib/offline
+ * @module host/services/napcat/offline
  */
 
 import { createHash } from 'node:crypto'

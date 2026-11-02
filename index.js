@@ -4,7 +4,7 @@
  * This entry point is composition only: it declares the Cordis plugin metadata
  * and hands the built-in plugin list to `host/app.js`. Every capability
  * (routes/tools/features/status/client tabs) is contributed by a host plugin
- * under host/plugins/*; see docs/refactor/02-file-layout.md.
+ * under host/plugins/*; see docs/archive/refactor-v2/02-file-layout.md.
  *
  * @module dsh-qqbot
  */

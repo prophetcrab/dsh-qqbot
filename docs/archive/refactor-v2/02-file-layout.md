@@ -414,7 +414,7 @@ host/plugins/napcat/routes.js
 client/plugins/ai/AiTab.js
 client/components/StatusBadge.js
 test/host/napcat.test.js
-docs/refactor/02-file-layout.md
+docs/archive/refactor-v2/02-file-layout.md
 ```
 
 - 目录：小写、短横线/单词

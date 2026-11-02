@@ -1,4 +1,4 @@
 node_modules
-lib/**/*.test.js
 .DS_Store
 *.log
+dsh-qqbot-*.tgz

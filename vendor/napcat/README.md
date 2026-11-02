@@ -8,7 +8,7 @@
 |---|---|---|---|
 | `payload/NapCat.Shell-4.18.42.zip` | 4.18.42 | 35,967,555 | [NapCatQQ v4.18.42](https://github.com/NapNeko/NapCatQQ/releases/tag/v4.18.42) 的 `NapCat.Shell.zip` |
 
-`lib/offline.js` 会校验 `manifest.json` 中的字节数和 SHA-256，解压后复制到 QQ 容器、写入 `loadNapCat.js`，并修补 QQ 入口与热更新包。需要一次 macOS 管理员授权。
+`host/services/napcat/offline.js` 会校验 `manifest.json` 中的字节数和 SHA-256，解压后复制到 QQ 容器、写入 `loadNapCat.js`，并修补 QQ 入口与热更新包。需要一次 macOS 管理员授权。
 
 ## 校验
 

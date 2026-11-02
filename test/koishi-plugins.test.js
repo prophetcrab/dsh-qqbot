@@ -1,5 +1,5 @@
 /**
- * Unit tests for lib/koishi-plugins.js: text-level koishi.yml parsing/editing
+ * Unit tests for host/services/koishi/plugins.js: text-level koishi.yml parsing/editing
  * and the npm-backed plugin manager.
  *
  * Every test works on a fixture string or a temporary directory; the real

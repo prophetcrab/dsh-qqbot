@@ -2,7 +2,7 @@
 /**
  * Architecture guard for the DSH QQ bot host.
  *
- * Checks the rules from docs/refactor/02-file-layout.md that can be verified
+ * Checks the rules from docs/archive/refactor-v2/02-file-layout.md that can be verified
  * statically:
  *
  *   1. line budget: index.js & every plugin index.js <= 80; source <= 500

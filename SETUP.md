@@ -1,6 +1,6 @@
 # 安装与运行
 
-> 当前分支 `refactor/v2` 仅支持 macOS（Apple Silicon）。
+> 当前分支 `dshbot-mac`，仅支持 macOS（Apple Silicon）。
 
 ## 1. 安装插件
 
@@ -49,7 +49,7 @@ NapCat 安装需要一次 macOS 管理员授权。
 写入：
 
 ```text
-~/project/qq-bot/data/access.json
+~/project/qq-bot/data/config/access.json
 ```
 
 Koishi `access-control` 立即读取。
@@ -63,7 +63,7 @@ Koishi `access-control` 立即读取。
 - 人物画像
 - 完整提示词预览
 
-写入 `data/ai-settings.json`、`data/persona*.json`、`data/profiles.json`。
+写入 `data/config/ai-settings.json`、`data/config/persona*.json`、`data/assets/profiles.json`。
 
 ### Koishi 插件
 
@@ -82,8 +82,8 @@ Koishi `access-control` 立即读取。
 | NapCat 未安装 | 看 `vendor/napcat/payload` 是否存在；看 macOS 管理员授权 |
 | 二维码不显示 | NapCat 是否运行；端口 6099 |
 | 机器人离线 | Koishi 5140、OneBot 反向 WS `/onebot` |
-| 权限不生效 | `data/access.json` 是否写入；Koishi access-control 是否启用 |
-| AI 不可用 | DSH 是否运行；`ai.json` endpoint |
+| 权限不生效 | `data/config/access.json` 是否写入；Koishi access-control 是否启用 |
+| AI 不可用 | DSH 是否运行；`data/state/ai.json` endpoint |
 | 面板不更新 | 刷新 DSH 页面；检查插件是否重载 |
 
 ## 6. 开发校验
