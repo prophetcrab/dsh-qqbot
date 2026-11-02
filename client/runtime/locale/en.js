@@ -381,6 +381,7 @@ export const en = {
   aiRuntimeDays: 'd',
   aiRuntimeHours: 'h',
   aiRuntimeMinutes: 'm',
+  aiRuntimeInterestHits: 'Matched interests',
   aiRuntimeLastInbound: 'Latest message',
   aiRuntimeLastReply: 'Latest reply',
   aiRuntimeNoReplyYet: 'No reply recorded yet.',

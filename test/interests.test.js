@@ -37,3 +37,13 @@ test('InterestStore: expired interests are pruned and never resurrected', async 
   assert.deepEqual(store.snapshot(), [])
   await rm(dir, { recursive: true, force: true })
 })
+
+
+test('InterestStore: does not cap the number of candidates per group', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-interests-nocap-'))
+  const store = new InterestStore(join(dir, 'interests.json'))
+  const candidates = Array.from({ length: 25 }, (unused, index) => ({ label: `主题${index}`, weight: 0.5, confidence: 0.5, ttlHours: 24 }))
+  await store.merge('g1', candidates)
+  assert.equal(store.snapshot().filter((item) => item.groupId === 'g1').length, 25)
+  await rm(dir, { recursive: true, force: true })
+})

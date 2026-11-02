@@ -1282,6 +1282,7 @@ window.__ModuleLoader__.load({
           text,
           threadId: asText(source.threadId),
           keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
+          interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
           attention,
           attentionDecision: decisionOf(source, attention, attentionReasons),
           budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -1587,6 +1588,11 @@ window.__ModuleLoader__.load({
             h('span', { className: 'qqbot-hint' }, t('aiRuntimeAttentionScale'))),
           h('div', { className: 'qqbot-runtime-metrics' },
             meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore)),
+          inbound.interestLabels.length > 0
+            ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-interest-hits' },
+              h('span', { className: 'qqbot-row-label' }, t('aiRuntimeInterestHits')),
+              chips(h, inbound.interestLabels, 'qqbot-chip qqbot-chip-interest'))
+            : null,
           reasonChips,
           inbound.reason !== ''
             ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
@@ -1673,7 +1679,7 @@ window.__ModuleLoader__.load({
       }
 
       function renderInterestsBlock({ t, h, interests }) {
-        const rows = interests.slice(0, 8).map((interest, index) => h('div', {
+        const rows = interests.map((interest, index) => h('div', {
           key: `${interest.groupId}:${interest.label}:${index}`,
           className: 'qqbot-interest-row',
           'data-testid': 'qqbot-ai-runtime-interest',
@@ -4266,6 +4272,7 @@ window.__ModuleLoader__.load({
         aiRuntimeDays: 'd',
         aiRuntimeHours: 'h',
         aiRuntimeMinutes: 'm',
+        aiRuntimeInterestHits: 'Matched interests',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4682,6 +4689,7 @@ window.__ModuleLoader__.load({
         aiRuntimeDays: '天',
         aiRuntimeHours: '小时',
         aiRuntimeMinutes: '分钟',
+        aiRuntimeInterestHits: '命中语义兴趣',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',
@@ -5399,6 +5407,7 @@ window.__ModuleLoader__.load({
         transition: width .18s ease; }
       .qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
         font-variant-numeric: tabular-nums; }
+      .qqbot-chip-interest { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-reason { color: var(--dsw-alias-brand-primary);
         border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-keyword { font-variant-numeric: tabular-nums; }

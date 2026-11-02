@@ -381,6 +381,7 @@ export const zh = {
   aiRuntimeDays: '天',
   aiRuntimeHours: '小时',
   aiRuntimeMinutes: '分钟',
+  aiRuntimeInterestHits: '命中语义兴趣',
   aiRuntimeLastInbound: '最近消息',
   aiRuntimeLastReply: '最近回复',
   aiRuntimeNoReplyYet: '还没有回复记录。',

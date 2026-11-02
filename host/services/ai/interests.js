@@ -12,7 +12,6 @@ import { dirname } from 'node:path'
 
 export const INTEREST_DEFAULTS = Object.freeze({
   halfLifeMs: 7 * 24 * 60 * 60 * 1000,
-  maxPerGroup: 20,
   minWeight: 0.05,
 })
 
@@ -50,7 +49,6 @@ export class InterestStore {
   constructor(path, options = {}) {
     this.path = typeof path === 'string' ? path : null
     this.halfLifeMs = options.halfLifeMs ?? INTEREST_DEFAULTS.halfLifeMs
-    this.maxPerGroup = options.maxPerGroup ?? INTEREST_DEFAULTS.maxPerGroup
     this.minWeight = options.minWeight ?? INTEREST_DEFAULTS.minWeight
     this.groups = new Map()
     this.loaded = false
@@ -106,7 +104,6 @@ export class InterestStore {
       existing.ttlHours = candidate.ttlHours
       accepted.push(existing.label)
     }
-    this.capGroup(groupId, now)
     await this.save(now)
     return accepted
   }
@@ -121,16 +118,6 @@ export class InterestStore {
       interest.weight = clamp(Number(interest.weight) * Math.pow(0.5, idle / this.halfLifeMs))
       if (interest.weight < this.minWeight) this.groups.delete(key)
     }
-  }
-
-  capGroup(groupId, now = Date.now()) {
-    const list = [...this.groups.entries()].filter(([, item]) => item.groupId === groupId)
-    if (list.length <= this.maxPerGroup) return
-    list
-      .sort((left, right) => Number(left[1].weight) * Number(left[1].confidence) - Number(right[1].weight) * Number(right[1].confidence))
-      .slice(0, list.length - this.maxPerGroup)
-      .forEach(([key]) => this.groups.delete(key))
-    void now
   }
 
   snapshot() {

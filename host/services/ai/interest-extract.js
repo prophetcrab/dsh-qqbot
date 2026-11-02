@@ -25,7 +25,7 @@ export async function maintainInterests({ llm, store, groupId, messages, backgro
   const system = [
     '你负责从 QQ 群聊片段中提取可持续的语义兴趣/话题。',
     '只输出 JSON：{"interests":[{"label":"2-12字的具体主题","aliases":["最多4个同义说法"],"summary":"一句话说明","weight":0.0-1.0,"confidence":0.0-1.0,"ttlHours":1-720}]}。',
-    '要求：label 必须是具体话题/名词，不要泛词、不要逐字片段、不要整句；aliases 是可选的同义表达；最多 3 项；没有明确兴趣输出 {"interests":[]}。',
+    '要求：label 必须是具体话题/名词，不要泛词、不要逐字片段、不要整句；aliases 是可选的同义表达；不限制提取数量，但不要为了凑数编造；没有明确兴趣输出 {"interests":[]}。',
   ].join('\n')
   try {
     let text = ''

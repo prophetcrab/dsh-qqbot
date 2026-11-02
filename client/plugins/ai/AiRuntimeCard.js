@@ -52,6 +52,7 @@ export function normalizeInbound(raw) {
     text,
     threadId: asText(source.threadId),
     keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
+    interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
     attention,
     attentionDecision: decisionOf(source, attention, attentionReasons),
     budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -357,6 +358,11 @@ function renderInboundBlock({ t, h, row, inbound }) {
       h('span', { className: 'qqbot-hint' }, t('aiRuntimeAttentionScale'))),
     h('div', { className: 'qqbot-runtime-metrics' },
       meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore)),
+    inbound.interestLabels.length > 0
+      ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-interest-hits' },
+        h('span', { className: 'qqbot-row-label' }, t('aiRuntimeInterestHits')),
+        chips(h, inbound.interestLabels, 'qqbot-chip qqbot-chip-interest'))
+      : null,
     reasonChips,
     inbound.reason !== ''
       ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
@@ -443,7 +449,7 @@ function remainingText(t, expiresAt) {
 }
 
 function renderInterestsBlock({ t, h, interests }) {
-  const rows = interests.slice(0, 8).map((interest, index) => h('div', {
+  const rows = interests.map((interest, index) => h('div', {
     key: `${interest.groupId}:${interest.label}:${index}`,
     className: 'qqbot-interest-row',
     'data-testid': 'qqbot-ai-runtime-interest',
