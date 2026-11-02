@@ -262,7 +262,12 @@ const GROUP_DASHBOARD = {
     { id: 'mem_1', at: '2026-11-02T15:22:11+08:00', summary: '被说可爱时先回了“才不是”，但后面还是接受了。', kind: 'event', importance: 'medium' },
     { id: 'mem_2', at: '2026-11-02T15:18:00+08:00', summary: '群里开始聊周末开黑。', kind: 'event', importance: 'low' },
   ],
-  listener: { updatedAt: '2026-11-02T15:22:11+08:00', groups: {} },
+  listener: {
+    updatedAt: '2026-11-02T15:22:11+08:00',
+    groups: {
+      '780654567': { bufferSize: 4, unprocessed: 2, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: 'count' }, lastLoop: null },
+    },
+  },
 }
 
 const PROFILE_FIXTURE = [
@@ -762,13 +767,18 @@ expectTestId(tree, 'qqbot-ai-metrics')
 expectTestId(tree, 'qqbot-ai-state-machine')
 expectTestId(tree, 'qqbot-ai-groups')
 const groupRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-group-row')
-if (groupRows.length !== 2) throw new Error(`expected 2 group rows, got ${groupRows.length}`)
+if (groupRows.length !== 3) throw new Error(`expected 3 group rows, got ${groupRows.length}`)
 const loopRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-loop-row')
 if (loopRows.length !== 2) throw new Error(`expected 2 loop rows, got ${loopRows.length}`)
 expectTestId(tree, 'qqbot-ai-character')
 expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')
+const listenerOnlyRow = groupRows.find((node) => node.props && node.props['data-group'] === '780654567')
+if (listenerOnlyRow === undefined || typeof listenerOnlyRow.props.onClick !== 'function') throw new Error('listener-only group row missing')
+listenerOnlyRow.props.onClick()
+tree = await settle()
+if (findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-error').length !== 0) throw new Error('listener-only group selection crashed the dashboard')
 clickTestId(tree, 'qqbot-ai-loop-row')
 tree = await settle()
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('今天真热')) throw new Error('reply preview missing in dashboard')
