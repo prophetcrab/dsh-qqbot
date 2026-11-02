@@ -831,7 +831,7 @@ if (fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length < 1) {
 }
 const runtimeCard = expectTestId(tree, 'qqbot-ai-runtime-card')
 const runtimeText = text(runtimeCard)
-for (const needle of ['运行诊断', '最近消息', '天青色瞪眼鱼', '1026855069', 'thread:12', '0.960', '44%', 'keyword', 'thread']) {
+for (const needle of ['运行诊断', '最近消息', '天青色瞪眼鱼', '1026855069', 'thread:12', '0.960', '44%', '语义兴趣', '线程连续']) {
   if (!runtimeText.includes(needle)) throw new Error(`runtime card copy missing: ${needle}`)
 }
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-inbound')).includes('今天真热')) {
@@ -840,6 +840,9 @@ if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-inbound')).includes('今天�
 expectTestId(tree, 'qqbot-ai-runtime-attention-final')
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-hot-topics')).includes('龙图表情包')) {
   throw new Error('hot topic chip missing')
+}
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-attention-factors')).includes('线程连续 +15%')) {
+  throw new Error('attention factor breakdown missing')
 }
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-interest-hits')).includes('龙图表情包')) {
   throw new Error('matched semantic interest missing')

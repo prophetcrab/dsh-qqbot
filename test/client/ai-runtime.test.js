@@ -215,7 +215,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-refresh').length, 1)
 
   const inbound = textOf(byTestId(tree, 'qqbot-ai-runtime-last-inbound')[0])
-  for (const needle of ['天青色瞪眼鱼', '1026855069', 'thread:12', '今天真热', '0.960', '44%', 'keyword', 'thread', 'Reply']) {
+  for (const needle of ['天青色瞪眼鱼', '1026855069', 'thread:12', '今天真热', '0.960', '44%', 'Semantic interest', 'Thread continuity', 'Reply']) {
     assert.ok(inbound.includes(needle), `latest inbound is missing ${needle}`)
   }
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interests').length, 1)
@@ -223,6 +223,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest-longterm').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interest-hits')[0]).includes('龙图表情包'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-hot-topics')[0]).includes('龙图表情包'))
+  assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-factors')[0]).includes('Thread continuity +15%'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-attention-final').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-final')[0]).includes('44%'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-should-reply')[0]).includes('Reply'))

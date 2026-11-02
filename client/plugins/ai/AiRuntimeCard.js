@@ -9,6 +9,7 @@
  * of crashing the AI tab.
  */
 import { formatTime } from '../../runtime/api.js'
+import { attentionFactors } from './attentionView.js'
 
 // --------------------------------------------------------------- normalizers --
 
@@ -331,10 +332,14 @@ export function renderAiRuntimeCard(panel) {
 }
 
 function renderInboundBlock({ t, h, row, inbound }) {
-  const reasonChips = inbound.attentionReasons.length > 0
-    ? h('div', { className: 'qqbot-runtime-reasons' },
-      h('span', { className: 'qqbot-row-label' }, t('aiRuntimeReasons')),
-      chips(h, inbound.attentionReasons, 'qqbot-chip qqbot-chip-reason'))
+  const factors = attentionFactors(t, inbound)
+  const reasonChips = factors.length > 0
+    ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-attention-factors' },
+      h('span', { className: 'qqbot-row-label' }, t('aiRuntimeFactors')),
+      ...factors.map((factor) => h('span', {
+        key: `${factor.label}:${factor.delta}`,
+        className: `qqbot-chip qqbot-chip-reason${factor.delta < 0 ? ' is-negative' : ''}`,
+      }, `${factor.label} ${factor.delta > 0 ? '+' : ''}${factor.delta}%`)))
     : null
   return h('section', {
     className: 'qqbot-card qqbot-runtime-card',
@@ -371,9 +376,8 @@ function renderInboundBlock({ t, h, row, inbound }) {
         chips(h, inbound.hotTopics, 'qqbot-chip qqbot-chip-hot'))
       : null,
     reasonChips,
-    inbound.reason !== ''
-      ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
-      : null)
+    h('p', { className: 'qqbot-hint' },
+      `${t('aiRuntimeDecision')}: ${inbound.attentionDecision}${inbound.budgetExhausted ? ' · ' + t('aiRuntimeFactorBudget') : ''}`))
 }
 
 function renderReplyBlock({ t, h, reply }) {
