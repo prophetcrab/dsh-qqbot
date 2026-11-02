@@ -24,6 +24,8 @@ export default {
     const paths = dataPaths(api.settings.projectDir)
     const aiSettingsPath = paths.config.aiSettings
     const profilesPath = paths.assets.profiles
+    const runtimeStatePath = paths.state.aiChat
+    const lexiconPath = paths.state.runtimeLexicon
     const ai = new AiChatService({
       ctx: api.ctx,
       settings: api.settings,
@@ -34,7 +36,7 @@ export default {
     api.provide('ai', ai)
     const ensureEndpoint = createDiscovery(api, ai)
     void ensureEndpoint()
-    api.registerRoutes(routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint }))
+    api.registerRoutes(routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint, runtimeStatePath, lexiconPath }))
     api.registerStatusProvider(createStatusProvider({ ai, aiSettingsPath, ensureEndpoint }))
     api.registerClientTab({ id: 'ai', title: { zh: 'AI', en: 'AI' }, order: 1 })
   },

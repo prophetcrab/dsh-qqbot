@@ -32,6 +32,7 @@ export const LEGACY_ROUTE_PATHS = [
   '/qqbot/profiles/delete',
   '/qqbot/ai/last-prompt',
   '/qqbot/ai/status',
+  '/qqbot/ai/runtime',
   '/qqbot/ai/chat',
   '/qqbot/setup',
   '/qqbot/setup/koishi',

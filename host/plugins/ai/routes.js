@@ -3,6 +3,7 @@
  * gateway. The chat body is validated against host/contracts before use.
  */
 
+import { readFile } from 'node:fs/promises'
 import { validateAiChatRequest, normalizeAiChatRequest } from '../../contracts/index.js'
 import { only, readBody, sendJson, stringField } from '../../kernel/http.js'
 import {
@@ -13,7 +14,7 @@ import {
 } from '../../services/ai/settings.js'
 
 /** @param {object} api plugin API */
-export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint }) {
+export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint, runtimeStatePath = null, lexiconPath = null }) {
   return [
     {
       path: '/qqbot/ai/settings',
@@ -72,6 +73,21 @@ export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint }
       }),
     },
     {
+      path: '/qqbot/ai/runtime',
+      handler: (req, res) => only(req, res, ['GET'], async () => {
+        const state = await readJsonFile(runtimeStatePath)
+        const keywords = await readJsonFile(lexiconPath)
+        sendJson(res, 200, {
+          ok: true,
+          data: {
+            state: state ?? { lastInbound: null, lastReply: null, groups: {}, updatedAt: null },
+            keywords: keywords ?? { version: 1, sets: [] },
+            paths: { aiChat: runtimeStatePath, lexicon: lexiconPath },
+          },
+        })
+      }),
+    },
+    {
       path: '/qqbot/ai/chat',
       handler: (req, res) => only(req, res, ['POST'], async () => {
         const body = await readBody(req, 40 * 1024 * 1024)
@@ -87,4 +103,16 @@ export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint }
       }),
     },
   ]
+}
+
+
+/** Read a runtime diagnostics JSON file; missing/corrupt files are an empty view. */
+async function readJsonFile(path) {
+  if (typeof path !== 'string' || path === '') return null
+  try {
+    const parsed = JSON.parse(await readFile(path, 'utf8'))
+    return parsed !== null && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
 }

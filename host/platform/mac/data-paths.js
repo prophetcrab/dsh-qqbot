@@ -27,6 +27,7 @@ export function dataPaths(projectDir) {
     state: {
       aiDiscovery: join(root, 'state', 'ai.json'),
       aiChat: join(root, 'state', 'ai-chat-state.json'),
+      runtimeLexicon: join(root, 'state', 'runtime-lexicon.json'),
       koishiDb: join(root, 'state', 'koishi.db'),
       napcatQr: join(root, 'state', 'napcat-login-qr.png'),
     },
