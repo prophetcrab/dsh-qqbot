@@ -267,6 +267,14 @@ npx tsc --noEmit
 - `npm pack --dry-run` 必须包含 `vendor/`、`template/`、`host/`。
 - 不能引入在线下载 NapCat。
 
+## 9.1 功能性系统测试
+
+模块检查通过不等于可以合并/发布。
+
+- 合并前：至少按改动范围跑 [docs/system-test.md](docs/system-test.md) 中对应项
+- 发布前：必须跑完整个功能性系统测试清单
+- 生命周期、安装、AI 契约、数据路径改动必须在真实 macOS 环境验证
+
 ## 10. 模板同步
 
 `dsh-qqbot/template` 是 `qq-bot` 的副本，不手工改。
