@@ -2,16 +2,16 @@
 
 DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、起 Koishi、管插件」收进一个面板，并提供可扩展的功能注册框架与 Agent 工具。
 
-> 配套机器人项目：[qq-bot](https://github.com/prophetcrab/qq-bot)（Koishi 4 + OneBot 11 + QQ 官方适配器）
+> 配套机器人项目：[qq-bot](https://github.com/prophetcrab/qq-bot)（Koishi 4 + OneBot 11）。当前分支 `dshbot-mac` 只面向 macOS。
 
 ## 功能
 
 - **一键化安装 / 配置（运行时全部收拢在 qq-bot）**
   - 插件安装后首次加载会检查运行环境：缺少 Koishi 项目时从内置模板自动创建；依赖**默认直接解压插件内置的离线 node_modules 包**，无需 npm 和网络（当前平台）
-  - 没有匹配平台离线包时自动回退 `npm install`（macOS 已内置 arm64 包；Windows 可在 Windows 上运行打包脚本生成）
-  - NapCat 安装器下载完成后**自动打开**（10 分钟内不重复弹窗，可用 `autoOpenInstaller: false` 关闭；仅系统授权与扫码需要用户点一下）
+  - 没有匹配的 Koishi 离线包时回退 `npm install`
+  - NapCat **只从 `vendor/napcat` 内置离线包安装，不下载安装器**；首次安装需要一次 macOS 管理员授权，扫码登录由用户完成
   - 自动写入 NapCat 的 OneBot 反向 WebSocket 配置，并通过 NapCat WebUI API 热应用
-  - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
+  - 「一键安装并配置」按顺序完成：创建项目 → 安装依赖 → 离线安装 NapCat → 启动 Koishi → 写配置 → 启动 NapCat
 - **一键启动 / 停止（无需终端）**
   - NapCat（QQ）、Koishi（`npm start`）分别控制，或一键全启/全停
   - NapCat 登录二维码直接显示在面板里，扫码即登录；支持刷新二维码
@@ -52,7 +52,7 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 │    ├─ webServer 路由：状态、启停、配置、插件管理、Feature          │
 │    ├─ tools：qqbot_status / control / configure / plugin / logs   │
 │    ├─ qqbot 服务：registerFeature() 扩展入口                       │
-│    ├─ lib/napcat.js   检测、安装器、OneBot 配置、登录、启停         │
+│    ├─ lib/napcat.js   检测、离线安装、OneBot 配置、登录、启停       │
 │    ├─ lib/koishi.js   项目、进程、健康检查、日志                    │
 │    ├─ lib/koishi-plugins.js  koishi.yml 文本编辑 + npm 安装         │
 │    └─ lib/features/*  内置 Feature（可扩展）                        │
@@ -63,7 +63,7 @@ DeepSeek Harness 的 QQ 机器人控制中心。把「装 NapCat、配 OneBot、
 
 ## 安装
 
-> 运行时依赖统一放在 `~/project/qq-bot`：Koishi 源码、`node_modules`、`data`、`logs`、`runtime/napcat-installer`。DSH 插件本身只负责安装/控制，不再需要你手动创建项目或装依赖。
+> 运行时依赖统一放在 `~/project/qq-bot`：Koishi 源码、`node_modules`、`data`、`logs`。DSH 插件本身只负责安装/控制，不再需要你手动创建项目或装依赖。
 
 ### 方式一：安装脚本（推荐）
 
@@ -105,16 +105,14 @@ node scripts/install-profile.mjs --profile desktop --install
 
 ### 方式三：离线 NapCat（内置包）
 
-仓库在 `vendor/napcat/` 内置了 NapCat 安装包，安装 NapCat 时优先本地解压，**完全不访问 GitHub**：
+仓库在 `vendor/napcat/` 内置了 macOS 用的 NapCat `NapCat.Shell` 离线包。安装 NapCat 时**只使用这个包，不会访问 GitHub 下载安装器**。
 
-| 平台 | 产物 | 行为 |
-|---|---|---|
-| Windows | `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` | 解压到 `%USERPROFILE%\NapCat.4.18.42.Shell`，插件自动识别，无需 GUI 安装器 |
-| macOS | 同一份 `NapCat.Shell.zip` | 复制到 QQ 容器 `.../Documents/napcat`，写入 `loadNapCat.js`，把 QQ 入口指向它（需要一次管理员授权），并同步 QQ 热更新包的入口 |
-| macOS（兜底） | `vendor/napcat/macos/NapCatInstaller_arm64.amd64-1.7.zip` | 原生安装失败（如拒绝授权）时解压并打开官方安装器 |
+| 产物 | 行为 |
+|---|---|
+| `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` | 解压后复制到 QQ 容器 `.../Documents/napcat`，写入 `loadNapCat.js`，把 QQ 入口指向它（需要一次管理员授权），并同步 QQ 热更新包的入口 |
 
-- 安装前校验 `vendor/napcat/manifest.json` 的字节数与 SHA-256；文件缺失、被截断或被篡改都拒绝安装，并回退到原来的在线流程。
-- 配置项：`offlineInstall`（默认 `true`）、`offlineVendorDir`（指向另一份离线包）、`offlineNapcatVersion`（为空即使用包内版本，指定其它版本会被拒绝）。
+- 安装前校验 `vendor/napcat/manifest.json` 的字节数与 SHA-256；文件缺失、被截断或被篡改都拒绝安装，不会回退到网络。
+- 配置项：`offlineVendorDir`（指向另一份离线包）、`offlineNapcatVersion`（为空即使用包内版本，指定其它版本会被拒绝）。
 - 解压完成后若已存在 QQ 账号配置，立即写入 OneBot 反向 WS 配置；否则在扫码登录后自动补写。
 - 更新离线包：下载新 release 的 `NapCat.Shell.zip` 替换 `payload/` 下的文件，并把 `manifest.json` 的 `version`、`bytes`、`sha256` 更新为新值，运行 `npm run offline:verify` 校验。
 
@@ -123,7 +121,7 @@ node scripts/install-profile.mjs --profile desktop --install
 侧边栏出现 **QQ 机器人** 后：
 
 1. **总览**：查看 QQ / NapCat / Koishi / 机器人状态；未安装 NapCat 时点「安装 NapCat」
-2. Windows 下内置包会直接解压安装；macOS 会写入 QQ 入口并弹出一次管理员授权。随后用手机 QQ 扫码登录
+2. 点「安装 NapCat」会从内置离线包安装：写入 QQ 入口并弹出一次 macOS 管理员授权。随后用手机 QQ 扫码登录
 3. 登录后配置会自动写入（也可点「写入 OneBot 配置」手动重写 `ws://127.0.0.1:5140/onebot` 并热应用）
 4. 点「一键启动全部」；状态变为 NapCat 运行、Koishi 运行、机器人在线
 5. **插件**：管理 Koishi 插件；安装后按需重启 Koishi
@@ -197,7 +195,6 @@ node scripts/install-profile.mjs --profile desktop --install
         koishiPort: 5140
         napcatPort: 6099
         reversePath: /onebot
-        installerDir: ~/Library/Application Support/dsh-qqbot/napcat-installer
         napcatToken: ''
         autoRestartKoishi: true
         logLines: 200
@@ -209,14 +206,11 @@ node scripts/install-profile.mjs --profile desktop --install
 | `koishiPort` | `5140` | Koishi HTTP/控制台/反向 WS 端口 |
 | `napcatPort` | `6099` | NapCat WebUI 端口（用于读配置/登录状态） |
 | `reversePath` | `/onebot` | 反向 WS 路径 |
-| `installerDir` | `<projectDir>/runtime/napcat-installer` | NapCat 安装器缓存（也在 qq-bot 内） |
-| `qqPath` | 空 | 覆盖 QQ 安装路径（Windows 非标准安装时使用） |
-| `napcatDir` | 空 | 覆盖 NapCat 安装目录（Windows OneKey/Shell 或 Linux 手动安装时使用） |
-| `launchHidden` | `true` | Windows 提权后以隐藏控制台窗口方式启动 NapCat；排障时可设为 `false` 显示控制台 |
+| `qqPath` | 空 | 覆盖 QQ.app 路径（非标准安装时使用） |
+| `napcatDir` | 空 | 覆盖 NapCat 安装目录（非标准布局时使用） |
 | `napcatToken` | 空 | Koishi 侧 OneBot token（与 NapCat 一致） |
 | `autoRestartKoishi` | `true` | 插件管理操作后是否自动重启 |
 | `autoInstallDeps` | `true` | 首次加载时自动创建项目/安装依赖 |
-| `autoOpenInstaller` | `true` | NapCat 安装器下载后自动打开（10 分钟防重复弹窗） |
 | `aiProvider` | 空 | AI 模型 provider；留空复用 DSH 默认 |
 | `aiModel` | 空 | AI 模型 id；留空复用 DSH 默认 |
 | `aiSystemPrompt` | 内置中文提示 | 群聊 AI 系统提示词 |
@@ -300,21 +294,15 @@ npm run check     # 全部
 
 ### 离线 Koishi 依赖
 
-- 插件内置 `template/runtime-bundles/node_modules-<platform>-<arch>.tar.gz`，当前包含 **macOS arm64** 和 **Windows x64** 两份（各约 14 MiB）。首次创建运行时项目时按 `process.platform-process.arch` 自动选择并直接解压，**不需要 npm、不需要网络**；启动时优先用项目内的 `node_modules/koishi/bin.js`，因此即使机器没有 npm 也能运行。
+- 插件内置 `template/runtime-bundles/node_modules-darwin-arm64.tar.gz`（约 14 MiB），供 macOS arm64 首次创建运行时项目时直接解压，**不需要 npm、不需要网络**；启动时优先用项目内的 `node_modules/koishi/bin.js`，因此即使机器没有 npm 也能运行。
 - 重新生成当前平台：
   ```bash
   node scripts/bundle-runtime.mjs --source ~/project/qq-bot
   ```
-- 在任意平台交叉生成 Windows / Linux 包（需要 npm >= 10）：
-  ```bash
-  node scripts/bundle-runtime.mjs --platform win32 --arch x64 --install
-  node scripts/bundle-runtime.mjs --platform linux --arch x64 --install
-  ```
-  找不到对应平台包时回退 `npm install`。
 
 ### 已验证
 
-- 单元测试 136/136 通过（含 macOS/Windows 分支、AI 桥、人设卡/预设与长期画像：NapCat 34、Koishi 24、插件管理 15、平台 8、环境自举 11、权限 7、群友列表 3、消息 3、Feature 2、AI 11、人设 5、画像 7、AI 设置 2、预设 4）
+- 单元测试 131/131 通过（macOS-only 分支：NapCat、Koishi、离线安装、AI 桥、人设卡/预设与长期画像）
 - Host 冒烟：40 条路由、6 个工具、5 个内置 Feature、真实环境 17 个 Koishi 插件
 - 客户端冒烟：注册、渲染、按钮 POST、插件开关、Feature 执行、日志切换
 - 在独立 profile 中以 DSH `0.2.1-rc.3` headless 实例真实加载：`/qqbot/status`、`/qqbot/features`、`/qqbot/koishi/plugins` 均返回 200，客户端 bundle 被 DSH 注入到页面插件列表
@@ -326,14 +314,13 @@ npm run check     # 全部
 - 所有命令使用参数数组执行，不拼 shell
 - 插件管理直接修改 Koishi 项目的 `koishi.yml`，操作前建议备份（脚本会自动备份 DSH profile，Koishi 配置可用 Git 管理）
 - NapCat 控制台日志不由本插件捕获；请用 NapCat WebUI 的日志页
-- 目前面向 macOS；Windows/Linux 的安装路径检测留作 Feature 扩展
+- 当前分支只支持 macOS；Windows/Linux 代码已从本分支移除
 
 ## 路线图
 
 - [ ] 安装向导分步 UI（下载/打开/检测/配置/登录 逐步引导）
 - [ ] QQ 官方机器人接入（作为内置 Feature）
 - [ ] 群管理、定时推送、AI 对话等 QQ 侧功能以 Feature 形式提供
-- [ ] Windows / Linux 支持
 - [ ] 发布到 DSH 插件市场（dsh-plugins index）
 
 ## License

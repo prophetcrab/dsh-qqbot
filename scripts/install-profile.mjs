@@ -120,9 +120,7 @@ if (!patched) {
 }
 
 if (options.install) {
-  const windows = process.platform === 'win32'
-  if (windows) await run('cmd.exe', ['/c', 'pnpm', 'install', '--no-frozen-lockfile'], profileDir)
-  else await run('pnpm', ['install', '--no-frozen-lockfile'], profileDir)
+  await run('pnpm', ['install', '--no-frozen-lockfile'], profileDir)
 }
 
 console.log('\n完成。请退出并重新打开 DeepSeek Harness，侧边栏会出现「QQ 机器人」面板。')

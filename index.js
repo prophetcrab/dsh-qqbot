@@ -133,28 +133,27 @@ export async function apply(ctx, config) {
       if (boot?.ok === false) logger.warn('自动安装 Koishi 运行环境失败：%s', boot.message ?? boot.error ?? 'unknown')
       const state = await napcat.status()
       if (state.installed !== true) {
-        const markerPath = join(settings.projectDir, 'runtime', 'installer-opened.json')
-        let recentlyOpened = false
+        // This macOS build ships NapCat offline. Install once; the macOS admin
+        // prompt is the only interactive step. Avoid retrying every boot after
+        // the user declines it.
+        const markerPath = join(settings.projectDir, 'runtime', 'napcat-offline-install.json')
+        let recentlyTried = false
         try {
           const marker = await stat(markerPath)
-          recentlyOpened = Date.now() - marker.mtimeMs < 10 * 60 * 1000
+          recentlyTried = Date.now() - marker.mtimeMs < 10 * 60 * 1000
         } catch {
-          recentlyOpened = false
+          recentlyTried = false
         }
-        if (settings.autoOpenInstaller === false) {
-          const downloaded = await napcat.downloadInstaller()
-          if (downloaded.ok === true) logger.info('NapCat 安装器已自动下载（autoOpenInstaller=false，等待手动打开）')
-          else logger.warn('自动下载 NapCat 安装器失败：%s', downloaded.message ?? downloaded.error ?? 'unknown')
-        } else if (recentlyOpened) {
-          logger.info('NapCat 安装器最近已自动打开，跳过重复弹窗')
+        if (recentlyTried) {
+          logger.info('NapCat 离线安装最近已尝试，跳过重复授权提示')
         } else {
-          const opened = await napcat.install()
-          if (opened.ok === true) {
+          const installed = await napcat.install()
+          if (installed.ok === true) {
             await mkdir(dirname(markerPath), { recursive: true })
-            await writeFile(markerPath, JSON.stringify({ openedAt: new Date().toISOString(), version: opened.version ?? null }), 'utf8')
-            logger.info('NapCat 安装器已自动打开（版本 %s）', opened.version ?? 'latest')
+            await writeFile(markerPath, JSON.stringify({ at: new Date().toISOString(), version: installed.version ?? null }), 'utf8')
+            logger.info('NapCat 已从内置离线包安装（版本 %s）', installed.version ?? 'unknown')
           } else {
-            logger.warn('自动打开 NapCat 安装器失败：%s', opened.message ?? opened.error ?? 'unknown')
+            logger.warn('NapCat 离线安装失败：%s', installed.message ?? installed.error ?? 'unknown')
           }
         }
       } else if (state.configApplied !== true) {
@@ -202,7 +201,6 @@ export async function apply(ctx, config) {
         koishiPort: settings.koishiPort,
         napcatPort: settings.napcatPort,
         reversePath: settings.reversePath,
-        launchHidden: settings.launchHidden,
       },
       qq,
       ai: aiStatus,
@@ -711,7 +709,7 @@ export async function apply(ctx, config) {
     name: 'tool:qqbot',
     order: 2380,
     text: 'QQ bot control center: qqbot_status reads the local QQ/NapCat/Koishi state; qqbot_control starts/stops NapCat or Koishi; qqbot_configure writes the OneBot reverse WebSocket config; qqbot_plugin lists/installs/enables/uninstalls Koishi plugins; qqbot_logs tails the managed Koishi process. '
-      + 'NapCat is a GUI application: installing it opens the official macOS installer, and logging into QQ still needs the user to scan the QR code. '
+      + 'NapCat is installed from the bundled offline payload on macOS; logging into QQ still needs the user to scan the QR code. '
       + 'Never expose tokens; the panel and tools mask secrets.',
   })
 
@@ -720,7 +718,7 @@ export async function apply(ctx, config) {
 
 /**
  * One-click environment setup: scaffold Koishi, install dependencies, install
- * NapCat (downloads + opens the official macOS installer), apply the OneBot WS
+ * NapCat (installs from the bundled offline payload), apply the OneBot WS
  * config, then start both services. GUI-only steps (macOS App Management and QQ
  * QR scan) stay with the user; everything else is automated.
  *

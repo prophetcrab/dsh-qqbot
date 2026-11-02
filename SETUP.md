@@ -1,6 +1,6 @@
 # 本机安装与卸载（SETUP）
 
-> 插件支持 macOS 与 Windows：面板会自动显示平台徽章，并按平台使用对应的 NapCat 安装器、启动方式与进程管理。Linux 可运行 Koishi，但暂不支持 NapCat 自动安装。
+> 当前 `dshbot-mac` 分支只支持 macOS。NapCat 从插件内置离线包安装，不访问网络下载安装器。
 
 本文按当前这台 Mac 的实际环境编写：macOS（Apple Silicon）、DSH 桌面版 `desktop` profile、QQ + NapCat 已安装、Koishi 项目在 `~/project/qq-bot`。
 
@@ -50,7 +50,7 @@ node scripts/install-profile.mjs --profile desktop --install
    - QQ：已安装
    - NapCat：已安装（v4.x）
    - Koishi：项目存在、依赖已安装
-3. 如果 NapCat 未安装：插件会自动下载并**自动打开安装器**（10 分钟内不重复弹窗；可用 `autoOpenInstaller: false` 关闭），按提示授权「App 管理」并切换入口
+3. 如果 NapCat 未安装：插件会从内置离线包安装，并弹出一次 macOS 管理员授权；不会下载安装器
 4. 点「启动 NapCat」；概览页会直接显示**登录二维码**，用手机 QQ 扫码即可（二维码可刷新，不需要终端）
 5. 回到面板点「写入 OneBot 配置」（自动写 `ws://127.0.0.1:5140/onebot` 并热应用）
 6. 点「一键启动全部」
@@ -80,23 +80,6 @@ node scripts/install-profile.mjs --profile desktop --install
 5. 调整模型/提示词：在 `cordis.patch.yml` 配 `aiProvider/aiModel/aiSystemPrompt`；DSH 面板「AI 聊天」卡片可点「测试 AI」验证链路
 6. 如果 AI 未接入：先确认 DSH 已配置模型（`/qqbot/ai/status` 返回 available=true），再重启 Koishi（它会重新读取 `data/ai.json`）
 
-## Windows 安装（概要）
-
-1. 安装 QQNT（或使用 NapCat 一键包内置的 QQ）
-2. 安装 DSH 插件并重启，面板概览会显示「Windows」平台徽章
-   - 插件已内置 `node_modules-win32-x64` 离线包，Windows 上创建 Koishi 项目不需要 npm/网络
-3. 「一键安装并配置」会下载 `NapCat.Shell.Windows.OneKey.zip` 并运行 `NapCatInstaller.exe`
-4. 安装完成后，插件自动扫描 `NapCat*.Shell` 目录；如安装在非标准目录，在 `cordis.patch.yml` 设置：
-   ```yaml
-   - insert:
-       - id: qqbot
-         name: dsh-qqbot
-         config:
-           qqPath: C:\Program Files\Tencent\QQNT\QQ.exe
-           napcatDir: D:\NapCat\NapCat.4.18.41.Shell
-   ```
-5. 点「启动 NapCat」，面板显示二维码，用手机 QQ 扫码
-6. 写 OneBot 配置、启动 Koishi，流程与 macOS 相同
 
 ## 日常使用
 
@@ -131,7 +114,7 @@ node scripts/install-profile.mjs --uninstall
 | --- | --- |
 | 重启后没有「QQ 机器人」 | 检查 profile `package.json` 是否含依赖、bundles 是否含 `dsh-qqbot`、`cordis.patch.yml` 是否有 `id: qqbot`；查看 DSH 启动日志 |
 | DSH 启动异常 | 用备份恢复：`package.json.bak-*` / `cordis.patch.yml.bak-*`，再重启 |
-| 面板显示 NapCat 未安装但系统里有 | 检查 `~/Library/Containers/com.tencent.qq/Data/Documents/napcat` 是否存在；可在 `cordis.patch.yml` 配置 `installerDir`（仅用于安装器下载目录） |
+| 面板显示 NapCat 未安装但系统里有 | 检查 `~/Library/Containers/com.tencent.qq/Data/Documents/napcat` 是否存在 |
 | 「写入 OneBot 配置」失败 | 确认 NapCat 正在运行、WebUI 端口可访问（默认 6099）；插件会退化为直接写文件，重启 NapCat 生效 |
 | 一键启动后机器人不在线 | 看状态卡的 NapCat 是否已登录、Koishi 健康检查是否通；到「日志」页看 Koishi 报错 |
 | 插件管理改完不生效 | 勾选重启，或手动重启 Koishi；`koishi.yml` 由 Koishi Loader 自动维护，插件的增删是文本级操作 |

@@ -132,7 +132,7 @@ export class NapcatManager {
   /** @returns {Promise<NapcatStatus>} */
   async status()
 
-  /** 下载官方 NapCat-Mac-Installer release 并打开安装器（GUI），返回本地路径。 */
+  /** 从内置 vendor/napcat 离线包安装 NapCat（不访问网络）。 */
   async install()
 
   /** 把 OneBot 反向 WS 客户端写入所有账号配置并热应用。 */
@@ -143,9 +143,6 @@ export class NapcatManager {
 
   /** 停止 NapCat 进程（SIGTERM，超时后 SIGKILL）。 */
   async stop()
-
-  /** 仅下载安装器 zip 到 installerDir，返回 { zipPath, appPath, version }。 */
-  async downloadInstaller()
 
   /** 登录状态（缓存 credential）。 */
   async loginStatus()
@@ -173,20 +170,19 @@ export function maskOnebotConfig(onebotConfig) // 去掉 token 等敏感值，�
   webui: { port: number, tokenMasked: string|null, reachable: boolean },
   accounts: [{ uin, configPath, wsClients: [{ name, url, enable }], applied: boolean }],
   configApplied: boolean,
-  installer: { downloaded: boolean, appPath: string|null, version: string|null },
   error?: string
 }
 ```
 
 ### 5.1 安装流程
 
-1. `GET https://api.github.com/repos/NapNeko/NapCat-Mac-Installer/releases/latest`（User-Agent 必填）
-2. 找到 `NapCatInstaller_*.zip`，下载到 `<installerDir>/<tag>/NapCatInstaller.zip`
-3. 用 `ditto -x -k zip dir` 或 `unzip` 解压
-4. `open <解压目录>/NapCatInstaller.app`
-5. 返回 `{ ok:true, appPath, version, message:'安装器已打开，请按提示授权并切换入口' }`
+1. 从 `vendor/napcat/payload/` 读取内置 NapCat.Shell 离线包
+2. 校验 size / SHA-256，用 `ditto -x -k zip dir`（或 `unzip`）解压
+3. 合并到 QQ 容器 `Documents/napcat`，写入 `loadNapCat.js`
+4. 通过 macOS 管理员授权修补 QQ `package.json` 入口与热更新包
+5. 返回 `{ ok:true, installDir, version, message }`
 
-失败返回 `{ ok:false, error }`。下载可注入 fetch/run 以便测试（测试不联网）。
+**不发起任何网络请求**；离线包缺失或校验失败时直接返回 `{ ok:false, error }`。
 
 ### 5.2 配置流程
 

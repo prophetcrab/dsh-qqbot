@@ -43,45 +43,15 @@ test('detectNapcat: never throws on a blank settings object', () => {
   assert.equal(typeof napcat.webui.port, 'number')
 })
 
-import { hostPlatform, platformInfo, parseNetstatPid, windowsQqCandidates, windowsNapcatCandidates } from '../lib/platform.js'
+import { hostPlatform, platformInfo } from '../lib/platform.js'
 
-test('hostPlatform/platformInfo: macOS and Windows are supported', () => {
+test('hostPlatform/platformInfo: only macOS is supported', () => {
   assert.equal(hostPlatform('darwin'), 'macos')
-  assert.equal(hostPlatform('win32'), 'windows')
-  assert.equal(hostPlatform('linux'), 'linux')
+  assert.equal(hostPlatform('win32'), 'other')
+  assert.equal(hostPlatform('linux'), 'other')
   assert.equal(platformInfo('darwin').label, 'macOS')
-  assert.equal(platformInfo('win32').napcatSupported, true)
+  assert.equal(platformInfo('darwin').napcatSupported, true)
+  assert.equal(platformInfo('win32').napcatSupported, false)
   assert.equal(platformInfo('linux').napcatSupported, false)
 })
 
-test('windowsQqCandidates: common QQNT locations', () => {
-  const candidates = windowsQqCandidates({ ProgramFiles: 'C:\\Program Files', LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local' })
-  assert.ok(candidates.some((path) => path.endsWith('Tencent\\QQNT\\QQ.exe')))
-  assert.ok(candidates.every((path) => path.startsWith('C:\\')))
-})
-
-test('windowsNapcatCandidates: explicit dir, env and NapCat*.Shell folders', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'dsh-win-napcat-'))
-  const shell = join(root, 'NapCat.4.18.41.Shell')
-  await mkdir(join(shell, 'config'), { recursive: true })
-  const candidates = windowsNapcatCandidates({ USERPROFILE: root }, { napcatDir: 'C:\\custom\\NapCat' })
-  assert.ok(candidates.includes('C:\\custom\\NapCat'))
-  assert.ok(candidates.some((path) => path.includes('NapCat.4.18.41.Shell')))
-})
-
-test('parseNetstatPid: LISTENING line for the requested port', () => {
-  const output = [
-    '  TCP    127.0.0.1:5140         0.0.0.0:0              LISTENING       4321',
-    '  TCP    127.0.0.1:6099         0.0.0.0:0              LISTENING       8765',
-  ].join('\n')
-  assert.equal(parseNetstatPid(output, 5140), 4321)
-  assert.equal(parseNetstatPid(output, 6099), 8765)
-  assert.equal(parseNetstatPid(output, 1234), null)
-})
-
-
-test('resolveSettings: autoOpenInstaller defaults to true and can be disabled', () => {
-  assert.equal(resolveSettings().autoOpenInstaller, true)
-  assert.equal(resolveSettings({ autoOpenInstaller: false }).autoOpenInstaller, false)
-  assert.equal(resolveSettings({ autoOpenInstaller: true }).autoOpenInstaller, true)
-})

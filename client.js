@@ -86,10 +86,9 @@ window.__ModuleLoader__.load({
       managed: 'managed by this plugin',
       noWs: 'none configured',
       platformUnknown: 'Unknown platform',
-      installNapcatHintGeneric: 'The installer opens: follow the prompts, then apply the OneBot config.',
-      installNapcatHintMac: 'The macOS installer opens: allow it in System Settings → Privacy & Security → App Management, then apply the OneBot config.',
-      installNapcatHintWindows: 'Downloads and opens the Windows one-click package (NapCat.Shell.Windows.OneKey): allow NapCatInstaller.exe in the SmartScreen/firewall prompt the first time it runs.',
-      installNapcatHintUnsupported: 'Automatic NapCat installation is not supported on this platform. The Koishi runtime can still be installed.',
+      installNapcatHintGeneric: 'Install NapCat from the bundled offline payload, then apply the OneBot config.',
+      installNapcatHintMac: 'Installs NapCat from the bundled offline payload: allow the macOS administrator prompt, then apply the OneBot config.',
+      installNapcatHintUnsupported: 'This macOS-only build does not support NapCat on this platform.',
       setupNapcatUnsupported: 'Not supported on this platform',
       loginUnsupported: 'NapCat login is unavailable on this platform.',
       aiTitle: 'AI chat',
@@ -415,10 +414,9 @@ window.__ModuleLoader__.load({
       managed: '由本插件启动',
       noWs: '未配置',
       platformUnknown: '未知平台',
-      installNapcatHintGeneric: '会打开安装器：请按提示完成授权，然后写入 OneBot 配置。',
-      installNapcatHintMac: '会打开 macOS 安装器：请在「系统设置 → 隐私与安全性 → App 管理」允许安装器，完成授权后再写入 OneBot 配置。',
-      installNapcatHintWindows: '会下载并打开 Windows 一键安装包（NapCat.Shell.Windows.OneKey）：首次运行需在 SmartScreen/防火墙提示中允许 NapCatInstaller.exe。',
-      installNapcatHintUnsupported: '当前平台暂不支持 NapCat 自动安装。Koishi 运行环境仍可正常安装。',
+      installNapcatHintGeneric: '会从内置离线包安装 NapCat，请按提示完成授权，然后写入 OneBot 配置。',
+      installNapcatHintMac: '会从内置离线包安装 NapCat：请在 macOS 管理员授权提示中允许，然后写入 OneBot 配置。',
+      installNapcatHintUnsupported: '这个 macOS-only 构建不支持当前平台的 NapCat。',
       setupNapcatUnsupported: '当前平台不支持',
       loginUnsupported: '当前平台无法使用 NapCat 扫码登录。',
       aiTitle: 'AI 聊天',
@@ -2149,14 +2147,14 @@ window.__ModuleLoader__.load({
         ? snapshot.platform
         : null
       const rawPlatformId = platformInfo && typeof platformInfo.id === 'string' ? platformInfo.id : ''
-      const platformId = ['macos', 'windows', 'linux', 'other'].includes(rawPlatformId)
+      const platformId = ['macos', 'other'].includes(rawPlatformId)
         ? rawPlatformId
         : platformInfo !== null && platformInfo.isMac === true ? 'macos' : 'other'
       const platformLabel = platformInfo !== null && typeof platformInfo.label === 'string' && platformInfo.label !== ''
         ? platformInfo.label
         : platformInfo === null
           ? t('platformUnknown')
-          : platformId === 'macos' ? 'macOS' : platformId === 'windows' ? 'Windows' : platformId === 'linux' ? 'Linux' : t('platformUnknown')
+          : platformId === 'macos' ? 'macOS' : t('platformUnknown')
       const platformArch = platformInfo !== null && typeof platformInfo.arch === 'string' ? platformInfo.arch : ''
       const platformBadgeText = platformInfo === null
         ? t('platformUnknown')
@@ -2164,12 +2162,12 @@ window.__ModuleLoader__.load({
       const napcatSupported = platformInfo === null
         ? true
         : platformInfo.napcatSupported === undefined
-          ? platformId === 'macos' || platformId === 'windows'
+          ? platformId === 'macos'
           : platformInfo.napcatSupported === true
       const platformInstallHint = platformInfo === null
         ? t('installNapcatHintGeneric')
         : napcatSupported
-          ? platformId === 'windows' ? t('installNapcatHintWindows') : t('installNapcatHintMac')
+          ? t('installNapcatHintMac')
           : t('installNapcatHintUnsupported')
       const napcatAccounts = Array.isArray(napcat.accounts) ? napcat.accounts : []
       const wsClients = []

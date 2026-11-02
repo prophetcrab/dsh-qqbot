@@ -12,11 +12,6 @@ const vendorDir = defaultVendorDir()
 const manifest = await readManifest(vendorDir)
 const entries = [
   ['napcat.shell', join(vendorDir, manifest.napcat.shell.file), manifest.napcat.shell],
-  ...Object.entries(manifest.installers ?? {}).map(([name, meta]) => [
-    `installers.${name}`,
-    join(vendorDir, String(meta.file)),
-    meta,
-  ]),
 ]
 
 let failed = false
