@@ -1008,6 +1008,18 @@ probabilityInput.props.onChange({ currentTarget: { value: '40' } })
 tree = await settle()
 clickTestId(tree, 'qqbot-ai-settings-save')
 tree = await settle()
+expectTestId(tree, 'qqbot-ai-settings-min-interval')
+expectTestId(tree, 'qqbot-ai-settings-max-per-window')
+expectTestId(tree, 'qqbot-ai-settings-window-minutes')
+if (Number(expectTestId(tree, 'qqbot-ai-settings-min-interval').props.value) !== 10) {
+  throw new Error('min interval should display 10s')
+}
+if (Number(expectTestId(tree, 'qqbot-ai-settings-max-per-window').props.value) !== 10) {
+  throw new Error('max per window should display 10')
+}
+if (Number(expectTestId(tree, 'qqbot-ai-settings-window-minutes').props.value) !== 10) {
+  throw new Error('window should display 10 minutes')
+}
 const settingsPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/ai/settings')
 if (settingsPosts.length !== 1) throw new Error(`expected one POST /qqbot/ai/settings, got ${settingsPosts.length}`)
 const settingsBody = JSON.parse(String(settingsPosts[0].body))
@@ -1017,6 +1029,9 @@ if (Number(settingsBody.followUpMinutes) !== 3) throw new Error('followUpMinutes
 if (Number(settingsBody.historyLimit) !== 100) throw new Error('historyLimit not sent')
 if (Number(settingsBody.batchWindowMs) !== 2500) throw new Error(`batchWindowMs not sent: ${String(settingsBody.batchWindowMs)}`)
 if (Number(settingsBody.batchMaxWaitMs) !== 10000) throw new Error(`batchMaxWaitMs not sent: ${String(settingsBody.batchMaxWaitMs)}`)
+if (Number(settingsBody.minIntervalMs) !== 10000) throw new Error(`minIntervalMs not sent: ${String(settingsBody.minIntervalMs)}`)
+if (Number(settingsBody.maxPerWindow) !== 10) throw new Error(`maxPerWindow not sent: ${String(settingsBody.maxPerWindow)}`)
+if (Number(settingsBody.windowMs) !== 600000) throw new Error(`windowMs not sent: ${String(settingsBody.windowMs)}`)
 if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 40) {
   throw new Error('probability draft not refreshed after save')
 }

@@ -1760,7 +1760,19 @@ window.__ModuleLoader__.load({
               numberField('qqbot-ai-settings-batch-max', t('aiSettingsBatchMax'), draft.batchMaxWaitMs,
                 (value) => { updateDraft({ batchMaxWaitMs: value === '' ? '' : Number(value) }) },
                 { min: 0, max: 30000, step: 100 })),
-            h('p', { className: 'qqbot-hint' }, t('aiSettingsBatchHint'))),
+            h('p', { className: 'qqbot-hint' }, t('aiSettingsBatchHint')),
+            h('div', { className: 'qqbot-field-label qqbot-ai-settings-group' }, t('aiSettingsBudgetTitle')),
+            h('div', { className: 'qqbot-ai-settings-grid' },
+              numberField('qqbot-ai-settings-min-interval', t('aiSettingsMinInterval'), draft.minIntervalSeconds,
+                (value) => { updateDraft({ minIntervalSeconds: value === '' ? '' : Number(value) }) },
+                { min: 0, max: 600, step: 1 }),
+              numberField('qqbot-ai-settings-max-per-window', t('aiSettingsMaxPerWindow'), draft.maxPerWindow,
+                (value) => { updateDraft({ maxPerWindow: value === '' ? '' : Number(value) }) },
+                { min: 1, max: 100, step: 1 }),
+              numberField('qqbot-ai-settings-window-minutes', t('aiSettingsWindowMinutes'), draft.windowMinutes,
+                (value) => { updateDraft({ windowMinutes: value === '' ? '' : Number(value) }) },
+                { min: 1, max: 60, step: 1 })),
+            h('p', { className: 'qqbot-hint' }, t('aiSettingsBudgetHint'))),
           h('div', { className: 'qqbot-btns' },
             h('button', {
               type: 'button',
@@ -3629,6 +3641,9 @@ window.__ModuleLoader__.load({
         const history = Number(source.historyLimit)
         const batchWindow = Number(source.batchWindowMs)
         const batchMaxWait = Number(source.batchMaxWaitMs)
+        const minInterval = Number(source.minIntervalMs)
+        const maxPerWindow = Number(source.maxPerWindow)
+        const windowMs = Number(source.windowMs)
         return {
           enabled: source.enabled !== false,
           replyProbabilityPercent: Number.isFinite(probability) ? Math.round(probability * 10000) / 100 : 15,
@@ -3636,6 +3651,9 @@ window.__ModuleLoader__.load({
           historyLimit: Number.isFinite(history) ? history : 100,
           batchWindowMs: Number.isFinite(batchWindow) ? batchWindow : 2500,
           batchMaxWaitMs: Number.isFinite(batchMaxWait) ? batchMaxWait : 10000,
+          minIntervalSeconds: Number.isFinite(minInterval) ? Math.round(minInterval / 1000) : 10,
+          maxPerWindow: Number.isFinite(maxPerWindow) ? maxPerWindow : 10,
+          windowMinutes: Number.isFinite(windowMs) ? Math.round(windowMs / 60000) : 10,
         }
       }
 
@@ -3646,6 +3664,9 @@ window.__ModuleLoader__.load({
         const history = Number(draft.historyLimit)
         const batchWindow = Number(draft.batchWindowMs)
         const batchMaxWait = Number(draft.batchMaxWaitMs)
+        const minInterval = Number(draft.minIntervalSeconds)
+        const maxPerWindow = Number(draft.maxPerWindow)
+        const windowMinutes = Number(draft.windowMinutes)
         return {
           enabled: draft.enabled === true,
           replyProbability: Math.round(probability * 1000) / 1000,
@@ -3653,6 +3674,9 @@ window.__ModuleLoader__.load({
           historyLimit: Number.isFinite(history) ? history : 100,
           batchWindowMs: Number.isFinite(batchWindow) ? Math.min(10000, Math.max(0, batchWindow)) : 2500,
           batchMaxWaitMs: Number.isFinite(batchMaxWait) ? Math.min(30000, Math.max(0, batchMaxWait)) : 10000,
+          minIntervalMs: Number.isFinite(minInterval) ? Math.min(600, Math.max(0, minInterval)) * 1000 : 10000,
+          maxPerWindow: Number.isFinite(maxPerWindow) ? Math.min(100, Math.max(1, Math.trunc(maxPerWindow))) : 10,
+          windowMs: Number.isFinite(windowMinutes) ? Math.min(60, Math.max(1, Math.round(windowMinutes))) * 60000 : 600000,
         }
       }
 
@@ -4143,6 +4167,11 @@ window.__ModuleLoader__.load({
         aiSettingsOn: 'Enabled',
         aiSettingsOff: 'Disabled',
         aiSettingsProbabilityValue: 'Reply probability value',
+        aiSettingsBudgetTitle: 'Group budget',
+        aiSettingsMinInterval: 'Min interval (s)',
+        aiSettingsMaxPerWindow: 'Max replies in window',
+        aiSettingsWindowMinutes: 'Window (min)',
+        aiSettingsBudgetHint: 'Per-group normal reply quota. Mentions/replies to the bot bypass it.',
         aiSettingsTimingTitle: 'Timing',
         aiSettingsBatchTitle: 'Batching',
         aiRuntimeTitle: 'Runtime diagnostics',
@@ -4538,6 +4567,11 @@ window.__ModuleLoader__.load({
         aiSettingsOn: '已启用',
         aiSettingsOff: '已停用',
         aiSettingsProbabilityValue: '回复概率数值',
+        aiSettingsBudgetTitle: '群预算',
+        aiSettingsMinInterval: '最小间隔（秒）',
+        aiSettingsMaxPerWindow: '窗口内最多回复',
+        aiSettingsWindowMinutes: '窗口（分钟）',
+        aiSettingsBudgetHint: '每个群独立的普通回复配额；@机器人/引用机器人可绕过预算。',
         aiSettingsTimingTitle: '时序',
         aiSettingsBatchTitle: '批量',
         aiRuntimeTitle: '运行诊断',

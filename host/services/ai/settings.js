@@ -16,6 +16,9 @@ export const AI_SETTINGS_DEFAULTS = Object.freeze({
   historyLimit: 100,
   batchWindowMs: 2500,
   batchMaxWaitMs: 10000,
+  minIntervalMs: 10000,
+  maxPerWindow: 10,
+  windowMs: 600000,
 })
 
 /** Convert arbitrary input into bounded runtime settings. */
@@ -26,6 +29,9 @@ export function normalizeAiSettings(input) {
   const history = Number(source.historyLimit)
   const batchWindow = Number(source.batchWindowMs)
   const batchMaxWait = Number(source.batchMaxWaitMs)
+  const minInterval = Number(source.minIntervalMs)
+  const maxPerWindow = Number(source.maxPerWindow)
+  const windowMs = Number(source.windowMs)
   const batchWindowMs = Number.isFinite(batchWindow)
     ? Math.min(10000, Math.max(0, Math.trunc(batchWindow)))
     : AI_SETTINGS_DEFAULTS.batchWindowMs
@@ -45,6 +51,15 @@ export function normalizeAiSettings(input) {
       : AI_SETTINGS_DEFAULTS.historyLimit,
     batchWindowMs,
     batchMaxWaitMs,
+    minIntervalMs: Number.isFinite(minInterval)
+      ? Math.min(600000, Math.max(0, Math.trunc(minInterval)))
+      : AI_SETTINGS_DEFAULTS.minIntervalMs,
+    maxPerWindow: Number.isFinite(maxPerWindow)
+      ? Math.min(100, Math.max(1, Math.trunc(maxPerWindow)))
+      : AI_SETTINGS_DEFAULTS.maxPerWindow,
+    windowMs: Number.isFinite(windowMs)
+      ? Math.min(3600000, Math.max(1000, Math.trunc(windowMs)))
+      : AI_SETTINGS_DEFAULTS.windowMs,
   }
 }
 

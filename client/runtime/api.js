@@ -113,6 +113,9 @@ export function aiSettingsDraftFrom(settings) {
   const history = Number(source.historyLimit)
   const batchWindow = Number(source.batchWindowMs)
   const batchMaxWait = Number(source.batchMaxWaitMs)
+  const minInterval = Number(source.minIntervalMs)
+  const maxPerWindow = Number(source.maxPerWindow)
+  const windowMs = Number(source.windowMs)
   return {
     enabled: source.enabled !== false,
     replyProbabilityPercent: Number.isFinite(probability) ? Math.round(probability * 10000) / 100 : 15,
@@ -120,6 +123,9 @@ export function aiSettingsDraftFrom(settings) {
     historyLimit: Number.isFinite(history) ? history : 100,
     batchWindowMs: Number.isFinite(batchWindow) ? batchWindow : 2500,
     batchMaxWaitMs: Number.isFinite(batchMaxWait) ? batchMaxWait : 10000,
+    minIntervalSeconds: Number.isFinite(minInterval) ? Math.round(minInterval / 1000) : 10,
+    maxPerWindow: Number.isFinite(maxPerWindow) ? maxPerWindow : 10,
+    windowMinutes: Number.isFinite(windowMs) ? Math.round(windowMs / 60000) : 10,
   }
 }
 
@@ -130,6 +136,9 @@ export function aiSettingsBodyFrom(draft) {
   const history = Number(draft.historyLimit)
   const batchWindow = Number(draft.batchWindowMs)
   const batchMaxWait = Number(draft.batchMaxWaitMs)
+  const minInterval = Number(draft.minIntervalSeconds)
+  const maxPerWindow = Number(draft.maxPerWindow)
+  const windowMinutes = Number(draft.windowMinutes)
   return {
     enabled: draft.enabled === true,
     replyProbability: Math.round(probability * 1000) / 1000,
@@ -137,6 +146,9 @@ export function aiSettingsBodyFrom(draft) {
     historyLimit: Number.isFinite(history) ? history : 100,
     batchWindowMs: Number.isFinite(batchWindow) ? Math.min(10000, Math.max(0, batchWindow)) : 2500,
     batchMaxWaitMs: Number.isFinite(batchMaxWait) ? Math.min(30000, Math.max(0, batchMaxWait)) : 10000,
+    minIntervalMs: Number.isFinite(minInterval) ? Math.min(600, Math.max(0, minInterval)) * 1000 : 10000,
+    maxPerWindow: Number.isFinite(maxPerWindow) ? Math.min(100, Math.max(1, Math.trunc(maxPerWindow))) : 10,
+    windowMs: Number.isFinite(windowMinutes) ? Math.min(60, Math.max(1, Math.round(windowMinutes))) * 60000 : 600000,
   }
 }
 
