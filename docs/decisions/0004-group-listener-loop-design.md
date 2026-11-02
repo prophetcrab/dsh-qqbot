@@ -795,23 +795,173 @@ analyzing
 
 `state_update` 是固定后置节点，不论是否发言都执行一次。  
 生成/发送可以与 state_update 并行，不等待它完成。  
-每个群同一时间只允许一个 `analyzing` 或 `speaking`。
+每个群同一时间只允许一个 `analyzing` 或 `speaking`；不同群可以并行。
 
 `common_send` 负责发送、分条、延迟、失败记录和冷却；`statement_node` / `reply_node` 只负责生成输入与协议选择。
 
-### 11.1 分析期间的触发
+### 11.1 群内串行队列
+
+每个群一个队列，群内同一时间只运行一个完整的 loop：
 
 ```text
-direct @/回复
-  → pendingForced = true
-  → 当前分析结束后，对最新素材再触发一次
-
-count / time
-  → 当前分析期间不排队
-  → 当前分析结束后重新计数
+analyze
+  → compose（可选）
+  → send（可选）
+  → state_update
 ```
 
-### 11.2 冷却
+不同群可以并发。
+
+direct（@/回复）不直接执行状态机，而是入队一个高优先级请求。
+
+```text
+direct
+  → 入队 urgent
+  → 当前 loop 结束后执行
+
+count / time
+  → 入队 normal
+  → 如果已经有 normal，合并到同一个请求
+  → 不创建第二个 normal
+  → 如果 urgent 已存在，normal 可以被 urgent 覆盖
+```
+
+同一时间最多：
+
+```text
+urgent: 1 个
+normal: 1 个
+running: 1 个
+```
+
+多个 direct 在 worker 启动前合并成一个 urgent 请求。
+
+### 11.2 队列请求结构
+
+```json
+{
+  "loopId": "loop_001",
+  "groupId": "1026855069",
+  "priority": "urgent",
+  "reason": "mention",
+  "triggerMessageIds": ["m105"],
+  "enqueuedAt": "2026-11-02T15:22:10+08:00"
+}
+```
+
+触发后计数、冷却和快照都以这个请求为单位。
+
+### 11.3 队列状态
+
+```json
+{
+  "running": false,
+  "cooldownUntil": 0,
+  "urgent": null,
+  "normal": null
+}
+```
+
+入队规则：
+
+```text
+direct:
+  如果已有 urgent，合并 triggerMessageIds
+  否则放到 urgent
+  清空 normal（direct 会覆盖普通请求）
+
+count/time:
+  如果已有 normal，合并 triggerMessageIds
+  否则放到 normal
+  urgent 已存在时不再放 normal
+```
+
+这样 normal 最多只有一个待处理项：
+
+```text
+running 中来了 count/time
+  → 进入 normal
+  → 当前 loop 结束后再处理
+
+normal 还在排队时又来 count/time
+  → 合并到同一个 normal
+  → 不堆积多个相同分析
+```
+
+这样不会出现：
+
+```text
+同一个群排队十几条相同分析
+@ 多次产生多次并发回复
+count/time 在分析期间反复堆积
+```
+
+### 11.4 worker 执行
+
+```text
+while urgent 或 normal:
+  if 只有 normal 且还在 cooldown:
+    等待或丢弃
+  item = urgent ?? normal
+  running = true
+  snapshot = 从 buffer 中截取到 item.latestTriggerMessageId 的最近 100 条
+  runFullLoop(snapshot, item)
+  running = false
+  cooldownUntil = now + cooldown
+```
+
+`runFullLoop` 内部串行执行：
+
+```text
+analyze
+  → state_update 或 compose/send/state_update
+```
+
+因此群内不会出现：
+
+```text
+两个分析同时调用 LLM
+分析和 state_update 互相覆盖
+两个发送同时进行
+```
+
+### 11.5 快照时机
+
+队列延迟不改变触发素材的截止点。
+
+```text
+触发消息 id 保存在 QueueItem
+worker 出队时
+  → 在 buffer 中找到该消息
+  → 取它及之前最多 100 条
+```
+
+如果触发消息已经被 100 条上限挤出：
+
+```text
+fallback：取当前最近 100 条
+标记 triggerMessageMissing = true
+```
+
+触发之后、worker 出队前的新消息不会进入本轮素材；它们属于下一轮。
+
+### 11.6 群间并发
+
+```text
+一个群一个 worker
+不同群并行
+全局最多 N 个 loop 同时运行
+N 建议 2–4，按 LLM 配额调整
+```
+
+全局限制只控制资源；语义上仍然是：
+
+```text
+群内串行
+群间并发
+```
+
+### 11.7 冷却
 
 ```text
 reply 后：20–30 秒
@@ -822,8 +972,8 @@ ignore 后：5–10 秒
 冷却期间：
 
 ```text
-普通消息只入缓冲
-direct 仍可标记 pendingForced
+normal 请求不运行
+direct 可以入队，并在队列 worker 中优先处理
 ```
 
 ## 12. 回复生成
@@ -1079,6 +1229,7 @@ logging                闭环日志
 envelope：普通/引用/转发/回复转发/超限
 render：层级、发送者、时间、去重、截断
 trigger：@/引用/x/y/同时满足/无新消息
+queue：群内串行、urgent 合并、normal 合并、trigger 快照
 state：单分析在途/direct 排队/count 丢弃
 state_update：是否发言都执行一次、幂等、失败不影响回复
 cooldown：speak.enabled=true / false 后行为
@@ -1090,7 +1241,9 @@ cooldown：speak.enabled=true / false 后行为
 fake clock 推进 5 分钟
 fake LLM 返回不发言、statement、四种 reply；fake state_update 返回 patch
 伪造 105 条消息验证素材只取 100 条
-两个用户同时 @ 验证只产生一个分析
+两个用户同时 @ 验证只产生一个 urgent 合并请求
+两个 count/time 请求只保留一个 normal 合并请求
+两个群同时触发验证可以并行
 ```
 
 ### 回放测试
