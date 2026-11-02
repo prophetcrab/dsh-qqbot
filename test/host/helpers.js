@@ -122,8 +122,9 @@ export async function loadHost(t) {
   await mkdir(join(projectDir, 'data'), { recursive: true })
   t.after(() => rm(projectDir, { recursive: true, force: true }))
   const fake = createFakeContext()
-  const result = await apply(fake.ctx, { projectDir, bootstrap: false })
-  return { ...fake, projectDir, host: result }
+  await apply(fake.ctx, { projectDir, bootstrap: false })
+  const service = fake.getService()
+  return { ...fake, projectDir, host: { kernel: service?.kernel } }
 }
 
 /**
