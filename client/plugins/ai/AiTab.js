@@ -25,13 +25,19 @@ function ago(ms) {
 }
 
 export function useAi(panel) {
-  const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, filter: 'all', expanded: null })
+  const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null })
   const load = React.useCallback(async (manual = false) => {
     if (manual) setView((prev) => ({ ...prev, phase: prev.data === null ? 'loading' : 'refreshing', error: null }))
     try {
       const payload = await requestJson('/qqbot/group/dashboard')
       const data = obj(payload?.data)
-      setView((prev) => ({ ...prev, phase: 'ready', data: { ...EMPTY, ...data }, error: null, selected: prev.selected !== null && obj(data.groups)[prev.selected] !== undefined ? prev.selected : Object.keys(obj(data.groups))[0] ?? null }))
+      const ids = [...new Set([...Object.keys(obj(data.listener?.groups)), ...Object.keys(obj(data.groups))])]
+      setView((prev) => {
+        let selected = prev.overview ? null : prev.selected
+        if (selected === null && prev.overview !== true) selected = ids[0] ?? null
+        if (selected !== null && !ids.includes(selected)) selected = ids[0] ?? null
+        return { ...prev, phase: 'ready', data: { ...EMPTY, ...data }, error: null, selected }
+      })
     } catch (error) {
       setView((prev) => ({ ...prev, phase: 'error', error: String(error?.message ?? error) }))
     }
@@ -44,7 +50,7 @@ export function useAi(panel) {
   return () => renderAiTab(panel, {
     ...view,
     refresh: () => { void load(true) },
-    selectGroup: (id) => setView((prev) => ({ ...prev, selected: id })),
+    selectGroup: (id) => setView((prev) => ({ ...prev, selected: id ?? null, overview: id === null })),
     setFilter: (filter) => setView((prev) => ({ ...prev, filter })),
     toggleLoop: (id) => setView((prev) => ({ ...prev, expanded: prev.expanded === id ? null : id })),
   })
@@ -125,7 +131,7 @@ export function renderAiTab(panel, view) {
   const groups = Object.keys({ ...listenerGroups, ...stateGroups }).map((id) => [id, { ...obj(listenerGroups[id]), ...obj(stateGroups[id]) }])
   const loopSource = arr(data.loops).length > 0 ? data.loops : arr(data.listener?.loops)
   const loops = arr(loopSource).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
-  const selectedId = view.selected ?? groups[0]?.[0] ?? null
+  const selectedId = view.overview === true ? null : (view.selected ?? groups[0]?.[0] ?? null)
   const selectedEntry = selectedId === null ? null : groups.find(([id]) => id === selectedId)
   const selectedGroup = selectedEntry === undefined || selectedEntry === null ? null : selectedEntry[1]
   const activeLoop = selectedGroup?.lastLoop ?? null
@@ -163,14 +169,16 @@ export function renderAiTab(panel, view) {
         h('div', { className: 'qqbot-ai-card-head' },
           h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'PIPELINE'),
             h('h2', null, '状态流转')),
-          h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '暂无群')),
+          h('div', { className: 'qqbot-ai-card-actions' },
+            selectedId === null ? null : h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-back', 'data-testid': 'qqbot-ai-back-overview', onClick: () => view.selectGroup(null) }, '← 返回总览'),
+            h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '总览'))),
         stateMachine(h, activeLoop),
         selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
           h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, selectedId), h('span', null, `缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}`)),
           h('div', { className: 'qqbot-ai-active-queue' },
             h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
             h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
-            h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲'))) : h('p', { className: 'qqbot-ai-empty-line' }, '还没有群聊监听数据。')),
+            h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲'))) : h('p', { className: 'qqbot-ai-empty-line' }, groups.length === 0 ? '还没有群聊监听数据。' : '总览模式：点击左侧群队列中的群查看监听状态。')),
       h('section', { className: 'qqbot-ai-card qqbot-ai-character', 'data-testid': 'qqbot-ai-character' },
         h('div', { className: 'qqbot-ai-card-head' },
           h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'CHARACTER'),

@@ -395,4 +395,6 @@ export const CSS = `
 .qqbot-ai-error-card h2 { margin: 0; color: var(--dsw-alias-label-primary); font-size: 16px; }
 @media (max-width: 900px) { .qqbot-ai-metrics { grid-template-columns: repeat(2, 1fr); } .qqbot-ai-main-grid, .qqbot-ai-lower-grid { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .qqbot-ai-hero { flex-direction: column; } .qqbot-ai-hero-actions { justify-content: flex-start; } .qqbot-ai-metrics { grid-template-columns: 1fr 1fr; } .qqbot-ai-machine-node { min-width: 76px; } }
+.qqbot-ai-card-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.qqbot-ai-btn-back { padding: 4px 8px; font-size: 10px; }
 `
