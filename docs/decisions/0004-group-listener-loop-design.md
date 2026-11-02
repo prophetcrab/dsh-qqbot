@@ -659,6 +659,58 @@ at      @回复：带 @
 
 四种回复类型第一版互斥，不允许同时 quote + at + action。
 
+### 10.4.1 两个处理分支
+
+`statement` 和 `reply` 是两个独立处理节点，但共享发送管线。
+
+```text
+speaking
+  ├── statement_node
+  │     ├── 不需要 target
+  │     ├── 聚焦当前话题
+  │     └── 生成主观表达
+  └── reply_node
+        ├── 解析 target
+        ├── 选择 replyType
+        ├── 聚焦目标消息
+        └── 生成针对性回复
+  ↓
+common_send
+  ├── sanitize
+  ├── 分条
+  ├── 延迟
+  ├── 发送
+  ├── 记录
+  └── cooldown
+```
+
+#### 分开处理的部分
+
+| 部分 | statement | reply |
+| --- | --- | --- |
+| 输入焦点 | 当前话题/素材 | target 消息 |
+| target | 不需要 | 必需 |
+| 生成提示 | 发表主观观点 | 回复特定消息 |
+| 发送协议 | 纯文本 | normal/quote/at/action |
+| 失败降级 | 不发言 | normal → 不发言 |
+
+#### 共享的部分
+
+```text
+角色核心/状态投影
+素材渲染
+格式清洗
+分条
+长度延迟
+发送失败记录
+群级冷却
+update 异步旁路
+```
+
+不要把发送、延迟、错误处理复制成两套；只有“生成上下文”和“发送协议”分流。
+
+`reply` 的四种类型由 `reply_node` 内部策略处理，不展开成四个顶层状态节点，避免状态机膨胀。
+
 ### 10.5 四种回复的定义
 
 | 类型 | 发送行为 | target |
@@ -720,20 +772,23 @@ idle
 collecting
   ↓ 触发条件
 analyzing
-  ├── speak.enabled=false → update(可选) → cooldown → idle
+  ├── speak.enabled=false
+  │     → update(可选) → cooldown → idle
   └── speak.enabled=true
-        ├── statement
-        └── reply
-              ├── normal
-              ├── quote
-              ├── action
-              └── at
-        ↓
-      speaking → cooldown → idle
+        ├── statement_node → composing → common_send
+        └── reply_node     → composing → common_send
+                                      ├ normal
+                                      ├ quote
+                                      ├ at
+                                      └ action
+                                              ↓
+                                         cooldown → idle
 ```
 
 `update` 是异步旁路，不阻塞发言。  
 每个群同一时间只允许一个 `analyzing` 或 `speaking`。
+
+`common_send` 负责发送、分条、延迟、失败记录和冷却；`statement_node` / `reply_node` 只负责生成输入与协议选择。
 
 ### 11.1 分析期间的触发
 
