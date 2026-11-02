@@ -212,17 +212,17 @@ lastTriggerAt = now
 
 这样可以避免同一个计数条件反复触发。
 
-### 5.2 wait 的语义
+### 5.2 speak=false 的语义
 
-分析返回 `wait` 时：
+分析返回 `speak=false` 时：
 
 ```text
-不生成回复
+不进入生成
 不自动对同一份素材再次分析
 等待下一次触发事件
 ```
 
-`wait` 不是定时重试；下一次触发仍由 @、回复、count 或 time 决定。
+是否更新画像/群状态由独立的 `update` 判断决定，可以和 `speak` 无关。
 
 ### 5.3 连续 ignore 的群级退避
 
@@ -490,21 +490,37 @@ unknown      未知转发类型
     "coreSummary": "嘴硬心软，慢热，护短",
     "emotion": "有点累，社交电量低",
     "relationship": "对小明：熟人"
+  },
+  "userProfile": {
+    "qq": "20000",
+    "summary": "爱开黑的老群友",
+    "interests": ["游戏", "电影"]
+  },
+  "groupState": {
+    "topic": "周末开黑",
+    "participants": ["20000", "20001"],
+    "unansweredQuestion": "今晚几点"
   }
 }
 ```
 
 第一版 `character` 可以先只传人设摘要；0003 实现后再接完整状态。
 
+`userProfile` 和 `groupState` 是**当前快照**，只用于判断是否值得更新，不是让分析模型直接改写它们。
+
 ### 10.2 输出
+
+分析只输出两个主判断：
 
 ```json
 {
-  "action": "ignore",
+  "speak": false,
+  "update": {
+    "userProfile": false,
+    "groupState": true
+  },
   "targetMessageIds": [],
-  "mode": null,
-  "reason": "这一轮是在问小红，不是在叫机器人",
-  "confidence": 0.86
+  "reason": "这一轮补充了群话题，但没有必要插话"
 }
 ```
 
@@ -512,11 +528,13 @@ unknown      未知转发类型
 
 ```json
 {
-  "action": "reply",
+  "speak": true,
+  "update": {
+    "userProfile": true,
+    "groupState": false
+  },
   "targetMessageIds": ["m105"],
-  "mode": "short",
-  "reason": "小明直接问了机器人一个问题",
-  "confidence": 0.91
+  "reason": "小明直接问了机器人一个问题"
 }
 ```
 
@@ -524,20 +542,65 @@ unknown      未知转发类型
 
 | 字段 | 规则 |
 | --- | --- |
-| `action` | `ignore` / `wait` / `reply` |
-| `targetMessageIds` | `reply` 时必填；优先当前消息 |
-| `mode` | `short` / `answer` / `ask` / `react` |
-| `reason` | 一句话解释 |
-| `confidence` | 0–1，仅用于日志/阈值，不直接当真实性 |
+| `speak` | 是否发言；`false` 时不进入生成 |
+| `update.userProfile` | 是否值得更新当前用户画像 |
+| `update.groupState` | 是否值得更新群状态 |
+| `targetMessageIds` | `speak=true` 时必填；优先当前消息 |
+| `reason` | 一句话解释，仅用于日志/调试 |
 
-### 10.3 分析提示原则
+### 10.3 两个判断的边界
+
+```text
+speak
+  = 这一轮要不要接话
+
+update.userProfile
+  = 这段对话里有没有新的、稳定的用户信息
+
+update.groupState
+  = 群话题/参与者/未解决问题是否发生了值得记录的变化
+```
+
+两者互相独立：
+
+```text
+可以只看不说话
+可以说话但不更新画像
+可以只更新群状态
+也可以只更新画像
+```
+
+### 10.4 update 不是写入
+
+分析模型只负责打标记，不直接写文件。
+
+```text
+update.userProfile = true
+  → 由画像更新器读取素材并更新 profiles
+
+update.groupState = true
+  → 由群状态更新器读取素材并更新 group state
+
+update 失败
+  → 只影响画像/群状态，不影响本次发言
+```
+
+更新器必须有独立的 schema、长度限制和失败重试；不能复用分析模型的自由文本。
+
+### 10.5 分析提示原则
 
 ```text
 你是群聊参与者，不是客服。
 先判断这一轮在聊什么、在问谁。
 不要因为被 @ 就机械回答。
-别人已经回答、话题与你无关、或者你刚说过话，可以 ignore。
+别人已经回答、话题与你无关、或者你刚说过话，可以不发言。
+
+同时判断：
+1. 这段对话是否包含值得长期记住的用户信息
+2. 群话题/参与者/未解决问题是否发生了值得记录的变化
 ```
+
+输出必须是严格 JSON，不要输出解释性前后缀。
 
 ## 11. 群级状态机
 
@@ -547,11 +610,11 @@ idle
 collecting
   ↓ 触发条件
 analyzing
-  ├── ignore → cooldown → idle
-  ├── wait   → cooldown → idle
-  └── reply  → replying → cooldown → idle
+  ├── speak=false → update(可选) → cooldown → idle
+  └── speak=true  → update(可选) + replying → cooldown → idle
 ```
 
+`update` 是异步旁路，不阻塞发言。  
 每个群同一时间只允许一个 `analyzing` 或 `replying`。
 
 ### 11.1 分析期间的触发
@@ -583,7 +646,7 @@ direct 仍可标记 pendingForced
 
 ## 12. 回复生成
 
-`action = reply` 时进入第二阶段。
+`speak = true` 时进入第二阶段。
 
 ### 输入
 
@@ -633,9 +696,12 @@ sanitize
   "groupId": "1026855069",
   "trigger": "mention",
   "materialMessageIds": ["m6", "...", "m105"],
-  "action": "reply",
+  "speak": true,
+  "update": {
+    "userProfile": true,
+    "groupState": false
+  },
   "targetMessageIds": ["m105"],
-  "mode": "short",
   "analysisMs": 812,
   "replyMs": 1300,
   "sent": true,
@@ -648,7 +714,9 @@ sanitize
 ```text
 为什么触发
 看了哪些消息
-为什么决定回复/忽略
+是否发言
+是否要求更新画像/群状态
+为什么这样判断
 回复了哪条
 耗时
 是否成功
@@ -719,8 +787,8 @@ time 触发至少 2 个不同发送者
 ```text
 一条消息不调用 LLM
 一个触发只分析一次
-只有 reply 才生成
-ignore/wait 不生成
+只有 speak=true 才生成
+speak=false 不生成
 ```
 
 ## 18. 持久化
@@ -776,14 +844,14 @@ envelope：普通/引用/转发/回复转发/超限
 render：层级、发送者、时间、去重、截断
 trigger：@/引用/x/y/同时满足/无新消息
 state：单分析在途/direct 排队/count 丢弃
-cooldown：reply/ignore 后行为
+cooldown：speak=true / speak=false 后行为
 ```
 
 ### 集成测试
 
 ```text
 fake clock 推进 5 分钟
-fake LLM 返回 ignore/reply/wait
+fake LLM 返回 speak=false / speak=true 与 update 组合
 伪造 105 条消息验证素材只取 100 条
 两个用户同时 @ 验证只产生一个分析
 ```
@@ -793,7 +861,7 @@ fake LLM 返回 ignore/reply/wait
 ```text
 录一组真实群聊
 重放触发规则
-人工检查 action 是否符合预期
+人工检查 speak / update 是否符合预期
 ```
 
 ## 21. 验收标准
@@ -803,8 +871,8 @@ fake LLM 返回 ignore/reply/wait
 100 条是素材上限，不是触发条件
 count/time 触发只分析一次
 分析期间 direct 会补一次
-ignore 不生成回复
-reply 只针对目标消息
+speak=false 不生成回复
+speak=true 只针对目标消息
 回复后进入冷却
 同一群不会连续刷屏
 闭环日志可解释每次决策
@@ -814,8 +882,9 @@ reply 只针对目标消息
 
 1. `x` 已定：5 条
 2. `y` 建议 30 分钟，待确认
-3. direct 触发是否允许分析结果为 ignore
-4. `wait` 是否需要自动再次分析，还是等下一次触发
-5. 转发记录优先从当前消息取，还是调用适配器 API 展开
-6. 分析日志保留多久
-7. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
+3. direct 触发是否允许 `speak=false`
+4. `update.userProfile` 的判断标准与证据门槛
+5. `update.groupState` 的具体字段和更新频率
+6. 转发记录优先从当前消息取，还是调用适配器 API 展开
+7. 分析日志保留多久
+8. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
