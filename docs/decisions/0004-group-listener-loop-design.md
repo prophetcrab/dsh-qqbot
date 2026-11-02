@@ -135,6 +135,9 @@ trigger.reason = "mention"
 trigger.messageId = 当前消息
 ```
 
+direct 仍然先走完整分析，但分析后必须发言：至少发送一句文本。
+分析可以选择 statement（不回答 @ 的内容）或 reply。
+
 ### b. 被回复
 
 当前消息引用了机器人的消息：
@@ -144,6 +147,8 @@ trigger.messageId = 当前消息
 trigger.reason = "reply"
 trigger.messageId = 当前消息
 ```
+
+被回复同样必须发言，但不要求回答被引用的内容。
 
 ### c. 消息数 x
 
@@ -214,12 +219,31 @@ lastTriggerAt = now
 
 ### 5.2 speak.enabled=false 的语义
 
-分析返回 `speak.enabled=false` 时：
+普通触发（count / time）分析返回 `speak.enabled=false` 时：
 
 ```text
 不进入生成
 不自动对同一份素材再次分析
 等待下一次触发事件
+```
+
+direct 触发（mention / reply）不允许停留在 `speak.enabled=false`：
+
+```text
+分析仍然照常执行
+如果分析返回 false、JSON 损坏或分析失败
+  → 强制 speak.enabled=true
+  → 默认 kind=statement
+  → 至少生成并发送一句文本
+```
+
+被 @ / 被回复的发言：
+
+```text
+不要求回答被 @ 或被回复的内容
+可以只是接一句、吐槽一句、表达态度
+但必须有一句实际文本
+direct 不使用 action-only
 ```
 
 不论是否发言，后面都会执行一次固定的 `state_update`。
@@ -758,13 +782,20 @@ state_update 失败只记录，不影响发言
 ```text
 你是群聊参与者，不是客服。
 先判断这一轮在聊什么、在问谁。
-不要因为被 @ 就机械回答。
-别人已经回答、话题与你无关、或者你刚说过话，可以不发言。
+
+普通触发：
+  别人已经回答、话题与你无关、或者你刚说过话，可以不发言。
+
+direct 触发（@ / 被回复）：
+  必须发言，且至少一句实际文本。
+  可以选择 statement，不要求回答 @ 或引用的内容。
+  也可以选择 reply；不允许 action-only。
 
 判断：
-1. 是否发言
-2. 如果发言，是 statement 还是 reply
-3. 如果是 reply，选 normal / quote / action / at，并给出 target
+1. 普通触发：是否发言
+2. direct：必须发言
+3. 如果发言，是 statement 还是 reply
+4. 如果是 reply，选 normal / quote / at，并给出 target
 ```
 
 输出必须是严格 JSON，不要输出解释性前后缀。
@@ -777,8 +808,9 @@ idle
 collecting
   ↓ 触发条件
 analyzing
-  ├── speak.enabled=false
+  ├── 普通触发 speak.enabled=false
   │     → state_update → cooldown → idle
+  ├── direct 触发：强制 speak.enabled=true
   └── speak.enabled=true
         ├── state_update（固定，异步）
         ├── statement_node → composing
@@ -1132,13 +1164,13 @@ action 后如果还有文本：
 | 情况 | 行为 |
 | --- | --- |
 | 分析调用失败 | direct 触发走简单兜底；普通触发 ignore |
-| 分析输出 JSON 损坏 | speak.enabled=false，记录原始输出片段 |
+| 分析输出 JSON 损坏 | direct 强制 statement 并兜底一句；普通触发 speak.enabled=false |
 | quote 目标消息不存在 | 降级为 normal，并保留其余 target messageIds |
-| at/action 目标不存在 | 降级为 normal，无法确定 target 则 speak.enabled=false |
+| at/action 目标不存在 | direct 降级为 statement/normal 并必须发言；普通触发降级 normal |
 | action 发送失败 | 记录失败，不自动重发 |
 | 生成调用失败 | 重试一次；仍失败则不刷屏 |
 | 发送失败 | 记录，不立即重发 |
-| 群级已在分析 | direct 排队，普通触发丢弃 |
+| 群级已在分析 | direct 排队并合并，普通触发进入 normal |
 | 素材过长 | 截断并标记 truncated |
 | 转发无法展开 | 只保留标题/摘要 |
 
@@ -1231,6 +1263,7 @@ render：层级、发送者、时间、去重、截断
 trigger：@/引用/x/y/同时满足/无新消息
 queue：群内串行、urgent 合并、normal 合并、trigger 快照
 state：单分析在途/direct 排队/count 丢弃
+direct：分析返回 false/action/空文本时仍强制发言
 state_update：是否发言都执行一次、幂等、失败不影响回复
 cooldown：speak.enabled=true / false 后行为
 ```
@@ -1261,7 +1294,9 @@ fake LLM 返回不发言、statement、四种 reply；fake state_update 返回 p
 100 条是素材上限，不是触发条件
 count/time 触发只分析一次
 分析期间 direct 会补一次
-speak.enabled=false 不生成回复
+direct 必定发言，至少一句实际文本
+direct 仍先走分析，可选择 statement
+普通触发 speak.enabled=false 不生成回复
 statement 不针对目标消息
 reply 只针对目标消息
 四种 replyType 发送行为正确
@@ -1275,7 +1310,7 @@ reply 只针对目标消息
 
 1. `x` 已定：5 条
 2. `y` 建议 30 分钟，待确认
-3. direct 触发是否允许 `speak.enabled=false`
+3. direct 已定：必须发言，至少一句；不允许 `speak.enabled=false`，仍走分析
 4. `action` 回复是否允许附带文本，还是只戳
 5. 四种 replyType 是否需要组合（例如 quote + at）
 6. 消息延迟公式的最终参数

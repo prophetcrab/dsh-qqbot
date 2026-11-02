@@ -91,13 +91,17 @@ export class GroupLoopService {
     const groupId = text(input.groupId)
     const material = text(input.material).slice(-24000)
     if (groupId === '' || material === '') return { ok: false, error: 'material/groupId required' }
+    const triggerReason = text(input.trigger?.reason)
+    const direct = triggerReason === 'mention' || triggerReason === 'reply'
     const system = [
       await this.characterPrompt(),
       '你是群聊参与者。根据最近素材判断这一轮是否发言。',
       '不要因为被 @ 就机械回答；别人已经在回答、话题与你无关、你刚说过话时可以不发言。',
       '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
       'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
-    ].join('\n\n')
+      direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 必须为 true，且必须至少说一句；可以选择 statement，不要求回答被回复的内容；不要返回 action。' : '',
+      direct ? '如果不想回答引用内容，可以用 statement 发表一句主观反应。' : '',
+    ].filter(Boolean).join('\n\n')
     try {
       const raw = await this.stream(system, material, { maxTokens: 420, temperature: 0.25 })
       const parsed = parseJson(raw)
