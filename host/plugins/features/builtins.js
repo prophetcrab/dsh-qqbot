@@ -62,8 +62,10 @@ async function step(name, fn) {
 
 async function startAll(deps) {
   const steps = []
-  steps.push(await step('napcat', () => deps.napcat.start()))
+  // Start Koishi first: NapCat.start() waits for a QR scan / login and would
+  // otherwise show the QR code while Koishi still has no process.
   steps.push(await step('koishi', () => deps.koishi.start()))
+  steps.push(await step('napcat', () => deps.napcat.start()))
   return {
     ok: steps.some((entry) => entry.ok),
     message: steps.map((entry) => `${entry.name}: ${entry.ok ? 'ok' : 'failed'}${entry.message ? ` (${entry.message})` : ''}`).join('; '),
