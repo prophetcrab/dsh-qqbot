@@ -203,9 +203,11 @@ test('the card renders latest message metrics, groups and keyword chips', () => 
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-refresh').length, 1)
 
   const inbound = textOf(byTestId(tree, 'qqbot-ai-runtime-last-inbound')[0])
-  for (const needle of ['天青色瞪眼鱼', '1026855069', 'thread:12', '今天真热', '0.960', '0.438', 'keyword', 'thread', 'Reply']) {
+  for (const needle of ['天青色瞪眼鱼', '1026855069', 'thread:12', '今天真热', '0.960', '44%', 'keyword', 'thread', 'Reply']) {
     assert.ok(inbound.includes(needle), `latest inbound is missing ${needle}`)
   }
+  assert.equal(byTestId(tree, 'qqbot-ai-runtime-attention-final').length, 1)
+  assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-final')[0]).includes('44%'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-should-reply')[0]).includes('Reply'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-last-reply')[0]).includes('Replied'))
 

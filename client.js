@@ -1252,12 +1252,28 @@ window.__ModuleLoader__.load({
       const asReasons = (value) => asList(value).filter((item) => typeof item === 'string' && item !== '')
       const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
+      /** Map a normalized attention score to the tier currently used by the runtime. */
+      function decisionFromScore(score) {
+        if (score >= 0.5) return 'high'
+        if (score >= 0.3) return 'medium'
+        return 'low'
+      }
+
+      function decisionOf(source, attention, reasons) {
+        const explicit = asText(source.attentionDecision) || asText(source.decision) || asText(source.reason)
+        if (explicit === 'forced' || explicit === 'high' || explicit === 'medium' || explicit === 'low') return explicit
+        if (reasons.includes('forced')) return 'forced'
+        return decisionFromScore(attention)
+      }
+
       /** One `state.lastInbound` record (also reused for per-group recent rows). */
       function normalizeInbound(raw) {
         const source = asObject(raw)
         if (source === null) return null
         const sender = asText(source.sender) || asText(source.userName) || asText(source.userId)
         const text = asText(source.text) || asText(source.content)
+        const attention = clamp01(asNumber(source.attention) ?? 0)
+        const attentionReasons = asReasons(source.attentionReasons ?? source.reasons)
         return {
           at: asText(source.at),
           groupId: asText(source.groupId),
@@ -1266,8 +1282,10 @@ window.__ModuleLoader__.load({
           text,
           threadId: asText(source.threadId),
           keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
-          attention: clamp01(asNumber(source.attention) ?? 0),
-          attentionReasons: asReasons(source.attentionReasons ?? source.reasons),
+          attention,
+          attentionDecision: decisionOf(source, attention, attentionReasons),
+          budgetExhausted: attentionReasons.includes('budget-exhausted'),
+          attentionReasons,
           shouldReply: source.shouldReply === true,
           reason: asText(source.reason),
           mention: source.mention === true,
@@ -1405,6 +1423,34 @@ window.__ModuleLoader__.load({
           h('span', { className: 'qqbot-pill-text' }, text))
       }
 
+      function attentionTone(inbound) {
+        if (inbound.budgetExhausted) return 'warn'
+        if (inbound.attentionDecision === 'forced' || inbound.attentionDecision === 'high') return 'ok'
+        if (inbound.attentionDecision === 'medium') return 'info'
+        return 'muted'
+      }
+
+      function attentionLabel(t, inbound) {
+        if (inbound.budgetExhausted) return t('aiRuntimeAttentionBudget')
+        if (inbound.attentionDecision === 'forced') return t('aiRuntimeAttentionForced')
+        if (inbound.attentionDecision === 'high') return t('aiRuntimeAttentionHigh')
+        if (inbound.attentionDecision === 'medium') return t('aiRuntimeAttentionMedium')
+        return t('aiRuntimeAttentionLow')
+      }
+
+      /** Compact final attention badge used by the latest row and every recent line. */
+      function attentionBadge(h, t, inbound, testid) {
+        const valuePercent = percent(inbound.attention)
+        return h('span', {
+          className: `qqbot-attention-badge is-${attentionTone(inbound)}`,
+          'data-testid': testid,
+          'data-decision': inbound.attentionDecision,
+          title: t('aiRuntimeAttentionHint'),
+        },
+        h('strong', { className: 'qqbot-attention-value' }, `${valuePercent}%`),
+        h('span', { className: 'qqbot-attention-label' }, attentionLabel(t, inbound)))
+      }
+
       function renderAiRuntimeCard(panel) {
         const {
           t, h, aiRuntime, aiRuntimePhase, aiRuntimeError, busyOf, loadAiRuntime, row,
@@ -1503,9 +1549,16 @@ window.__ModuleLoader__.load({
             row(t('aiRuntimeSender'), inbound.sender || '—', null),
             row(t('aiRuntimeThread'), inbound.threadId || '—', null, true)),
           h('div', { className: 'qqbot-runtime-text' }, inbound.text !== '' ? inbound.text : '—'),
+          h('div', { className: 'qqbot-attention-final', 'data-testid': 'qqbot-ai-runtime-attention-final' },
+            h('div', { className: 'qqbot-attention-final-main' },
+              h('span', { className: 'qqbot-field-label' }, t('aiRuntimeFinalAttention')),
+              h('strong', { className: 'qqbot-attention-final-score' }, `${percent(inbound.attention)}%`),
+              attentionBadge(h, t, inbound, 'qqbot-ai-runtime-attention-final-badge')),
+            h('div', { className: 'qqbot-attention-meter', 'aria-hidden': true },
+              h('i', { className: 'qqbot-attention-meter-fill', style: { width: `${percent(inbound.attention)}%` } })),
+            h('span', { className: 'qqbot-hint' }, t('aiRuntimeAttentionScale'))),
           h('div', { className: 'qqbot-runtime-metrics' },
-            meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore),
-            meter(h, t('aiRuntimeAttention'), inbound.attention)),
+            meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore)),
           reasonChips,
           inbound.reason !== ''
             ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
@@ -1558,7 +1611,8 @@ window.__ModuleLoader__.load({
             },
               h('span', { className: 'qqbot-mono qqbot-runtime-recent-time' }, formatTime(entry.at) || '—'),
               h('span', { className: 'qqbot-runtime-recent-sender' }, entry.sender || '—'),
-              h('span', { className: 'qqbot-runtime-recent-text' }, entry.text || '—'))))
+              h('span', { className: 'qqbot-runtime-recent-text' }, entry.text || '—'),
+              attentionBadge(h, t, entry, 'qqbot-ai-runtime-group-recent-attention'))))
         return h('div', {
           key: group.groupId,
           className: 'qqbot-runtime-group',
@@ -1639,7 +1693,7 @@ window.__ModuleLoader__.load({
           paths.lexicon !== '' ? pathRow(t('aiRuntimePathLexicon'), paths.lexicon) : null)
       }
 
-      return { normalizeInbound, deriveRuntimeView, renderAiRuntimeCard }
+      return { decisionFromScore, normalizeInbound, deriveRuntimeView, renderAiRuntimeCard }
     },
     "client/plugins/ai/AiSettingsCard.js": (__require) => {
 
@@ -4181,6 +4235,14 @@ window.__ModuleLoader__.load({
         aiRuntimeLoading: 'Reading runtime diagnostics…',
         aiRuntimeLoadFail: 'Could not read the runtime diagnostics',
         aiRuntimeEmpty: 'No runtime diagnostics yet. Send a group message and refresh.',
+        aiRuntimeFinalAttention: 'Final attention',
+        aiRuntimeAttentionHint: 'Derived from keywords, thread, question, silence and cooldown',
+        aiRuntimeAttentionScale: 'high ≥ 50% · medium ≥ 30% · low < 30%',
+        aiRuntimeAttentionForced: 'Forced',
+        aiRuntimeAttentionHigh: 'High',
+        aiRuntimeAttentionMedium: 'Medium',
+        aiRuntimeAttentionLow: 'Low',
+        aiRuntimeAttentionBudget: 'Budget exhausted',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4581,6 +4643,14 @@ window.__ModuleLoader__.load({
         aiRuntimeLoading: '正在读取运行诊断…',
         aiRuntimeLoadFail: '运行诊断读取失败',
         aiRuntimeEmpty: '暂无运行诊断数据。在群里发一条消息后刷新。',
+        aiRuntimeFinalAttention: '最终关注度',
+        aiRuntimeAttentionHint: '关键词、线程、问句、沉默与冷却共同决定',
+        aiRuntimeAttentionScale: 'high ≥ 50% · medium ≥ 30% · low < 30%',
+        aiRuntimeAttentionForced: '强制',
+        aiRuntimeAttentionHigh: '高关注',
+        aiRuntimeAttentionMedium: '中关注',
+        aiRuntimeAttentionLow: '低关注',
+        aiRuntimeAttentionBudget: '预算耗尽',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',
@@ -5239,8 +5309,8 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); }
       .qqbot-runtime-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .qqbot-runtime-recent-list { display: flex; flex-direction: column; gap: 4px; }
-      .qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr; gap: 8px;
-        font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
+      .qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr auto; gap: 8px;
+        align-items: center; font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
       .qqbot-runtime-recent-time { color: var(--dsw-alias-label-tertiary); }
       .qqbot-runtime-recent-sender { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -5248,6 +5318,34 @@ window.__ModuleLoader__.load({
       .qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
       .qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
         border-top: 0.5px solid var(--dsw-alias-border-l1); }
+      .qqbot-attention-final { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px;
+        border: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 28%, var(--dsw-alias-border-l1));
+        border-radius: 12px; background: linear-gradient(135deg,
+          color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, var(--dsw-alias-bg-layer-1)),
+          var(--dsw-alias-bg-layer-1)); }
+      .qqbot-attention-final-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .qqbot-attention-final-score { font-size: 24px; line-height: 1; font-weight: 650; letter-spacing: -0.04em;
+        color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; }
+      .qqbot-attention-meter { height: 6px; border-radius: 999px; overflow: hidden;
+        background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 20%, transparent); }
+      .qqbot-attention-meter-fill { display: block; height: 100%; border-radius: inherit;
+        background: linear-gradient(90deg, var(--dsw-alias-state-warn-primary), var(--dsw-alias-brand-primary));
+        transition: width .18s ease; }
+      .qqbot-attention-badge { display: inline-flex; align-items: center; gap: 4px; flex: none;
+        padding: 2px 7px; border-radius: 999px; border: 0.5px solid var(--dsw-alias-border-l1);
+        font-size: 10px; line-height: 1.6; white-space: nowrap; }
+      .qqbot-attention-value { font-size: 10.5px; font-variant-numeric: tabular-nums; }
+      .qqbot-attention-label { color: var(--dsw-alias-label-tertiary); }
+      .qqbot-attention-badge.is-ok { color: var(--dsw-alias-state-success-primary);
+        border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, var(--dsw-alias-border-l1));
+        background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 7%, transparent); }
+      .qqbot-attention-badge.is-info { color: var(--dsw-alias-brand-primary);
+        border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1));
+        background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); }
+      .qqbot-attention-badge.is-warn { color: var(--dsw-alias-state-warn-primary);
+        border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1));
+        background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 7%, transparent); }
+      .qqbot-attention-badge.is-muted { color: var(--dsw-alias-label-tertiary); opacity: .8; }
 
       .qqbot-meter-row { display: flex; align-items: center; gap: 10px; font-size: 11.5px; }
       .qqbot-meter { flex: 1; min-width: 60px; height: 7px; border-radius: 999px; overflow: hidden;
@@ -5290,6 +5388,7 @@ window.__ModuleLoader__.load({
       @media (max-width: 720px) {
         .qqbot-runtime-grid { grid-template-columns: 1fr; }
         .qqbot-runtime-recent { grid-template-columns: 62px 80px 1fr; }
+        .qqbot-runtime-recent .qqbot-attention-badge { grid-column: 1 / -1; justify-self: start; }
         .qqbot-ai-status-grid { grid-template-columns: 1fr; }
       }
 

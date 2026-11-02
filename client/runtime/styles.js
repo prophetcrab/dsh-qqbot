@@ -343,8 +343,8 @@ export const CSS = `
   background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); }
 .qqbot-runtime-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .qqbot-runtime-recent-list { display: flex; flex-direction: column; gap: 4px; }
-.qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr; gap: 8px;
-  font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
+.qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr auto; gap: 8px;
+  align-items: center; font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
 .qqbot-runtime-recent-time { color: var(--dsw-alias-label-tertiary); }
 .qqbot-runtime-recent-sender { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -352,6 +352,34 @@ export const CSS = `
 .qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
 .qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
   border-top: 0.5px solid var(--dsw-alias-border-l1); }
+.qqbot-attention-final { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px;
+  border: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 28%, var(--dsw-alias-border-l1));
+  border-radius: 12px; background: linear-gradient(135deg,
+    color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, var(--dsw-alias-bg-layer-1)),
+    var(--dsw-alias-bg-layer-1)); }
+.qqbot-attention-final-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qqbot-attention-final-score { font-size: 24px; line-height: 1; font-weight: 650; letter-spacing: -0.04em;
+  color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; }
+.qqbot-attention-meter { height: 6px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 20%, transparent); }
+.qqbot-attention-meter-fill { display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, var(--dsw-alias-state-warn-primary), var(--dsw-alias-brand-primary));
+  transition: width .18s ease; }
+.qqbot-attention-badge { display: inline-flex; align-items: center; gap: 4px; flex: none;
+  padding: 2px 7px; border-radius: 999px; border: 0.5px solid var(--dsw-alias-border-l1);
+  font-size: 10px; line-height: 1.6; white-space: nowrap; }
+.qqbot-attention-value { font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.qqbot-attention-label { color: var(--dsw-alias-label-tertiary); }
+.qqbot-attention-badge.is-ok { color: var(--dsw-alias-state-success-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, var(--dsw-alias-border-l1));
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 7%, transparent); }
+.qqbot-attention-badge.is-info { color: var(--dsw-alias-brand-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1));
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); }
+.qqbot-attention-badge.is-warn { color: var(--dsw-alias-state-warn-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1));
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 7%, transparent); }
+.qqbot-attention-badge.is-muted { color: var(--dsw-alias-label-tertiary); opacity: .8; }
 
 .qqbot-meter-row { display: flex; align-items: center; gap: 10px; font-size: 11.5px; }
 .qqbot-meter { flex: 1; min-width: 60px; height: 7px; border-radius: 999px; overflow: hidden;
@@ -394,6 +422,7 @@ export const CSS = `
 @media (max-width: 720px) {
   .qqbot-runtime-grid { grid-template-columns: 1fr; }
   .qqbot-runtime-recent { grid-template-columns: 62px 80px 1fr; }
+  .qqbot-runtime-recent .qqbot-attention-badge { grid-column: 1 / -1; justify-self: start; }
   .qqbot-ai-status-grid { grid-template-columns: 1fr; }
 }
 

@@ -821,11 +821,15 @@ if (fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length < 1) {
 }
 const runtimeCard = expectTestId(tree, 'qqbot-ai-runtime-card')
 const runtimeText = text(runtimeCard)
-for (const needle of ['运行诊断', '最近消息', '天青色瞪眼鱼', '1026855069', 'thread:12', '0.960', '0.438', 'keyword', 'thread']) {
+for (const needle of ['运行诊断', '最近消息', '天青色瞪眼鱼', '1026855069', 'thread:12', '0.960', '44%', 'keyword', 'thread']) {
   if (!runtimeText.includes(needle)) throw new Error(`runtime card copy missing: ${needle}`)
 }
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-inbound')).includes('今天真热')) {
   throw new Error('runtime latest inbound text missing')
+}
+expectTestId(tree, 'qqbot-ai-runtime-attention-final')
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-attention-final')).includes('44%')) {
+  throw new Error('final attention badge missing: ' + text(expectTestId(tree, 'qqbot-ai-runtime-attention-final')))
 }
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-should-reply')).includes('回复')) {
   throw new Error('runtime shouldReply pill missing: ' + JSON.stringify(text(expectTestId(tree, 'qqbot-ai-runtime-should-reply'))))
@@ -837,6 +841,8 @@ const runtimeGroups = findAll(tree, (node) => node.props && node.props['data-tes
 if (runtimeGroups.length !== 2) throw new Error(`expected 2 runtime groups, got ${runtimeGroups.length}`)
 const runtimeRecent = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group-recent')
 if (runtimeRecent.length !== 3) throw new Error(`expected 3 per-group recents, got ${runtimeRecent.length}`)
+const recentAttention = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group-recent-attention')
+if (recentAttention.length !== 3) throw new Error(`expected 3 per-message attention badges, got ${recentAttention.length}`)
 const keywordScopes = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-scope')
 if (keywordScopes.length !== 2) throw new Error(`expected 2 keyword scopes, got ${keywordScopes.length}`)
 const keywordChips = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-chip')

@@ -22,12 +22,28 @@ const asList = (value) => (Array.isArray(value) ? value : [])
 const asReasons = (value) => asList(value).filter((item) => typeof item === 'string' && item !== '')
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
 
+/** Map a normalized attention score to the tier currently used by the runtime. */
+export function decisionFromScore(score) {
+  if (score >= 0.5) return 'high'
+  if (score >= 0.3) return 'medium'
+  return 'low'
+}
+
+function decisionOf(source, attention, reasons) {
+  const explicit = asText(source.attentionDecision) || asText(source.decision) || asText(source.reason)
+  if (explicit === 'forced' || explicit === 'high' || explicit === 'medium' || explicit === 'low') return explicit
+  if (reasons.includes('forced')) return 'forced'
+  return decisionFromScore(attention)
+}
+
 /** One `state.lastInbound` record (also reused for per-group recent rows). */
 export function normalizeInbound(raw) {
   const source = asObject(raw)
   if (source === null) return null
   const sender = asText(source.sender) || asText(source.userName) || asText(source.userId)
   const text = asText(source.text) || asText(source.content)
+  const attention = clamp01(asNumber(source.attention) ?? 0)
+  const attentionReasons = asReasons(source.attentionReasons ?? source.reasons)
   return {
     at: asText(source.at),
     groupId: asText(source.groupId),
@@ -36,8 +52,10 @@ export function normalizeInbound(raw) {
     text,
     threadId: asText(source.threadId),
     keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
-    attention: clamp01(asNumber(source.attention) ?? 0),
-    attentionReasons: asReasons(source.attentionReasons ?? source.reasons),
+    attention,
+    attentionDecision: decisionOf(source, attention, attentionReasons),
+    budgetExhausted: attentionReasons.includes('budget-exhausted'),
+    attentionReasons,
     shouldReply: source.shouldReply === true,
     reason: asText(source.reason),
     mention: source.mention === true,
@@ -175,6 +193,34 @@ function statusPill(h, text, tone) {
     h('span', { className: 'qqbot-pill-text' }, text))
 }
 
+function attentionTone(inbound) {
+  if (inbound.budgetExhausted) return 'warn'
+  if (inbound.attentionDecision === 'forced' || inbound.attentionDecision === 'high') return 'ok'
+  if (inbound.attentionDecision === 'medium') return 'info'
+  return 'muted'
+}
+
+function attentionLabel(t, inbound) {
+  if (inbound.budgetExhausted) return t('aiRuntimeAttentionBudget')
+  if (inbound.attentionDecision === 'forced') return t('aiRuntimeAttentionForced')
+  if (inbound.attentionDecision === 'high') return t('aiRuntimeAttentionHigh')
+  if (inbound.attentionDecision === 'medium') return t('aiRuntimeAttentionMedium')
+  return t('aiRuntimeAttentionLow')
+}
+
+/** Compact final attention badge used by the latest row and every recent line. */
+function attentionBadge(h, t, inbound, testid) {
+  const valuePercent = percent(inbound.attention)
+  return h('span', {
+    className: `qqbot-attention-badge is-${attentionTone(inbound)}`,
+    'data-testid': testid,
+    'data-decision': inbound.attentionDecision,
+    title: t('aiRuntimeAttentionHint'),
+  },
+  h('strong', { className: 'qqbot-attention-value' }, `${valuePercent}%`),
+  h('span', { className: 'qqbot-attention-label' }, attentionLabel(t, inbound)))
+}
+
 export function renderAiRuntimeCard(panel) {
   const {
     t, h, aiRuntime, aiRuntimePhase, aiRuntimeError, busyOf, loadAiRuntime, row,
@@ -273,9 +319,16 @@ function renderInboundBlock({ t, h, row, inbound }) {
       row(t('aiRuntimeSender'), inbound.sender || '—', null),
       row(t('aiRuntimeThread'), inbound.threadId || '—', null, true)),
     h('div', { className: 'qqbot-runtime-text' }, inbound.text !== '' ? inbound.text : '—'),
+    h('div', { className: 'qqbot-attention-final', 'data-testid': 'qqbot-ai-runtime-attention-final' },
+      h('div', { className: 'qqbot-attention-final-main' },
+        h('span', { className: 'qqbot-field-label' }, t('aiRuntimeFinalAttention')),
+        h('strong', { className: 'qqbot-attention-final-score' }, `${percent(inbound.attention)}%`),
+        attentionBadge(h, t, inbound, 'qqbot-ai-runtime-attention-final-badge')),
+      h('div', { className: 'qqbot-attention-meter', 'aria-hidden': true },
+        h('i', { className: 'qqbot-attention-meter-fill', style: { width: `${percent(inbound.attention)}%` } })),
+      h('span', { className: 'qqbot-hint' }, t('aiRuntimeAttentionScale'))),
     h('div', { className: 'qqbot-runtime-metrics' },
-      meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore),
-      meter(h, t('aiRuntimeAttention'), inbound.attention)),
+      meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore)),
     reasonChips,
     inbound.reason !== ''
       ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
@@ -328,7 +381,8 @@ function renderGroupRow({ t, h, group }) {
       },
         h('span', { className: 'qqbot-mono qqbot-runtime-recent-time' }, formatTime(entry.at) || '—'),
         h('span', { className: 'qqbot-runtime-recent-sender' }, entry.sender || '—'),
-        h('span', { className: 'qqbot-runtime-recent-text' }, entry.text || '—'))))
+        h('span', { className: 'qqbot-runtime-recent-text' }, entry.text || '—'),
+        attentionBadge(h, t, entry, 'qqbot-ai-runtime-group-recent-attention'))))
   return h('div', {
     key: group.groupId,
     className: 'qqbot-runtime-group',
