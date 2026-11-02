@@ -14,7 +14,7 @@ import { GroupActorRegistry, ActivationScheduler } from './scheduler.js'
 import { DynamicLexicon } from './lexicon.js'
 import { ToolRegistry } from './tools.js'
 import { ExtensionRegistry } from './extensions.js'
-import { evaluateAttention } from './attention.js'
+import { attentionReplyChance, evaluateAttention } from './attention.js'
 import type { AttentionResult, BotEvent, KeywordHit, LexiconKey, Thread } from './types.js'
 
 export * from './types.js'
@@ -44,8 +44,8 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.object({
   shadow: Schema.boolean().default(true).description('保留开关；当前只提供核心服务'),
-  minIntervalMs: Schema.number().default(20000).min(0).max(600000).description('同群普通回复最小间隔（毫秒）'),
-  maxPerWindow: Schema.number().default(3).min(1).max(100).description('同群窗口内最多普通回复数'),
+  minIntervalMs: Schema.number().default(10000).min(0).max(600000).description('同群普通回复最小间隔（毫秒）'),
+  maxPerWindow: Schema.number().default(10).min(1).max(100).description('同群窗口内最多普通回复数'),
   windowMs: Schema.number().default(600000).min(1000).max(3600000).description('群预算滑动窗口（毫秒）'),
   stateFile: Schema.string().default('data/state/runtime-lexicon.json').description('动态关键词持久化文件'),
 })
@@ -98,8 +98,8 @@ export class RuntimeService extends Service<Config> {
     super(ctx, 'qqbotRuntime', true)
     this.config = Object.assign({
       shadow: true,
-      minIntervalMs: 20000,
-      maxPerWindow: 3,
+      minIntervalMs: 10000,
+      maxPerWindow: 10,
       windowMs: 600000,
       stateFile: 'data/state/runtime-lexicon.json',
     }, config)
@@ -230,12 +230,7 @@ export class RuntimeService extends Service<Config> {
   shouldReply(observation: Observation, replyProbability: number, random: () => number = Math.random): boolean {
     if (observation.attention.decision === 'forced') return true
     if (observation.attention.reasons.includes('budget-exhausted')) return false
-    // Low attention still follows the configured probability; high attention
-    // boosts it. This preserves the existing reply rate while making keywords
-    // and thread continuity win ties.
-    const chance = observation.attention.decision === 'high'
-      ? Math.min(0.9, Math.max(replyProbability, replyProbability * 3))
-      : replyProbability
+    const chance = attentionReplyChance(observation.attention.decision, replyProbability)
     return random() < chance
   }
 
