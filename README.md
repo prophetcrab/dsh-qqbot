@@ -213,3 +213,4 @@ npm run check            # 全部
 - [运行时内核 v1 详细设计](docs/decisions/0002-runtime-v1-detailed-design.md)
 - [小核心人格 + 记忆驱动 + 情绪微调](docs/decisions/0003-character-memory-design.md)
 - [群消息监听与反馈闭环](docs/decisions/0004-group-listener-loop-design.md)
+- [群聊监听状态机 HTML 图](docs/design/group-listener-state-machine.html)

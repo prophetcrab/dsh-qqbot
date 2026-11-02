@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>群聊监听状态机 · 设计稿</title>
+<style>
+  :root {
+    --bg: #eef2f7;
+    --paper: #ffffff;
+    --ink: #142033;
+    --muted: #64748b;
+    --line: #cbd5e1;
+    --blue: #2563eb;
+    --blue-soft: #eff6ff;
+    --amber: #b45309;
+    --amber-soft: #fffbeb;
+    --violet: #6d28d9;
+    --violet-soft: #f5f3ff;
+    --green: #047857;
+    --green-soft: #ecfdf5;
+    --slate-soft: #f8fafc;
+    --shadow: 0 10px 30px rgba(15, 23, 42, .06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(1100px 500px at 85% -10%, #dbeafe 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 100%, #ede9fe 0%, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 34px 28px 48px; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+  .eyebrow { color: var(--blue); letter-spacing: .14em; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  h1 { margin: 7px 0 7px; font-size: 27px; line-height: 1.2; letter-spacing: -.02em; }
+  .lede { margin: 0; color: var(--muted); max-width: 850px; font-size: 13px; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .badge { border: 1px solid var(--line); background: rgba(255,255,255,.7); border-radius: 999px; padding: 5px 10px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .badge strong { color: var(--ink); font-weight: 650; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start; }
+  .card { background: var(--paper); border: 1px solid rgba(203,213,225,.8); border-radius: 18px; box-shadow: var(--shadow); }
+  .diagram-card { overflow: auto; padding: 14px 14px 10px; }
+  svg { display: block; width: 100%; min-width: 1000px; height: auto; }
+  .state { cursor: pointer; }
+  .state rect { fill: #fff; stroke: #cbd5e1; stroke-width: 1.35; transition: filter .16s ease, stroke-width .16s ease; }
+  .state:hover rect, .state.is-active rect { stroke-width: 2.6; filter: drop-shadow(0 6px 16px rgba(37,99,235,.13)); }
+  .state.process rect { fill: var(--blue-soft); stroke: #93c5fd; }
+  .state.decision rect { fill: var(--amber-soft); stroke: #fcd34d; }
+  .state.branch rect { fill: var(--violet-soft); stroke: #c4b5fd; }
+  .state.success rect { fill: var(--green-soft); stroke: #6ee7b7; }
+  .state.data rect { fill: #f8fafc; stroke: #94a3b8; stroke-dasharray: 7 5; }
+  .state.terminal rect { fill: var(--slate-soft); stroke: #cbd5e1; }
+  .state .title { fill: var(--ink); font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+  .state .sub { fill: var(--muted); font-size: 10.5px; }
+  .state .kicker { fill: #94a3b8; font-size: 9px; font-weight: 700; letter-spacing: .12em; }
+  .edge { fill: none; stroke: #94a3b8; stroke-width: 1.8; marker-end: url(#arrow); }
+  .edge.strong { stroke: var(--blue); stroke-width: 2; }
+  .edge.dashed { stroke-dasharray: 7 5; }
+  .edge.green { stroke: var(--green); }
+  .edge.violet { stroke: var(--violet); }
+  .edge-label { fill: #475569; font-size: 10.5px; font-weight: 600; }
+  .edge-label-box { fill: rgba(255,255,255,.92); stroke: #e2e8f0; stroke-width: .8; rx: 5; }
+  .tiny { fill: #94a3b8; font-size: 9.5px; }
+  .aside { display: flex; flex-direction: column; gap: 14px; }
+  .panel { padding: 15px 16px; }
+  .panel h2 { margin: 0 0 4px; font-size: 14px; letter-spacing: -.01em; }
+  .panel p { margin: 0 0 11px; color: var(--muted); font-size: 12px; }
+  .rule-list { display: flex; flex-direction: column; gap: 8px; }
+  .rule { display: grid; grid-template-columns: 25px minmax(0,1fr); gap: 8px; align-items: start; }
+  .rule b { display: inline-flex; width: 21px; height: 21px; align-items: center; justify-content: center; border-radius: 7px; background: #eef2ff; color: #4338ca; font-size: 10px; }
+  .rule span { font-size: 11.5px; color: #475569; }
+  .rule span strong { color: var(--ink); font-weight: 650; }
+  .detail { min-height: 116px; }
+  .detail h3 { margin: 1px 0 5px; font-size: 14px; }
+  .detail p { margin: 0; font-size: 12px; color: #475569; }
+  .detail ul { margin: 8px 0 0; padding-left: 17px; color: #475569; font-size: 11.5px; }
+  .detail li + li { margin-top: 3px; }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; font-size: 11px; color: var(--muted); }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; border: 1px solid transparent; display: inline-block; }
+  .dot.process { background: #dbeafe; border-color: #93c5fd; }
+  .dot.decision { background: #fef3c7; border-color: #fcd34d; }
+  .dot.branch { background: #ede9fe; border-color: #c4b5fd; }
+  .dot.data { background: #f8fafc; border-color: #94a3b8; border-style: dashed; }
+  .note { border-left: 3px solid var(--blue); padding: 9px 11px; background: #f8fbff; border-radius: 0 10px 10px 0; color: #475569; font-size: 11.5px; }
+  .note strong { color: var(--ink); }
+  .footer { margin-top: 16px; color: #94a3b8; font-size: 11px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  @media (max-width: 1120px) { .workspace { grid-template-columns: 1fr; } .badges { justify-content: flex-start; } header { flex-direction: column; } }
+  @media (max-width: 640px) { .wrap { padding: 22px 14px 34px; } h1 { font-size: 23px; } .diagram-card { padding: 8px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Group Listener · State Machine</div>
+      <h1>群聊监听状态机</h1>
+      <p class="lede">以触发消息为终点向上取最多 100 条素材；analysis 只决定是否发言与发言方式；无论是否发言，state_update 固定执行一次。</p>
+    </div>
+    <div class="badges">
+      <span class="badge"><strong>x = 5</strong> 条消息</span>
+      <span class="badge"><strong>y = 30</strong> 分钟</span>
+      <span class="badge">素材上限 <strong>100</strong> 条</span>
+      <span class="badge">设计稿 · 未实现</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <section class="card diagram-card" aria-label="群聊监听状态机图">
+      <svg viewBox="0 0 1360 880" role="img" aria-labelledby="svg-title svg-desc">
+        <title id="svg-title">群聊监听状态机</title>
+        <desc id="svg-desc">从 idle 到 collecting、analyzing，再分流到不发言或 statement/reply，发送后写入 bot buffer 并执行 state_update，最后进入 cooldown 回到 idle。</desc>
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"></path>
+          </marker>
+        </defs>
+
+        <!-- top flow -->
+        <g class="state terminal" data-state="idle" transform="translate(58,80)">
+          <rect width="160" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">WAIT</text>
+          <text class="title" x="16" y="40">IDLE</text>
+          <text class="sub" x="16" y="57">等待新消息</text>
+        </g>
+        <g class="state process" data-state="collecting" transform="translate(290,80)">
+          <rect width="182" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">BUFFER</text>
+          <text class="title" x="16" y="40">COLLECTING</text>
+          <text class="sub" x="16" y="57">每群最近 100 条</text>
+        </g>
+        <g class="state decision" data-state="analyzing" transform="translate(540,80)">
+          <rect width="184" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">ONE PER GROUP</text>
+          <text class="title" x="16" y="40">ANALYZING</text>
+          <text class="sub" x="16" y="57">speak? statement / reply?</text>
+        </g>
+
+        <!-- true branch nodes -->
+        <g class="state branch" data-state="statement" transform="translate(800,230)">
+          <rect width="172" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">STATEMENT NODE</text>
+          <text class="title" x="16" y="40">STATEMENT</text>
+          <text class="sub" x="16" y="57">发表主观观点 · 无 target</text>
+        </g>
+        <g class="state branch" data-state="reply" transform="translate(1040,230)">
+          <rect width="172" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">REPLY NODE</text>
+          <text class="title" x="16" y="40">REPLY</text>
+          <text class="sub" x="16" y="57">normal / quote / at / action</text>
+        </g>
+
+        <!-- compose/send + data -->
+        <g class="state process" data-state="composing" transform="translate(920,390)">
+          <rect width="190" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">FOCUS TARGET</text>
+          <text class="title" x="16" y="40">COMPOSING</text>
+          <text class="sub" x="16" y="57">只聚焦选中的 target</text>
+        </g>
+        <g class="state process" data-state="send" transform="translate(920,540)">
+          <rect width="190" height="72" rx="16"></rect>
+          <text class="kicker" x="16" y="20">COMMON SEND</text>
+          <text class="title" x="16" y="40">SEND</text>
+          <text class="sub" x="16" y="57">分条 · 延迟 · 发送</text>
+        </g>
+        <g class="state data" data-state="botBuffer" transform="translate(920,680)">
+          <rect width="190" height="64" rx="16"></rect>
+          <text class="kicker" x="16" y="18">DATA / FEEDBACK</text>
+          <text class="title" x="16" y="38">BOT BUFFER</text>
+          <text class="sub" x="16" y="53">机器人消息写入下一轮素材</text>
+        </g>
+
+        <!-- bottom -->
+        <g class="state success" data-state="stateUpdate" transform="translate(610,755)">
+          <rect width="200" height="76" rx="16"></rect>
+          <text class="kicker" x="16" y="20">ALWAYS ONCE</text>
+          <text class="title" x="16" y="41">STATE_UPDATE</text>
+          <text class="sub" x="16" y="58">记忆 / 画像 / 情绪 / 群状态</text>
+        </g>
+        <g class="state terminal" data-state="cooldown" transform="translate(300,755)">
+          <rect width="172" height="76" rx="16"></rect>
+          <text class="kicker" x="16" y="20">COOLDOWN</text>
+          <text class="title" x="16" y="41">WAIT</text>
+          <text class="sub" x="16" y="57">发言 20–30s</text>
+          <text class="sub" x="16" y="71">不发言 5–10s</text>
+        </g>
+
+        <!-- edges -->
+        <path class="edge" d="M218 116 H290"></path>
+        <path class="edge" d="M472 116 H540"></path>
+        <path class="edge strong" d="M724 116 H760 V266 H800"></path>
+        <path class="edge violet" d="M760 266 H1040"></path>
+        <path class="edge" d="M630 152 V730 H700 V755"></path>
+        <path class="edge" d="M886 302 V350 H1015 V390"></path>
+        <path class="edge" d="M1126 302 V350 H1015 V390"></path>
+        <path class="edge" d="M1015 462 V540"></path>
+        <path class="edge dashed" d="M1015 612 V680"></path>
+        <path class="edge strong" d="M1015 744 V770 H810"></path>
+        <path class="edge green" d="M610 793 H472"></path>
+        <path class="edge" d="M300 793 H190 V30 H140 V80"></path>
+
+        <!-- edge labels -->
+        <g>
+          <rect class="edge-label-box" x="745" y="92" width="86" height="18" rx="5"></rect>
+          <text class="edge-label" x="751" y="105">speak=true</text>
+
+          <rect class="edge-label-box" x="553" y="370" width="88" height="18" rx="5"></rect>
+          <text class="edge-label" x="559" y="383">speak=false</text>
+
+          <rect class="edge-label-box" x="1025" y="445" width="80" height="18" rx="5"></rect>
+          <text class="edge-label" x="1031" y="458">compose</text>
+
+          <rect class="edge-label-box" x="1027" y="633" width="92" height="18" rx="5"></rect>
+          <text class="edge-label" x="1033" y="646">append bot</text>
+
+          <rect class="edge-label-box" x="817" y="735" width="118" height="18" rx="5"></rect>
+          <text class="edge-label" x="823" y="748">sendResult / noSend</text>
+
+          <rect class="edge-label-box" x="449" y="773" width="104" height="18" rx="5"></rect>
+          <text class="edge-label" x="455" y="786">cooldown end</text>
+
+          <rect class="edge-label-box" x="154" y="44" width="100" height="18" rx="5"></rect>
+          <text class="edge-label" x="160" y="57">loop back</text>
+        </g>
+
+        <text class="tiny" x="578" y="186">if speak.enabled = false</text>
+        <text class="tiny" x="770" y="210">if speak.enabled = true</text>
+        <text class="tiny" x="925" y="505">一条回复只针对 targetMessageIds，不对整段素材总结</text>
+      </svg>
+    </section>
+
+    <aside class="aside">
+      <section class="card panel">
+        <h2>触发条件</h2>
+        <p>100 条只是素材上限，不是触发条件。</p>
+        <div class="rule-list">
+          <div class="rule"><b>a</b><span><strong>被 @</strong>：立即触发。</span></div>
+          <div class="rule"><b>b</b><span><strong>被回复</strong>：立即触发。</span></div>
+          <div class="rule"><b>c</b><span><strong>新增 ≥ 5 条</strong>：触发 count。</span></div>
+          <div class="rule"><b>d</b><span><strong>>= 30 分钟且 ≥ 2 个发送者</strong>：触发 time。</span></div>
+        </div>
+        <div class="note" style="margin-top:11px"><strong>c/d 取先满足者。</strong> direct 优先；分析期间 direct 排队一次，count/time 丢弃。</div>
+      </section>
+
+      <section class="card panel detail" id="detailPanel">
+        <h3>IDLE</h3>
+        <p>单击图中的状态节点查看该节点的职责。</p>
+        <ul>
+          <li>没有活跃分析时等待新消息</li>
+          <li>消息进入 collecting 缓冲</li>
+          <li>不调用 LLM</li>
+        </ul>
+      </section>
+
+      <section class="card panel">
+        <h2>素材与发言约束</h2>
+        <div class="rule-list">
+          <div class="rule"><b>1</b><span>分析素材从触发消息向前最多 <strong>100 条</strong>。</span></div>
+          <div class="rule"><b>2</b><span>一次触发只分析一次，一个群同时只有一个 analyzing/speaking。</span></div>
+          <div class="rule"><b>3</b><span><strong>statement</strong> 无 target；<strong>reply</strong> 的 target 决定语义焦点。</span></div>
+          <div class="rule"><b>4</b><span><strong>normal</strong> 不加引用/@/动作，但仍只针对 target 消息。</span></div>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <h2>图例</h2>
+        <div class="legend">
+          <span><i class="dot process"></i>处理节点</span>
+          <span><i class="dot decision"></i>分析节点</span>
+          <span><i class="dot branch"></i>发言分支</span>
+          <span><i class="dot data"></i>数据/反馈</span>
+          <span><i class="dot" style="background:#ecfdf5;border-color:#6ee7b7"></i>必执行更新</span>
+          <span><i class="dot" style="background:#f8fafc;border-color:#cbd5e1"></i>等待/冷却</span>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="footer">
+    <span>设计稿版本 · 0004 group listener loop · 未实现</span>
+    <span>state_update 每个分析触发只执行一次；发送成功/失败都记录结果</span>
+  </div>
+</div>
+
+<script>
+  const details = {
+    idle: {
+      title: 'IDLE',
+      body: '等待新消息。没有活跃分析时，只维护群缓冲。',
+      items: ['新消息开启 collecting', '不调用 LLM', '没有活跃窗口']
+    },
+    collecting: {
+      title: 'COLLECTING',
+      body: '每群维护最近 100 条消息，同时累计触发计数。',
+      items: ['100 条是素材上限，不是触发器', '计新增消息数与距上次触发时间', '触发后 snapshot 再从缓冲裁剪']
+    },
+    analyzing: {
+      title: 'ANALYZING',
+      body: '一次分析判断 speak；输出 statement 或 reply（四种 replyType）。',
+      items: ['每群只允许一个分析', 'direct 在分析期间排一次队', 'count/time 在分析期间丢弃']
+    },
+    statement: {
+      title: 'STATEMENT NODE',
+      body: '主动发表主观观点，不针对具体消息。',
+      items: ['不需要 target', '纯文本发送', '不假装回复某条消息']
+    },
+    reply: {
+      title: 'REPLY NODE',
+      body: '针对特定消息或用户回复；内部处理四种发送策略。',
+      items: ['normal：纯文本，但仍只针对 target', 'quote：带一条引用', 'at：带 @', 'action：戳一戳']
+    },
+    composing: {
+      title: 'COMPOSING',
+      body: '用 persona、状态、素材和 target 生成内容；statement 与 reply 各有生成上下文。',
+      items: ['只聚焦 target', '不要总结整个素材', '保留角色口吻']
+    },
+    send: {
+      title: 'COMMON SEND',
+      body: 'statement 与 reply 共用的发送管线。',
+      items: ['sanitize / 分条', '按长度计算延迟', 'normal/quote/at/action 协议', '失败不刷屏']
+    },
+    botBuffer: {
+      title: 'BOT BUFFER',
+      body: '把机器人实际发送内容写回群缓冲，作为下一轮的反馈素材。',
+      items: ['不触发自己', '不计入 unprocessedCount', '下一轮分析能看到上一条回复']
+    },
+    stateUpdate: {
+      title: 'STATE_UPDATE',
+      body: '每个分析触发固定执行一次，不因 speak=false 跳过。',
+      items: ['memory', '用户画像 patch', '情绪 delta', '群状态（可选）', '使用 analysisId 幂等']
+    },
+    cooldown: {
+      title: 'COOLDOWN',
+      body: '发言后 20–30 秒；不发言后 5–10 秒。',
+      items: ['普通消息只进缓冲', 'direct 可标记 pendingForced', '冷却结束后回到 idle']
+    }
+  };
+  const panel = document.getElementById('detailPanel');
+  document.querySelectorAll('.state[data-state]').forEach((node) => {
+    node.addEventListener('click', () => {
+      const data = details[node.dataset.state];
+      if (!data) return;
+      document.querySelectorAll('.state.is-active').forEach((n) => n.classList.remove('is-active'));
+      node.classList.add('is-active');
+      panel.innerHTML = '<h3>' + data.title + '</h3><p>' + data.body + '</p><ul>' +
+        data.items.map((item) => '<li>' + item + '</li>').join('') + '</ul>';
+    });
+  });
+</script>
+</body>
+</html>
