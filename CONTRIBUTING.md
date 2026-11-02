@@ -10,25 +10,17 @@
 ```text
 /Users/crab/project/dsh-qqbot       DSH 插件（主开发）
   branch: dshbot-mac
-  version: 0.4.4
+  version: 0.4.5
 
 /Users/crab/project/qq-bot          Koishi 实际运行时（模板来源）
   branch: main
   version: 0.1.0
 ```
 
-旧 worktree 不再开发：
-
-```text
-/Users/crab/project/dsh-qqbot-v2   refactor/v2，历史重构分支
-/Users/crab/project/qq-bot-v2      refactor/v2，历史重构分支
-```
-
 规则：
 
 - 新功能只改 `dsh-qqbot` 和 `qq-bot`。
-- 不再在 `*-v2` worktree 里开发。
-- `dshbot-mac` 当前是 macOS 开发主线；`refactor/v2` 不再接收新提交。
+- `dshbot-mac` 当前是 macOS 开发主线。
 - `qq-bot/main` 是 Koishi 运行时的唯一主线。
 - 不允许把 `~/.dsh/profiles/*` 当源码修改；Profile 只通过安装脚本管理。
 
@@ -266,6 +258,14 @@ npx tsc --noEmit
 - `offline:verify` 必须通过。
 - `npm pack --dry-run` 必须包含 `vendor/`、`template/`、`host/`。
 - 不能引入在线下载 NapCat。
+
+## 9.1 功能性系统测试
+
+模块检查通过不等于可以合并/发布。
+
+- 合并前：至少按改动范围跑 [docs/system-test.md](docs/system-test.md) 中对应项
+- 发布前：必须跑完整个功能性系统测试清单
+- 生命周期、安装、AI 契约、数据路径改动必须在真实 macOS 环境验证
 
 ## 10. 模板同步
 

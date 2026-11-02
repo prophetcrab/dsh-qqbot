@@ -1,5 +1,5 @@
 /**
- * Unit tests for lib/koishi.js: project status, dependency install, managed
+ * Unit tests for host/services/koishi/index.js: project status, dependency install, managed
  * process start/stop, health probing and port/PID lookup.
  *
  * Everything is injected: no real Koishi process is started, no real HTTP

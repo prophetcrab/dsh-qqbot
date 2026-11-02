@@ -2,7 +2,7 @@
 
 DeepSeek Harness 的 **macOS-only** QQ 机器人控制中心。
 
-当前分支：`refactor/v2`。项目已按 plugin-based 架构重写：
+当前分支：`dshbot-mac`。项目已按 plugin-based 架构重写：
 
 ```text
 QQ ↔ NapCat ↔ OneBot 11 ↔ Koishi ↔ DSH Host ↔ 面板 / LLM
@@ -197,9 +197,9 @@ npm run check            # 全部
 
 详细文档：
 
-- [模块盘点](docs/refactor/00-module-inventory.md)
-- [重构计划](docs/refactor/01-plan.md)
-- [文件架构](docs/refactor/02-file-layout.md)
+- [模块盘点](docs/archive/refactor-v2/00-module-inventory.md)
+- [重构计划](docs/archive/refactor-v2/01-plan.md)
+- [文件架构](docs/archive/refactor-v2/02-file-layout.md)
 
 ## 安全
 
