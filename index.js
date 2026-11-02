@@ -25,5 +25,5 @@ export const inject = ['webServer', 'tools', 'systemPrompt']
  * @param {Record<string, unknown>} [config]
  */
 export async function apply(ctx, config) {
-  return applyHost(ctx, config, BUILTIN_PLUGINS)
+  await applyHost(ctx, config, BUILTIN_PLUGINS)
 }
