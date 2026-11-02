@@ -208,3 +208,5 @@ npm run check            # 全部
 - 离线包 size/SHA-256 校验失败即拒绝
 - 权限策略由 Koishi `access-control` 执行
 - 当前分支只支持 macOS / Apple Silicon
+
+- [事件运行时架构计划](docs/decisions/0001-event-runtime-plan.md)
