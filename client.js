@@ -788,7 +788,10 @@ window.__ModuleLoader__.load({
           'data-testid': 'qqbot-ai-group-row', 'data-group': id, onClick: () => select(id),
         },
         h('div', { className: 'qqbot-ai-group-main' },
-          h('div', { className: 'qqbot-ai-group-title' }, h('span', { className: 'qqbot-ai-group-id' }, id),
+          h('div', { className: 'qqbot-ai-group-title' },
+            h('div', { className: 'qqbot-ai-group-name-wrap' },
+              h('span', { className: 'qqbot-ai-group-name' }, text(group.name) || id),
+              text(group.name) ? h('span', { className: 'qqbot-ai-group-id' }, id) : null),
             running ? statusPill(h, '处理中', 'run') : statusPill(h, '监听中', 'ok')),
           h('div', { className: 'qqbot-ai-group-meta' },
             h('span', null, `缓冲 ${num(group.bufferSize)}`),
@@ -872,7 +875,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '总览'))),
               stateMachine(h, activeLoop),
               selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
-                h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, selectedId), h('span', null, `缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}`)),
+                h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}`)),
                 h('div', { className: 'qqbot-ai-active-queue' },
                   h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
                   h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
@@ -3722,6 +3725,9 @@ window.__ModuleLoader__.load({
       @media (max-width: 640px) { .qqbot-ai-hero { flex-direction: column; } .qqbot-ai-hero-actions { justify-content: flex-start; } .qqbot-ai-metrics { grid-template-columns: 1fr 1fr; } .qqbot-ai-machine-node { min-width: 76px; } }
       .qqbot-ai-card-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
       .qqbot-ai-btn-back { padding: 4px 8px; font-size: 10px; }
+      .qqbot-ai-group-name-wrap { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+      .qqbot-ai-group-name { color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .qqbot-ai-group-id { color: var(--dsw-alias-label-tertiary); font-size: 9px; font-weight: 400; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       `
 
       return { CSS }
