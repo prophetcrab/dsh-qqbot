@@ -11,6 +11,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # The second checkout lands at $GITHUB_WORKSPACE/qq-bot; the local
+      # sibling layout is ../qq-bot, so tell the sync script explicitly.
+      QQBOT_SOURCE: ${{ github.workspace }}/qq-bot
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
