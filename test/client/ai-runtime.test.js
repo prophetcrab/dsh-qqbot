@@ -197,7 +197,7 @@ test('the card renders the loading, empty and error states', () => {
   assert.equal(byTestId(error, 'qqbot-ai-runtime-refresh').length, 1)
 })
 
-test('the card renders latest message metrics, groups and keyword chips', () => {
+test('the card renders latest message metrics, groups and attention badges', () => {
   const tree = renderCard({ aiRuntime: FULL_PAYLOAD, aiRuntimePhase: 'ready' })
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-card').length, 1)
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-refresh').length, 1)
@@ -215,19 +215,7 @@ test('the card renders latest message metrics, groups and keyword chips', () => 
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-group-recent').length, 3)
   assert.deepEqual(byTestId(tree, 'qqbot-ai-runtime-group').map((node) => node.props['data-group']), ['1026855069', '805836168'])
 
-  const scopes = byTestId(tree, 'qqbot-ai-runtime-keyword-scope')
-  assert.equal(scopes.length, 2)
-  assert.deepEqual(scopes.map((node) => node.props['data-scope']), ['global', 'group'])
-  const chips = byTestId(tree, 'qqbot-ai-runtime-keyword-chip')
-  assert.equal(chips.length, 3)
-  assert.deepEqual(chips.map((node) => node.props['data-status']), ['suppressed', 'pinned', 'active'])
-  assert.ok(textOf(chips[1]).includes('龙图'))
-  assert.ok(textOf(chips[1]).includes('0.960'))
-  assert.ok(textOf(chips[1]).includes('pinned'))
-  assert.ok(textOf(chips[0]).includes('suppressed'))
-  assert.ok(textOf(chips[2]).includes('active'))
-
   const paths = textOf(byTestId(tree, 'qqbot-ai-runtime-paths')[0])
-  assert.ok(paths.includes('runtime-lexicon.json'))
+  assert.ok(paths.includes('ai-chat-state.json'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-updated').length, 1)
 })

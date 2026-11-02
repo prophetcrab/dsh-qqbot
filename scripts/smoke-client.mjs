@@ -843,20 +843,10 @@ const runtimeRecent = findAll(tree, (node) => node.props && node.props['data-tes
 if (runtimeRecent.length !== 3) throw new Error(`expected 3 per-group recents, got ${runtimeRecent.length}`)
 const recentAttention = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group-recent-attention')
 if (recentAttention.length !== 3) throw new Error(`expected 3 per-message attention badges, got ${recentAttention.length}`)
-const keywordScopes = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-scope')
-if (keywordScopes.length !== 2) throw new Error(`expected 2 keyword scopes, got ${keywordScopes.length}`)
-const keywordChips = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-chip')
-if (keywordChips.length !== 3) throw new Error(`expected 3 keyword chips, got ${keywordChips.length}`)
-const pinnedChip = keywordChips.find((node) => node.props['data-status'] === 'pinned')
-if (pinnedChip === undefined || !text(pinnedChip).includes('龙图') || !text(pinnedChip).includes('0.960') || !text(pinnedChip).includes('置顶')) {
-  throw new Error('pinned keyword chip missing or wrong')
-}
-const suppressedChip = keywordChips.find((node) => node.props['data-status'] === 'suppressed')
-if (suppressedChip === undefined || !text(suppressedChip).includes('今天真热')) {
-  throw new Error('suppressed keyword chip missing')
-}
-if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('runtime-lexicon.json')) {
-  throw new Error('runtime paths missing')
+const keywordNodes = findAll(tree, (node) => String(node.props && node.props['data-testid']).includes('keyword'))
+if (keywordNodes.length !== 0) throw new Error(`keyword dictionary should not render, got ${keywordNodes.length}`)
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('ai-chat-state.json')) {
+  throw new Error('runtime path missing')
 }
 const runtimeCallsBefore = fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length
 clickTestId(tree, 'qqbot-ai-runtime-refresh')

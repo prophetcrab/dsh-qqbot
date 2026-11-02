@@ -230,7 +230,6 @@ export function renderAiRuntimeCard(panel) {
   const failed = aiRuntimePhase === 'error'
   const hasData = view.state.lastInbound !== null
     || view.state.groups.length > 0
-    || view.keywords.scopes.length > 0
 
   const refreshButton = h('button', {
     type: 'button',
@@ -285,8 +284,7 @@ export function renderAiRuntimeCard(panel) {
       renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
       renderReplyBlock({ t, h, reply: view.state.lastReply })))
     body.push(renderGroupsBlock({ t, h, groups: view.state.groups }))
-    body.push(renderKeywordsBlock({ t, h, keywordView: view.keywords }))
-    if (view.paths.aiChat !== '' || view.paths.lexicon !== '') {
+    if (view.paths.aiChat !== '') {
       body.push(renderPathsBlock({ t, h, paths: view.paths }))
     }
   }
@@ -405,60 +403,10 @@ function renderGroupsBlock({ t, h, groups }) {
       }, ...groups.slice(0, 10).map((group) => renderGroupRow({ t, h, group }))))
 }
 
-function statusLabel(t, status) {
-  if (status === 'pinned') return t('aiRuntimeStatusPinned')
-  if (status === 'suppressed') return t('aiRuntimeStatusSuppressed')
-  return t('aiRuntimeStatusActive')
-}
-
-function renderScopeRow({ t, h, scope }) {
-  const termCount = h('span', { className: 'qqbot-chip qqbot-chip-ghost' },
-    `${scope.terms.length} ${t('aiRuntimeTerms')}`)
-  const termChips = scope.terms.map((term) => h('span', {
-    key: `${term.text}-${term.status}`,
-    className: `qqbot-chip qqbot-chip-keyword is-${term.status}`,
-    'data-testid': 'qqbot-ai-runtime-keyword-chip',
-    'data-status': term.status,
-    title: `${t('aiRuntimeTermConfidence')} ${scoreText(term.confidence)}`,
-  },
-    h('span', { className: 'qqbot-chip-term' }, term.text),
-    h('span', { className: 'qqbot-chip-meta' },
-      ` · ${scoreText(term.weight)} · ${statusLabel(t, term.status)}`)))
-  return h('div', {
-    key: `${scope.scope}:${scope.owner}`,
-    className: 'qqbot-runtime-scope',
-    'data-testid': 'qqbot-ai-runtime-keyword-scope',
-    'data-scope': scope.scope,
-    'data-owner': scope.owner,
-  },
-    h('span', { className: 'qqbot-badge' },
-      scope.owner !== '' ? `${scope.scope} · ${scope.owner}` : scope.scope),
-    h('div', { className: 'qqbot-chips' }, ...termChips, termCount))
-}
-
-function renderKeywordsBlock({ t, h, keywordView }) {
-  return h('section', {
-    className: 'qqbot-card qqbot-runtime-card qqbot-runtime-section',
-    'data-testid': 'qqbot-ai-runtime-keywords',
-  },
-    h('div', { className: 'qqbot-runtime-block-head' },
-      h('span', { className: 'qqbot-field-label' }, t('aiRuntimeKeywords')),
-      keywordView.version !== null
-        ? h('span', { className: 'qqbot-card-sub qqbot-mono' },
-          `${t('aiRuntimeLexiconVersion')} v${keywordView.version}`)
-        : null),
-    keywordView.scopes.length === 0
-      ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-ai-runtime-keywords-empty' },
-        t('aiRuntimeNoKeywords'))
-      : h('div', { className: 'qqbot-runtime-scopes' },
-        ...keywordView.scopes.map((scope) => renderScopeRow({ t, h, scope }))))
-}
-
 function renderPathsBlock({ t, h, paths }) {
   const pathRow = (label, value) => h('div', { className: 'qqbot-row-item' },
     h('span', { className: 'qqbot-row-label' }, label),
     h('span', { className: 'qqbot-row-value qqbot-mono' }, value))
   return h('section', { className: 'qqbot-card qqbot-runtime-card qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
-    paths.aiChat !== '' ? pathRow(t('aiRuntimePathChat'), paths.aiChat) : null,
-    paths.lexicon !== '' ? pathRow(t('aiRuntimePathLexicon'), paths.lexicon) : null)
+    pathRow(t('aiRuntimePathChat'), paths.aiChat))
 }
