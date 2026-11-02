@@ -747,7 +747,7 @@ state_update 异步旁路
 使用 analysisId 做幂等
 与生成/发送并行，不阻塞回复
 写入前做 schema 校验、长度限制、越界 clamp
-update 失败只记录，不影响发言
+state_update 失败只记录，不影响发言
 不改写人格 anchor
 ```
 
