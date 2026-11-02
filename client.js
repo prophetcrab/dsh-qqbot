@@ -824,7 +824,8 @@ window.__ModuleLoader__.load({
         const loopSource = arr(data.loops).length > 0 ? data.loops : arr(data.listener?.loops)
         const loops = arr(loopSource).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
         const selectedId = view.selected ?? groups[0]?.[0] ?? null
-        const selectedGroup = selectedId !== null ? obj(data.groups)[selectedId] : null
+        const selectedEntry = selectedId === null ? null : groups.find(([id]) => id === selectedId)
+        const selectedGroup = selectedEntry === undefined || selectedEntry === null ? null : selectedEntry[1]
         const activeLoop = selectedGroup?.lastLoop ?? null
         const queueCount = groups.reduce((sum, [, g]) => sum + (obj(g.queue).urgent ? 1 : 0) + (obj(g.queue).normal ? 1 : 0), 0)
         const activeCount = groups.filter(([, g]) => g.running === true).length
