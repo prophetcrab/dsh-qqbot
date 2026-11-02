@@ -380,9 +380,8 @@ docs/decisions/NNNN-<title>.md
 ## 15. 当前已知技术债
 
 ```text
-[ ] client Tab 仍是静态注册，外部动态 Tab 未实现
-[ ] data/ 尚未迁移到 config/state/assets
-[ ] template 同步尚未 CI 化
+[x] client Tab 改为运行时注册表 + Host clientTabs 驱动
+[ ] 外部 Client Tab 在 Panel 挂载后才注册的 React hook 限制
 [ ] 新安装权限默认仍是 all，需要改为 whitelist 空名单
 [ ] 仅支持 Apple Silicon macOS
 ```

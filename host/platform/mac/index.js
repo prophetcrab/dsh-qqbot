@@ -10,3 +10,5 @@ export * from './paths.js'
 export * from './process.js'
 export * from './http.js'
 export * from './capabilities.js'
+
+export * from './data-paths.js'

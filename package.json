@@ -63,7 +63,9 @@
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs",
     "offline:verify": "node scripts/verify-offline.mjs",
-    "check": "npm test && npm run build:client && npm run smoke:host && npm run smoke:client && npm run check:architecture && npm run offline:verify",
-    "test:client": "node --test test/client/*.test.js"
+    "check": "npm test && npm run build:client && npm run smoke:host && npm run smoke:client && npm run check:architecture && npm run offline:verify && npm run check:template",
+    "test:client": "node --test test/client/*.test.js",
+    "sync:template": "node scripts/sync-template.mjs",
+    "check:template": "node scripts/sync-template.mjs --check"
   }
 }

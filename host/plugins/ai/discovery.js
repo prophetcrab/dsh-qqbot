@@ -4,8 +4,7 @@
  * failure never breaks the panel.
  */
 
-import { join } from 'node:path'
-import { ensureDir, writeFileAtomic } from '../../platform/mac/index.js'
+import { dataPaths, ensureDir, writeFileAtomic } from '../../platform/mac/index.js'
 
 /** @param {object} api plugin API @param {object} ai AiChatService */
 export function createDiscovery(api, ai) {
@@ -26,9 +25,9 @@ export function createDiscovery(api, ai) {
         updatedAt: new Date().toISOString(),
       }, null, 2)
       if (text !== lastText) {
-        const dataDir = join(api.settings.projectDir, 'data')
-        await ensureDir(dataDir)
-        await writeFileAtomic(join(dataDir, 'ai.json'), `${text}\n`)
+        const file = dataPaths(api.settings.projectDir).state.aiDiscovery
+        await ensureDir(dataPaths(api.settings.projectDir).root)
+        await writeFileAtomic(file, `${text}\n`)
         lastText = text
       }
       return endpoint

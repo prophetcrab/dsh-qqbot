@@ -46,7 +46,7 @@ test('readPolicy/writePolicy: full round trip and defaults', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-access-'))
   const settings = { projectDir: dir }
   const file = accessPath(settings)
-  assert.equal(file, join(dir, 'data', 'access.json'))
+  assert.equal(file, join(dir, 'data', 'config', 'access.json'))
 
   const missing = await readPolicy(file)
   assert.equal(missing.exists, false)

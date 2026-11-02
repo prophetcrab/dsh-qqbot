@@ -6,6 +6,7 @@
  */
 
 import { join } from 'node:path'
+import { dataPaths } from '../../platform/mac/data-paths.js'
 import { readText, writeFileAtomic } from '../../platform/mac/index.js'
 
 /** Allowed scope modes. */
@@ -30,7 +31,7 @@ export function defaultPolicy() {
 
 /** Path of the policy file inside the configured Koishi project. */
 export function accessPath(settings) {
-  return join(settings.projectDir, 'data', 'access.json')
+  return dataPaths(settings.projectDir).config.access
 }
 
 /**

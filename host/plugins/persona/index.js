@@ -2,7 +2,7 @@
  * Persona plugin: the AI character card and its named presets.
  */
 
-import { join } from 'node:path'
+import { dataPaths } from '../../platform/mac/index.js'
 import {
   DEFAULT_PERSONA,
   buildPersonaPrompt,
@@ -29,8 +29,9 @@ export default {
   provides: ['persona'],
   description: 'Active persona card, prompt preview and persona presets.',
   async apply(api) {
-    const path = join(api.settings.projectDir, 'data', 'persona.json')
-    const presetsPath = join(api.settings.projectDir, 'data', 'persona-presets.json')
+    const paths = dataPaths(api.settings.projectDir)
+    const path = paths.config.persona
+    const presetsPath = paths.assets.personaPresets
     const service = {
       path,
       presetsPath,
