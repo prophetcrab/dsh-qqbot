@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dsh-qqbot/contracts/panel.schema.json",
+  "title": "QQ bot panel contribution",
+  "description": "Feature cards, their actions and client tabs are contributed by host plugins and consumed by the web panel.",
+  "definitions": {
+    "localizedText": {
+      "type": "object",
+      "properties": {
+        "zh": { "type": "string" },
+        "en": { "type": "string" }
+      },
+      "required": ["zh", "en"]
+    },
+    "featureAction": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "$ref": "#/definitions/localizedText" },
+        "tone": { "type": "string" }
+      },
+      "required": ["id", "title"],
+      "additionalProperties": false
+    },
+    "feature": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "$ref": "#/definitions/localizedText" },
+        "description": { "$ref": "#/definitions/localizedText" },
+        "actions": { "type": "array", "items": { "$ref": "#/definitions/featureAction" } }
+      },
+      "required": ["id", "title"],
+      "additionalProperties": false
+    },
+    "clientTab": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "$ref": "#/definitions/localizedText" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "title"],
+      "additionalProperties": true
+    }
+  }
+}

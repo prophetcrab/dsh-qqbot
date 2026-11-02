@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dsh-qqbot/contracts/ai-chat.schema.json",
+  "title": "QQ bot AI chat request",
+  "description": "Request body accepted by POST /qqbot/ai/chat. apiVersion is additive: version 1 is the current contract and missing apiVersion is treated as 1 for compatibility with older Koishi plugins.",
+  "type": "object",
+  "properties": {
+    "apiVersion": { "type": "integer", "minimum": 1, "maximum": 1 },
+    "messages": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "text": { "type": "string", "maxLength": 8000 },
+          "content": {}
+        },
+        "required": ["role"]
+      }
+    },
+    "background": { "type": "string", "maxLength": 48000 },
+    "images": { "type": "array", "maxItems": 8 },
+    "backgroundImages": { "type": "array", "maxItems": 8 },
+    "quotedImages": { "type": "array", "maxItems": 8 },
+    "quote": { "type": "object" },
+    "mentionSelf": { "type": "boolean" },
+    "mentionOthers": { "type": "array", "items": { "type": "string" } },
+    "mentionAll": { "type": "boolean" },
+    "replyToBot": { "type": "boolean" },
+    "groupId": { "type": "string" },
+    "userId": { "type": "string" },
+    "userName": { "type": "string" },
+    "system": { "type": "string", "maxLength": 16000 },
+    "maxTokens": { "type": "integer", "minimum": 64, "maximum": 4096 },
+    "temperature": { "type": "number", "minimum": 0, "maximum": 2 }
+  },
+  "additionalProperties": true
+}

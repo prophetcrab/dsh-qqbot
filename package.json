@@ -34,7 +34,7 @@
     "client.js",
     "scripts",
     "template",
-    "lib",
+    "host",
     "vendor",
     "cordis.patch.yml",
     "locale/*.json",
@@ -56,10 +56,13 @@
     }
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.js test/host/*.test.js",
+    "test:host": "node --test test/host/*.test.js",
+    "build:client": "node scripts/build-client.mjs",
+    "check:architecture": "node scripts/check-architecture.mjs",
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs",
     "offline:verify": "node scripts/verify-offline.mjs",
-    "check": "npm test && npm run smoke:host && npm run smoke:client"
+    "check": "npm test && npm run smoke:host && npm run smoke:client && npm run check:architecture"
   }
 }
