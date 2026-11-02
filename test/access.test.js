@@ -11,7 +11,7 @@ import {
   readPolicy,
   summarizePolicy,
   writePolicy,
-} from '../lib/access.js'
+} from '../host/services/access/index.js'
 
 test('normalizePolicy: defaults and invalid values', () => {
   const policy = normalizePolicy({

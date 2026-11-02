@@ -12,7 +12,7 @@ import {
   parseProfilePatch,
   profileKey,
   saveProfileStore,
-} from '../lib/profiles.js'
+} from '../host/services/profiles/index.js'
 
 test('profileKey: one card per group + QQ', () => {
   assert.equal(profileKey('1026855069', '20000'), '1026855069:20000')

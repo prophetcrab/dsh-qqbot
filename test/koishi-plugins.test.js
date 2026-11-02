@@ -11,15 +11,15 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { KoishiPluginsManager } from '../host/services/koishi/plugins.js'
 import {
-  KoishiPluginsManager,
   addPluginEntry,
   listKoishiPlugins,
   normalizePluginKey,
   parseKoishiYml,
   removePluginEntry,
   setPluginEnabled,
-} from '../lib/koishi-plugins.js'
+} from '../host/services/koishi/koishi-yml.js'
 
 const QUIET_LOGGER = { info() {}, warn() {}, error() {}, debug() {} }
 

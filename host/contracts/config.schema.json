@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dsh-qqbot/contracts/config.schema.json",
+  "title": "QQ bot host configuration",
+  "description": "Row config accepted by cordis.patch.yml. Unknown keys are ignored; every path accepts ~ expansion.",
+  "type": "object",
+  "properties": {
+    "projectDir": { "type": "string" },
+    "koishiPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "napcatPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "reversePath": { "type": "string" },
+    "napcatToken": { "type": "string" },
+    "qqPath": { "type": "string" },
+    "napcatDir": { "type": "string" },
+    "offlineVendorDir": { "type": "string" },
+    "offlineNapcatVersion": { "type": "string" },
+    "aiProvider": { "type": "string" },
+    "aiModel": { "type": "string" },
+    "aiSystemPrompt": { "type": "string" },
+    "aiMaxTokens": { "type": "integer", "minimum": 64, "maximum": 4096 },
+    "aiTemperature": { "type": "number", "minimum": 0, "maximum": 2 },
+    "aiSelfCheck": { "type": "boolean" },
+    "autoRestartKoishi": { "type": "boolean" },
+    "autoInstallDeps": { "type": "boolean" },
+    "logLines": { "type": "integer", "minimum": 20, "maximum": 2000 }
+  },
+  "additionalProperties": true
+}

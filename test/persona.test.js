@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { DEFAULT_PERSONA, buildPersonaPrompt, normalizePersona, readPersonaFile, writePersonaFile } from '../lib/persona.js'
+import { DEFAULT_PERSONA, buildPersonaPrompt, normalizePersona, readPersonaFile, writePersonaFile } from '../host/services/persona/index.js'
 
 test('normalizePersona: trims fields, drops empty examples, caps lengths', () => {
   const card = normalizePersona({

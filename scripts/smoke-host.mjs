@@ -2,8 +2,9 @@
  * Headless smoke test for the QQ bot control center host half.
  *
  * Loads index.js with a minimal fake Cordis context, collects the routes and
- * tools it registers, then serves those routes over a real HTTP server and
- * checks the read-only endpoints against the real local environment.
+ * tools registered by the host plugins, then serves those routes over a real
+ * HTTP server and checks the read-only endpoints against the real local
+ * environment. Finally it unloads a plugin to prove contributions disappear.
  *
  *   node scripts/smoke-host.mjs
  */
@@ -48,6 +49,7 @@ const ctx = {
   tools: {
     register(tool) {
       tools.set(tool.name, tool)
+      return () => tools.delete(tool.name)
     },
   },
   systemPrompt: { section() {} },
@@ -56,40 +58,61 @@ const ctx = {
 assert.equal(name, 'qqbot')
 await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
 
-assert.ok(routes.size >= 40, `expected at least 40 routes, got ${routes.size}`)
-for (const required of [
+/** Every route path that existed before the host refactor (40 total). */
+const LEGACY_ROUTES = [
   '/qqbot/status',
   '/qqbot/features',
+  '/qqbot/features/run',
   '/qqbot/access',
   '/qqbot/contacts',
   '/qqbot/napcat/login',
   '/qqbot/napcat/qr',
+  '/qqbot/napcat/qr/refresh',
   '/qqbot/messages',
-  '/qqbot/setup',
-  '/qqbot/setup/koishi',
-  '/qqbot/setup/full',
-  '/qqbot/ai/status',
-  '/qqbot/ai/chat',
-  '/qqbot/ai/last-prompt',
-  '/qqbot/ai/settings',
-  '/qqbot/profiles',
-  '/qqbot/profiles/save',
-  '/qqbot/profiles/delete',
   '/qqbot/persona/presets',
   '/qqbot/persona/presets/save',
   '/qqbot/persona/presets/load',
   '/qqbot/persona/presets/delete',
   '/qqbot/persona',
   '/qqbot/persona/save',
-  '/qqbot/koishi/plugins',
+  '/qqbot/ai/settings',
+  '/qqbot/profiles',
+  '/qqbot/profiles/save',
+  '/qqbot/profiles/delete',
+  '/qqbot/ai/last-prompt',
+  '/qqbot/ai/status',
+  '/qqbot/ai/chat',
+  '/qqbot/setup',
+  '/qqbot/setup/koishi',
+  '/qqbot/setup/full',
+  '/qqbot/logs',
+  '/qqbot/napcat/install',
   '/qqbot/napcat/configure',
+  '/qqbot/napcat/start',
+  '/qqbot/napcat/stop',
+  '/qqbot/koishi/install-deps',
+  '/qqbot/koishi/start',
+  '/qqbot/koishi/stop',
+  '/qqbot/koishi/restart',
   '/qqbot/all/start',
+  '/qqbot/all/stop',
+  '/qqbot/koishi/plugins',
   '/qqbot/koishi/plugins/toggle',
-]) {
-  assert.ok(routes.has(required), `missing route ${required}`)
-}
-assert.equal(tools.size, 6, `expected 6 tools, got ${tools.size}`)
+  '/qqbot/koishi/plugins/install',
+  '/qqbot/koishi/plugins/uninstall',
+]
+assert.equal(LEGACY_ROUTES.length, 40, 'legacy route list must stay at 40')
+assert.ok(routes.size >= 40, `expected at least 40 routes, got ${routes.size}`)
+for (const required of LEGACY_ROUTES) assert.ok(routes.has(required), `missing route ${required}`)
+assert.ok(routes.has('/qqbot/client/tabs'), 'missing client tab contribution route')
+
+const LEGACY_TOOLS = ['qqbot_status', 'qqbot_control', 'qqbot_configure', 'qqbot_plugin', 'qqbot_access', 'qqbot_logs']
+assert.equal(tools.size, LEGACY_TOOLS.length, `expected ${LEGACY_TOOLS.length} tools, got ${tools.size}`)
+for (const tool of LEGACY_TOOLS) assert.ok(tools.has(tool), `missing tool ${tool}`)
+
 assert.equal(typeof service?.registerFeature, 'function', 'qqbot service should expose registerFeature')
+assert.equal(typeof service?.kernel?.unload, 'function', 'qqbot service should expose the kernel')
+assert.ok(Array.isArray(service.listPlugins()) && service.listPlugins().length >= 10, 'expected the built-in plugin list')
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1')
@@ -115,6 +138,7 @@ try {
   assert.equal(typeof status.data.napcat?.installed, 'boolean')
   assert.equal(typeof status.data.koishi?.exists, 'boolean')
   assert.ok(Array.isArray(status.data.features))
+  assert.ok(Array.isArray(status.data.clientTabs))
   const featureIds = status.data.features.map((feature) => feature.id)
   for (const id of ['overview', 'lifecycle', 'configuration', 'koishi-plugins', 'access']) {
     assert.ok(featureIds.includes(id), `missing built-in feature ${id}`)
@@ -126,6 +150,11 @@ try {
   const features = await featuresResponse.json()
   assert.equal(features.ok, true)
   assert.ok(features.data.some((feature) => feature.id === 'configuration'))
+
+  const tabsResponse = await fetch(`${base}/qqbot/client/tabs`)
+  const tabs = await tabsResponse.json()
+  assert.equal(tabs.ok, true)
+  assert.ok(tabs.data.some((tab) => tab.id === 'overview'))
 
   const accessResponse = await fetch(`${base}/qqbot/access`)
   const accessBody = await accessResponse.json()
@@ -181,6 +210,14 @@ try {
   const aiEmptyBody = await aiEmptyResponse.json()
   assert.equal(aiEmptyBody.ok, false)
   assert.equal(aiEmptyBody.code, 'EMPTY_MESSAGES')
+  assert.equal(aiEmptyBody.apiVersion, 1)
+
+  const aiFutureResponse = await fetch(`${base}/qqbot/ai/chat`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ apiVersion: 99, messages: [] }),
+  })
+  assert.equal(aiFutureResponse.status, 400)
 
   const setupResponse = await fetch(`${base}/qqbot/setup`)
   const setupBody = await setupResponse.json()
@@ -220,7 +257,18 @@ try {
   const missing = await fetch(`${base}/qqbot/nope`)
   assert.equal(missing.status, 404)
 
-  console.log(`host smoke: ok (${routes.size} routes, ${tools.size} tools, ${featureIds.length} features, ${pluginBody.data.length} koishi plugins)`)
+  // Kernel contract: unloading a plugin removes exactly its contributions.
+  const routeCount = routes.size
+  const toolCount = tools.size
+  assert.equal(service.kernel.unload('qqbot-napcat'), true)
+  assert.equal(routes.has('/qqbot/napcat/login'), false, 'unloaded plugin route must disappear')
+  assert.equal(tools.has('qqbot_configure'), false, 'unloaded plugin tool must disappear')
+  assert.equal(routes.has('/qqbot/persona'), true, 'unrelated route must survive')
+  assert.equal(service.kernel.unload('qqbot-features'), true)
+  assert.equal(routes.has('/qqbot/features'), false, 'feature routes must disappear with their plugin')
+  assert.equal((await service.getStatus()).features.length, 0, 'feature cards must disappear with their plugin')
+
+  console.log(`host smoke: ok (${routeCount} routes, ${toolCount} tools, ${featureIds.length} features, ${pluginBody.data.length} koishi plugins)`)
 } finally {
   await new Promise((resolvePromise) => server.close(resolvePromise))
 }

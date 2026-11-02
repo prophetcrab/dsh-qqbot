@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dsh-qqbot/contracts/status.schema.json",
+  "title": "QQ bot status snapshot",
+  "description": "Stable shape returned by GET /qqbot/status. Client plugins only consume this DTO.",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "supported": { "type": "boolean" },
+        "napcatSupported": { "type": "boolean" },
+        "koishiSupported": { "type": "boolean" },
+        "arch": { "type": "string" },
+        "release": { "type": "string" },
+        "osVersion": { "type": ["string", "null"] },
+        "node": { "type": "string" }
+      },
+      "required": ["id", "label", "supported", "napcatSupported", "koishiSupported"]
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "projectDir": { "type": "string" },
+        "koishiPort": { "type": "number" },
+        "napcatPort": { "type": "number" },
+        "reversePath": { "type": "string" }
+      },
+      "required": ["projectDir", "koishiPort", "napcatPort", "reversePath"]
+    },
+    "qq": {
+      "type": "object",
+      "properties": {
+        "installed": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "version": { "type": ["string", "null"] }
+      }
+    },
+    "napcat": { "type": "object", "properties": { "installed": { "type": "boolean" }, "running": { "type": "boolean" } } },
+    "koishi": { "type": "object", "properties": { "exists": { "type": "boolean" }, "running": { "type": "boolean" } } },
+    "bot": {
+      "type": "object",
+      "properties": {
+        "online": { "type": "boolean" },
+        "selfId": { "type": ["string", "null"] },
+        "platform": { "type": ["string", "null"] }
+      },
+      "required": ["online"]
+    },
+    "ai": { "type": "object", "properties": { "available": { "type": "boolean" }, "provider": { "type": "string" }, "model": { "type": "string" } }, "required": ["available"] },
+    "aiSettings": { "type": "object" },
+    "persona": { "type": "object", "properties": { "name": { "type": "string" } } },
+    "features": { "type": "array" },
+    "clientTabs": { "type": "array" },
+    "updatedAt": { "type": "string" }
+  },
+  "required": ["platform", "settings", "qq", "napcat", "koishi", "bot", "ai", "features", "updatedAt"],
+  "additionalProperties": true
+}

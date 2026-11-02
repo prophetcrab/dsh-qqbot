@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dsh-qqbot/contracts/plugin-manifest.schema.json",
+  "title": "DSH host plugin manifest",
+  "description": "Every host/plugins/<name>/index.js default export (or named manifest) must satisfy this shape. `apply` is a function and is validated by the kernel, not by this JSON schema.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string" },
+    "inject": { "type": "array", "items": { "type": "string" } },
+    "provides": { "type": "array", "items": { "type": "string" } },
+    "description": { "type": "string" },
+    "Config": { "type": "object" }
+  },
+  "required": ["id", "name", "apply"],
+  "additionalProperties": true
+}

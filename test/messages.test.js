@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchMessages, normalizeMessage, normalizeMessages } from '../lib/messages.js'
+import { fetchMessages, normalizeMessage, normalizeMessages } from '../host/plugins/messages/data.js'
 
 test('normalizeMessage: group/private fields and defaults', () => {
   assert.deepEqual(normalizeMessage({
