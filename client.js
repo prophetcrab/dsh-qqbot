@@ -818,8 +818,11 @@ window.__ModuleLoader__.load({
         const character = obj(data.character)
         const core = obj(character.core)
         const emotion = obj(character.emotion)
-        const groups = Object.entries(obj(data.groups))
-        const loops = arr(data.loops).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
+        const listenerGroups = obj(data.listener?.groups)
+        const stateGroups = obj(data.groups)
+        const groups = Object.keys({ ...listenerGroups, ...stateGroups }).map((id) => [id, { ...obj(listenerGroups[id]), ...obj(stateGroups[id]) }])
+        const loopSource = arr(data.loops).length > 0 ? data.loops : arr(data.listener?.loops)
+        const loops = arr(loopSource).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
         const selectedId = view.selected ?? groups[0]?.[0] ?? null
         const selectedGroup = selectedId !== null ? obj(data.groups)[selectedId] : null
         const activeLoop = selectedGroup?.lastLoop ?? null
