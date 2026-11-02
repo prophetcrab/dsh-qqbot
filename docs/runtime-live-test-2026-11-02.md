@@ -60,8 +60,8 @@ maxPerWindow = 3
 
 1. 新词只对**下一次**消息生效，当前消息先打分后学习；这是有意的，避免自命中。
 2. `Intl.Segmenter` 会把“龙图”切成单字，已增加 2–4 字中文 n-gram 提取。
-3. 动态关键词目前是内存态，Koishi 重启后清零；持久化属于下一阶段。
-4. AI 仍使用 `ai-chat` 的批量定时器，ActivationScheduler 尚未接管发送延迟。
+3. 动态关键词现已持久化到 `data/state/runtime-lexicon.json`；本条记录的是当时测试版本。
+4. `ai-chat` 批量延迟现已改由 ActivationScheduler 驱动；本条记录的是当时测试版本。
 5. ReAct、ToolRegistry、Game/Activity 注册已实现内核，但尚未接入线上 AI 动作。
 
 ## 结论

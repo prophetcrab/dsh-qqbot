@@ -335,14 +335,14 @@ registerLifeSource(spec)
 - 人格通过 ReAct 决定是否调用游戏工具
 - Activity 由 LifeDirector 推进，不由群聊模型直接修改
 
-## 12. 本阶段不做的
+## 12. 本阶段边界
 
-- 不替换 ai-chat
-- 不接 LLM
-- 不接数据库持久化
-- 不实现具体游戏
-- 不实现 LifeDirector tick
-- 不做向量检索
+- ai-chat 仍负责 AI 调用、媒体、发送；runtime 只管事件/线程/关键词/注意力/预算
+- 暂不接具体游戏
+- 暂不实现 LifeDirector tick
+- 暂不做向量检索
+- ActivationScheduler 已接管批量延迟
+- 动态关键词已持久化到 `data/state/runtime-lexicon.json`
 
 ## 13. 测试矩阵
 
@@ -357,7 +357,30 @@ tools: 注册、权限、未知工具、超时
 extensions: 注册/注销、插件卸载清理
 ```
 
-## 14. 后续接入顺序
+## 14. 实现状态
+
+已实现：
+
+- EventStore / ThreadTracker
+- ActivationScheduler + 50ms ticker
+- GroupActor 预算
+- DynamicLexicon（中文 n-gram、学习、衰减、持久化）
+- Attention
+- Episode / ReAct 内核
+- ToolRegistry
+- ExtensionRegistry
+- ai-chat 接入 attention/线程/预算
+- 批量回复改由 ActivationScheduler 唤醒
+- 动态关键词跨重启恢复
+
+尚未实现：
+
+- ReAct 接入线上 AI
+- 具体游戏 / 工具执行
+- LifeDirector
+- 事件级完整持久化
+
+## 15. 后续接入顺序
 
 ```text
 1. runtime 内核测试
