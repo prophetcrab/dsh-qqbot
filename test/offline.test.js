@@ -106,7 +106,7 @@ test('installMacOffline stages the payload and patches the QQ loader', async (t)
   await writeFile(join(updateApp, 'package.json'), `${JSON.stringify({ main: './app_launcher/index.js', buildVersion: '30000' }, null, 2)}\n`, 'utf8')
   // Use tar instead of ditto so the rest of the port is exercised portably.
   const run = async (file, args) => file === '/usr/bin/ditto'
-    ? execFileRun('tar', ['-xf', args[2], '-C', args[3]], { timeoutMs: 120_000 })
+    ? execFileRun('unzip', ['-q', args[2], '-d', args[3]], { timeoutMs: 120_000 })
     : { code: 0, stdout: '', stderr: '' }
   const result = await installMacOffline({ vendorDir, appDir, home, run, skipPrivileged: true })
   assert.equal(result.ok, true, result.message)
