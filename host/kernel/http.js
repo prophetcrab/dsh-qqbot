@@ -22,8 +22,52 @@ export function sendJson(res, status, body) {
   res.end(payload)
 }
 
+/** Whether an address belongs to the local machine. */
+export function isLoopbackAddress(address) {
+  const value = String(address ?? '').trim().toLowerCase().replace(/^\[|\]$/gu, '')
+  if (value === '') return true
+  if (value === '::1') return true
+  if (value.startsWith('127.')) return true
+  if (value.startsWith('::ffff:')) return isLoopbackAddress(value.slice('::ffff:'.length))
+  return false
+}
+
+/** Whether a browser Origin is a local control-panel origin. */
+export function isLocalOrigin(origin) {
+  if (typeof origin !== 'string' || origin === '') return true
+  try {
+    const url = new URL(origin)
+    const host = url.hostname.replace(/^\[|\]$/gu, '')
+    return host === 'localhost' || isLoopbackAddress(host)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The control panel has no separate login layer: it relies on the DSH web
+ * server being local. Refuse non-loopback clients and cross-site mutations.
+ */
+function guardLocalRequest(req, res) {
+  const remote = req?.socket?.remoteAddress ?? req?.connection?.remoteAddress
+  if (remote !== undefined && remote !== null && !isLoopbackAddress(remote)) {
+    sendJson(res, 403, { ok: false, error: 'local access only' })
+    return false
+  }
+  const method = String(req?.method ?? 'GET').toUpperCase()
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const origin = req?.headers?.origin
+    if (origin !== undefined && !isLocalOrigin(origin)) {
+      sendJson(res, 403, { ok: false, error: 'cross-site request rejected' })
+      return false
+    }
+  }
+  return true
+}
+
 /** Method guard + async error wrapper for route handlers. */
 export function only(req, res, methods, handler) {
+  if (!guardLocalRequest(req, res)) return
   if (!methods.includes(req.method ?? 'GET')) {
     sendJson(res, 405, { ok: false, error: `method not allowed: ${req.method}` })
     return

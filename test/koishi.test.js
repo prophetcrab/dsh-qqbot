@@ -350,6 +350,20 @@ test('stop escalates to SIGKILL when SIGTERM is ignored', async (t) => {
   assert.ok(calls.some((call) => call.signal === 'SIGKILL'))
 })
 
+test('stop refuses to kill a process it did not start', async (t) => {
+  const dir = await makeProject(t)
+  const kill = fakeKiller()
+  const manager = makeManager(dir, {
+    fetch: onlineHealth,
+    portPid: async () => 9999,
+    processKill: kill,
+  })
+  const result = await manager.stop()
+  assert.equal(result.ok, false)
+  assert.match(result.error, /不是由当前面板启动/u)
+  assert.equal(kill.state.calls.length, 0)
+})
+
 test('stop reports that Koishi is not running', async (t) => {
   const dir = await makeProject(t)
   const kill = fakeKiller()
