@@ -262,6 +262,7 @@ const GROUP_DASHBOARD = {
     { id: 'mem_1', at: '2026-11-02T15:22:11+08:00', summary: '被说可爱时先回了“才不是”，但后面还是接受了。', kind: 'event', importance: 'medium' },
     { id: 'mem_2', at: '2026-11-02T15:18:00+08:00', summary: '群里开始聊周末开黑。', kind: 'event', importance: 'low' },
   ],
+  profiles: [{ groupId: '780654567', qq: '20000', nickname: '小明', summary: '经常在群里分享游戏和周末计划。', personality: '随和', interests: ['游戏', '周末'] }],
   listener: {
     updatedAt: '2026-11-02T15:22:11+08:00',
     groups: {
@@ -775,6 +776,8 @@ expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('测试群·摸鱼办事处')) throw new Error('group name missing in dashboard')
+expectTestId(tree, 'qqbot-ai-profiles')
+if (!text(expectTestId(tree, 'qqbot-ai-profiles')).includes('小明')) throw new Error('member profile missing in dashboard')
 const listenerOnlyRow = groupRows.find((node) => node.props && node.props['data-group'] === '780654567')
 if (listenerOnlyRow === undefined || typeof listenerOnlyRow.props.onClick !== 'function') throw new Error('listener-only group row missing')
 listenerOnlyRow.props.onClick()

@@ -35,7 +35,7 @@ const STATIC_TESTIDS = [
   'qqbot-access-refresh-contacts', 'qqbot-access-save',
   'qqbot-ai-dashboard', 'qqbot-ai-error', 'qqbot-ai-refresh', 'qqbot-ai-metrics',
   'qqbot-ai-state-machine', 'qqbot-ai-groups', 'qqbot-ai-group-row', 'qqbot-ai-loops', 'qqbot-ai-back-overview',
-  'qqbot-ai-loop-row', 'qqbot-ai-character', 'qqbot-ai-emotion', 'qqbot-ai-memories',
+  'qqbot-ai-loop-row', 'qqbot-ai-character', 'qqbot-ai-emotion', 'qqbot-ai-memories', 'qqbot-ai-profiles',
   'qqbot-banner', 'qqbot-feature-card', 'qqbot-features-refresh',
   'qqbot-login-card', 'qqbot-login-phase', 'qqbot-login-qr', 'qqbot-login-refresh',
   'qqbot-login-retry', 'qqbot-login-start', 'qqbot-logs', 'qqbot-logs-refresh', 'qqbot-message-direction',

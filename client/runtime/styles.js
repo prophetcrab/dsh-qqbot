@@ -400,4 +400,11 @@ export const CSS = `
 .qqbot-ai-group-name-wrap { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .qqbot-ai-group-name { color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qqbot-ai-group-id { color: var(--dsw-alias-label-tertiary); font-size: 9px; font-weight: 400; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.qqbot-ai-profile-block { margin-top: 12px; border-top: .5px solid var(--dsw-alias-border-l1); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+.qqbot-ai-profile-head { display: flex; justify-content: space-between; gap: 8px; color: var(--dsw-alias-label-tertiary); font-size: 9.5px; }
+.qqbot-ai-profile { display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
+.qqbot-ai-profile-name { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.qqbot-ai-profile-name strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; } .qqbot-ai-profile-name span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.qqbot-ai-profile p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.qqbot-ai-profile-tags { display: flex; gap: 4px; flex-wrap: wrap; } .qqbot-ai-profile-tags span { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 8.5px; }
 `

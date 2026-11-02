@@ -1,6 +1,7 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
 import { GroupLoopStore } from './store.js'
 import { buildPersonaPrompt } from '../persona/index.js'
+import { buildProfilePrompt } from '../profiles/index.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -38,6 +39,12 @@ function normalizePatches(value) {
   const emotion = object(source.emotion)
   const groupState = object(source.groupState)
   return { memory, userProfiles, emotion, groupState }
+}
+
+function participantsOf(material) {
+  const ids = new Set()
+  for (const match of String(material ?? '').matchAll(/[（(](\d{5,12})[)）]/g)) ids.add(match[1])
+  return [...ids]
 }
 
 export class GroupLoopService {
@@ -87,16 +94,25 @@ export class GroupLoopService {
     })
   }
 
+  async profileContext(groupId, material) {
+    const participants = participantsOf(material)
+    const profiles = await this.store.profilesFor(groupId, participants)
+    const rendered = profiles.map((profile) => buildProfilePrompt(profile)).filter(Boolean)
+    return { participants, profiles, prompt: rendered.join('\n\n') }
+  }
+
   async analyze(input) {
     const groupId = text(input.groupId)
     const material = text(input.material).slice(-24000)
     if (groupId === '' || material === '') return { ok: false, error: 'material/groupId required' }
     const triggerReason = text(input.trigger?.reason)
     const direct = triggerReason === 'mention' || triggerReason === 'reply'
+    const profileContext = await this.profileContext(groupId, material)
     const system = [
       await this.characterPrompt(),
       '你是群聊参与者。根据最近素材判断这一轮是否发言。',
       '不要因为被 @ 就机械回答；别人已经在回答、话题与你无关、你刚说过话时可以不发言。',
+      profileContext.prompt ? `【群成员画像，仅作背景，不要复述】\n${profileContext.prompt}` : '',
       '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
       'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
       direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 必须为 true，且必须至少说一句；可以选择 statement，不要求回答被回复的内容；不要返回 action。' : '',
@@ -118,8 +134,10 @@ export class GroupLoopService {
     const speak = normalizeSpeak(input.speak)
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
     const target = speak.target
+    const profileContext = await this.profileContext(input.groupId, material)
     const system = [
       await this.characterPrompt(),
+      profileContext.prompt ? `【相关群成员画像，仅作背景，不要复述】\n${profileContext.prompt}` : '',
       '你是群里的普通群友，不是客服。只写这次要发送的内容。',
       speak.kind === 'statement' ? '发表一条主观观点，不要假装回复某条消息。' : '只针对 target 消息回复，不要总结整段素材。',
       speak.replyType === 'normal' ? 'normal：不写 @、不写引用标记，直接写文本。' : '',
@@ -164,6 +182,8 @@ export class GroupLoopService {
       this.logger.warn?.('group-loop state update failed: %s', String(error?.message ?? error))
     }
     const patches = normalizePatches(parsed)
+    const knownParticipants = new Set(participantsOf(material))
+    patches.userProfiles = patches.userProfiles.filter((entry) => entry !== null && typeof entry === 'object' && knownParticipants.has(String(entry.qq)))
     const memory = await this.store.appendMemory(patches.memory)
     const profiles = await this.store.applyProfiles(groupId, patches.userProfiles)
     const emotion = { ...character.emotion }
