@@ -265,7 +265,7 @@ const GROUP_DASHBOARD = {
   listener: {
     updatedAt: '2026-11-02T15:22:11+08:00',
     groups: {
-      '780654567': { bufferSize: 4, unprocessed: 2, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: 'count' }, lastLoop: null },
+      '780654567': { name: '测试群·摸鱼办事处', bufferSize: 4, unprocessed: 2, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: 'count' }, lastLoop: null },
     },
   },
 }
@@ -774,6 +774,7 @@ expectTestId(tree, 'qqbot-ai-character')
 expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('测试群·摸鱼办事处')) throw new Error('group name missing in dashboard')
 const listenerOnlyRow = groupRows.find((node) => node.props && node.props['data-group'] === '780654567')
 if (listenerOnlyRow === undefined || typeof listenerOnlyRow.props.onClick !== 'function') throw new Error('listener-only group row missing')
 listenerOnlyRow.props.onClick()

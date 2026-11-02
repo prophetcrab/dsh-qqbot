@@ -397,4 +397,7 @@ export const CSS = `
 @media (max-width: 640px) { .qqbot-ai-hero { flex-direction: column; } .qqbot-ai-hero-actions { justify-content: flex-start; } .qqbot-ai-metrics { grid-template-columns: 1fr 1fr; } .qqbot-ai-machine-node { min-width: 76px; } }
 .qqbot-ai-card-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
 .qqbot-ai-btn-back { padding: 4px 8px; font-size: 10px; }
+.qqbot-ai-group-name-wrap { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.qqbot-ai-group-name { color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-ai-group-id { color: var(--dsw-alias-label-tertiary); font-size: 9px; font-weight: 400; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 `
