@@ -3,7 +3,7 @@
 ## 自动化
 
 ```text
-npm test                     176/176
+npm test                     179/179
 Host unit                    36/36
 Client unit                   9/9
 Host smoke                   41 routes / 6 tools / 5 features / 17 Koishi plugins

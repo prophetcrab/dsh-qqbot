@@ -183,6 +183,32 @@ export class SetupManager {
   }
 
   /**
+   * Read the configured Koishi OneBot `selfId`, if present.
+   *
+   * @returns {Promise<{ ok: boolean, selfId?: string, path?: string, error?: string }>}
+   */
+  async getKoishiSelfId() {
+    const file = join(this.projectDir, 'koishi.yml')
+    try {
+      const text = await readFile(file, 'utf8')
+      const lines = text.split('\n')
+      const adapterIndex = lines.findIndex((line) => /^\s+adapter-onebot:[^\s]*:/u.test(line))
+      if (adapterIndex < 0) return { ok: false, error: 'adapter-not-found' }
+      const adapterIndent = (lines[adapterIndex].match(/^\s*/u)?.[0] ?? '').length
+      for (let index = adapterIndex + 1; index < lines.length; index++) {
+        const line = lines[index]
+        const indent = (line.match(/^\s*/u)?.[0] ?? '').length
+        if (line.trim() !== '' && indent <= adapterIndent) break
+        const match = /^\s+selfId:\s*['"]?([^'"\s]+)['"]?\s*$/u.exec(line)
+        if (match !== null) return { ok: true, selfId: match[1], path: file }
+      }
+      return { ok: false, error: 'selfid-not-found' }
+    } catch (error) {
+      return { ok: false, error: String(error?.message ?? error) }
+    }
+  }
+
+  /**
    * Keep the Koishi OneBot `selfId` in sync with the QQ account logged into
    * NapCat. Used after a fresh install once the user has scanned the QR code.
    *

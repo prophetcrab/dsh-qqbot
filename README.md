@@ -132,6 +132,7 @@ reversePath        /onebot
 napcatToken        空
 autoRestartKoishi  true
 autoInstallDeps    true
+autoSyncSelfId     true
 logLines           200
 ```
 
@@ -170,7 +171,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。
 ## 开发
 
 ```bash
-npm test                 # 176 tests
+npm test                 # 179 tests
 npm run build:client
 npm run smoke:host       # 41 routes / 6 tools / 5 features
 npm run smoke:client

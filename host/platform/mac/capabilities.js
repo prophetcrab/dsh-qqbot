@@ -40,6 +40,8 @@ export const DEFAULT_SETTINGS = {
   aiSelfCheck: true,
   autoRestartKoishi: true,
   autoInstallDeps: true,
+  /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
+  autoSyncSelfId: true,
   logLines: 200,
 }
 
@@ -89,6 +91,7 @@ export function resolveSettings(raw = {}) {
     aiSelfCheck: source.aiSelfCheck === undefined ? DEFAULT_SETTINGS.aiSelfCheck : source.aiSelfCheck === true,
     autoRestartKoishi: source.autoRestartKoishi === undefined ? DEFAULT_SETTINGS.autoRestartKoishi : source.autoRestartKoishi === true,
     autoInstallDeps: source.autoInstallDeps === undefined ? DEFAULT_SETTINGS.autoInstallDeps : source.autoInstallDeps === true,
+    autoSyncSelfId: source.autoSyncSelfId === undefined ? DEFAULT_SETTINGS.autoSyncSelfId : source.autoSyncSelfId === true,
     logLines,
   }
 }
