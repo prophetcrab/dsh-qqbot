@@ -327,6 +327,7 @@ const RUNTIME_INBOUND = {
   threadId: 'thread:12',
   keywordScore: 0.96,
   interestLabels: ['龙图表情包'],
+  hotTopics: ['龙图表情包'],
   attention: 0.438,
   attentionReasons: ['keyword', 'thread'],
   images: 0,
@@ -837,6 +838,9 @@ if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-inbound')).includes('今天�
   throw new Error('runtime latest inbound text missing')
 }
 expectTestId(tree, 'qqbot-ai-runtime-attention-final')
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-hot-topics')).includes('龙图表情包')) {
+  throw new Error('hot topic chip missing')
+}
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-interest-hits')).includes('龙图表情包')) {
   throw new Error('matched semantic interest missing')
 }

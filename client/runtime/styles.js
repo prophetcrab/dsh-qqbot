@@ -402,6 +402,7 @@ export const CSS = `
   transition: width .18s ease; }
 .qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
   font-variant-numeric: tabular-nums; }
+.qqbot-chip-hot { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 38%, var(--dsw-alias-border-l1)); }
 .qqbot-chip-interest { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); }
 .qqbot-chip-reason { color: var(--dsw-alias-brand-primary);
   border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }

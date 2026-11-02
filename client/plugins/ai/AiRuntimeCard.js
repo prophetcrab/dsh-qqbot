@@ -53,6 +53,7 @@ export function normalizeInbound(raw) {
     threadId: asText(source.threadId),
     keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
     interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
+    hotTopics: asList(source.hotTopics).filter((item) => typeof item === 'string' && item !== ''),
     attention,
     attentionDecision: decisionOf(source, attention, attentionReasons),
     budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -363,6 +364,11 @@ function renderInboundBlock({ t, h, row, inbound }) {
       ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-interest-hits' },
         h('span', { className: 'qqbot-row-label' }, t('aiRuntimeInterestHits')),
         chips(h, inbound.interestLabels, 'qqbot-chip qqbot-chip-interest'))
+      : null,
+    inbound.hotTopics.length > 0
+      ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-hot-topics' },
+        h('span', { className: 'qqbot-row-label' }, t('aiRuntimeHotTopics')),
+        chips(h, inbound.hotTopics, 'qqbot-chip qqbot-chip-hot'))
       : null,
     reasonChips,
     inbound.reason !== ''

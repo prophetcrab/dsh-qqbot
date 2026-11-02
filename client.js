@@ -1283,6 +1283,7 @@ window.__ModuleLoader__.load({
           threadId: asText(source.threadId),
           keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
           interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
+          hotTopics: asList(source.hotTopics).filter((item) => typeof item === 'string' && item !== ''),
           attention,
           attentionDecision: decisionOf(source, attention, attentionReasons),
           budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -1593,6 +1594,11 @@ window.__ModuleLoader__.load({
             ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-interest-hits' },
               h('span', { className: 'qqbot-row-label' }, t('aiRuntimeInterestHits')),
               chips(h, inbound.interestLabels, 'qqbot-chip qqbot-chip-interest'))
+            : null,
+          inbound.hotTopics.length > 0
+            ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-hot-topics' },
+              h('span', { className: 'qqbot-row-label' }, t('aiRuntimeHotTopics')),
+              chips(h, inbound.hotTopics, 'qqbot-chip qqbot-chip-hot'))
             : null,
           reasonChips,
           inbound.reason !== ''
@@ -4284,6 +4290,7 @@ window.__ModuleLoader__.load({
         aiRuntimeMinutes: 'm',
         aiRuntimeInterestHits: 'Matched interests',
         aiRuntimeInterestLongTerm: 'persona · long-term',
+        aiRuntimeHotTopics: 'Recently heated',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4704,6 +4711,7 @@ window.__ModuleLoader__.load({
         aiRuntimeMinutes: '分钟',
         aiRuntimeInterestHits: '命中语义兴趣',
         aiRuntimeInterestLongTerm: '人设长期',
+        aiRuntimeHotTopics: '短期升温',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',
@@ -5421,6 +5429,7 @@ window.__ModuleLoader__.load({
         transition: width .18s ease; }
       .qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
         font-variant-numeric: tabular-nums; }
+      .qqbot-chip-hot { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 38%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-interest { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-reason { color: var(--dsw-alias-brand-primary);
         border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }

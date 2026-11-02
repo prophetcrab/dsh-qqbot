@@ -385,6 +385,7 @@ export const en = {
   aiRuntimeMinutes: 'm',
   aiRuntimeInterestHits: 'Matched interests',
   aiRuntimeInterestLongTerm: 'persona · long-term',
+  aiRuntimeHotTopics: 'Recently heated',
   aiRuntimeLastInbound: 'Latest message',
   aiRuntimeLastReply: 'Latest reply',
   aiRuntimeNoReplyYet: 'No reply recorded yet.',
