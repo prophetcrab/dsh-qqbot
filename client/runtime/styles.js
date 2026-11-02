@@ -244,6 +244,13 @@ export const CSS = `
 .qqbot-ai-reply-wrap { display: flex; flex-direction: column; gap: 6px; }
 .qqbot-ai-reply { max-height: 220px; }
 
+.qqbot-persona-interest-field { gap: 7px; }
+.qqbot-persona-interest-bar { display: flex; gap: 6px; align-items: center; }
+.qqbot-persona-interest-bar .qqbot-input { flex: 1; min-width: 0; }
+.qqbot-persona-interest-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.qqbot-persona-interest-tag { display: inline-flex; align-items: center; gap: 3px; padding: 3px 5px 3px 8px; border-radius: 999px; border: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); color: var(--dsw-alias-label-primary); font-size: 11px; }
+.qqbot-persona-interest-remove { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
+.qqbot-persona-interest-remove:hover { color: var(--dsw-alias-state-danger-primary); }
 .qqbot-persona-examples { display: flex; flex-direction: column; gap: 8px; }
 .qqbot-persona-example { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
   border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px;

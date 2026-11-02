@@ -25,7 +25,6 @@ export const DEFAULT_PERSONA = Object.freeze({
 })
 
 const MAX_TEXT = { name: 40, role: 300, tone: 200, personality: 300, rules: 800 }
-const MAX_INTERESTS = 24
 const MAX_INTEREST_TEXT = 40
 const MAX_EXAMPLES = 8
 const MAX_EXAMPLE_TEXT = 500
@@ -49,7 +48,7 @@ export function normalizePersona(input) {
     : typeof source.interests === 'string' ? source.interests.split(/[，,、;；\s]+/u) : []
   const interests = [...new Set(rawInterests
     .filter((item) => typeof item === 'string' && item.trim() !== '')
-    .map((item) => item.trim().slice(0, MAX_INTEREST_TEXT)))].slice(0, MAX_INTERESTS)
+    .map((item) => item.trim().slice(0, MAX_INTEREST_TEXT)))]
   return {
     name: text(source.name, MAX_TEXT.name),
     role: text(source.role, MAX_TEXT.role),

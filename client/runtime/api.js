@@ -213,6 +213,7 @@ export function draftFromPersona(persona) {
     interests: Array.isArray(source.interests)
       ? source.interests.filter((item) => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())
       : [],
+    interestInput: '',
     examples,
   }
 }

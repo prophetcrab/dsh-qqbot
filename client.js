@@ -1969,7 +1969,20 @@ window.__ModuleLoader__.load({
         const resetting = busyOf('persona-reset')
         const busy = saving || resetting
         const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
-        const parseInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
+        const interestInput = typeof draft.interestInput === 'string' ? draft.interestInput : ''
+        const splitInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
+        const addInterests = (raw = interestInput) => {
+          const incoming = splitInterestInput(raw)
+          if (incoming.length === 0) return
+          updateDraft({ interests: [...new Set([...draft.interests, ...incoming])], interestInput: '' })
+        }
+        const onInterestKeyDown = (event) => {
+          if (event.nativeEvent?.isComposing === true) return
+          if (event.key === 'Enter' || event.key === ',' || event.key === '，' || event.key === '、') {
+            event.preventDefault()
+            addInterests()
+          }
+        }
         const updateExample = (index, fieldName, value) => {
           setPersonaDraft((previous) => {
             if (previous === null) return previous
@@ -2135,7 +2148,44 @@ window.__ModuleLoader__.load({
             field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
             field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
             field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true),
-            field('qqbot-persona-interests', 'qqbot-persona-interests', t('personaInterests'), draft.interests.join('、'), (value) => { updateDraft({ interests: parseInterestInput(value) }) })),
+            h('div', { className: 'qqbot-field qqbot-persona-interest-field' },
+              h('label', { className: 'qqbot-field-label', htmlFor: 'qqbot-persona-interest-input' }, t('personaInterests')),
+              h('div', { className: 'qqbot-persona-interest-bar' },
+                h('input', {
+                  id: 'qqbot-persona-interest-input',
+                  className: 'qqbot-input',
+                  type: 'text',
+                  'data-testid': 'qqbot-persona-interest-input',
+                  placeholder: t('personaInterestsPlaceholder'),
+                  value: interestInput,
+                  onChange: (event) => { updateDraft({ interestInput: event.currentTarget.value }) },
+                  onKeyDown: onInterestKeyDown,
+                  onBlur: () => { addInterests() },
+                }),
+                h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn qqbot-btn-primary',
+                  'data-testid': 'qqbot-persona-interest-add',
+                  'aria-label': t('personaInterestsAdd'),
+                  onClick: () => { addInterests() },
+                }, t('personaInterestsAdd'))),
+              draft.interests.length === 0
+                ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-persona-interest-empty' }, t('personaInterestsEmpty'))
+                : h('div', { className: 'qqbot-persona-interest-tags', 'data-testid': 'qqbot-persona-interest-tags' },
+                  ...draft.interests.map((interest) => h('span', {
+                    key: `persona-interest-${interest}`,
+                    className: 'qqbot-persona-interest-tag',
+                    'data-testid': 'qqbot-persona-interest-chip',
+                  },
+                  h('span', null, interest),
+                  h('button', {
+                    type: 'button',
+                    className: 'qqbot-persona-interest-remove',
+                    'data-testid': 'qqbot-persona-interest-remove',
+                    'aria-label': `${t('personaInterestsRemove')} ${interest}`,
+                    onClick: () => { updateDraft({ interests: draft.interests.filter((item) => item !== interest) }) },
+                  }, '×')))),
+              h('p', { className: 'qqbot-hint' }, t('personaInterestsHint')))),
           h('div', { className: 'qqbot-persona-examples' },
             h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
             examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,
@@ -3826,6 +3876,7 @@ window.__ModuleLoader__.load({
           interests: Array.isArray(source.interests)
             ? source.interests.filter((item) => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())
             : [],
+          interestInput: '',
           examples,
         }
       }
@@ -3987,8 +4038,12 @@ window.__ModuleLoader__.load({
         personaRole: 'Role',
         personaTone: 'Tone',
         personaPersonality: 'Personality',
-        personaInterests: 'Long-term interests',
-        personaInterestsHint: 'Separate with commas; these are long-term memory and do not expire with chat trends',
+        personaInterests: 'Long-term interest keywords',
+        personaInterestsHint: 'Add keywords one by one; these become long-term memory and do not expire',
+        personaInterestsPlaceholder: 'Type a keyword, press Enter',
+        personaInterestsAdd: 'Add',
+        personaInterestsEmpty: 'No long-term interest keywords yet',
+        personaInterestsRemove: 'Remove interest',
         personaRules: 'Rules',
         personaExamples: 'Few-shot examples',
         personaExampleUser: 'User says',
@@ -4408,8 +4463,12 @@ window.__ModuleLoader__.load({
         personaRole: '角色',
         personaTone: '语气',
         personaPersonality: '性格',
-        personaInterests: '长期兴趣话题',
-        personaInterestsHint: '用顿号或逗号分隔；这些话题会作为长期记忆，不随群聊过期',
+        personaInterests: '长期兴趣关键词',
+        personaInterestsHint: '逐个添加关键词；这些话题会作为长期记忆，不随群聊过期',
+        personaInterestsPlaceholder: '输入一个兴趣词，回车添加',
+        personaInterestsAdd: '添加',
+        personaInterestsEmpty: '还没有长期兴趣关键词',
+        personaInterestsRemove: '删除兴趣',
         personaRules: '行为准则',
         personaExamples: '对话示例',
         personaExampleUser: '用户',
@@ -5271,6 +5330,13 @@ window.__ModuleLoader__.load({
       .qqbot-ai-reply-wrap { display: flex; flex-direction: column; gap: 6px; }
       .qqbot-ai-reply { max-height: 220px; }
 
+      .qqbot-persona-interest-field { gap: 7px; }
+      .qqbot-persona-interest-bar { display: flex; gap: 6px; align-items: center; }
+      .qqbot-persona-interest-bar .qqbot-input { flex: 1; min-width: 0; }
+      .qqbot-persona-interest-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+      .qqbot-persona-interest-tag { display: inline-flex; align-items: center; gap: 3px; padding: 3px 5px 3px 8px; border-radius: 999px; border: 0.5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); color: var(--dsw-alias-label-primary); font-size: 11px; }
+      .qqbot-persona-interest-remove { border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
+      .qqbot-persona-interest-remove:hover { color: var(--dsw-alias-state-danger-primary); }
       .qqbot-persona-examples { display: flex; flex-direction: column; gap: 8px; }
       .qqbot-persona-example { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
         border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px;

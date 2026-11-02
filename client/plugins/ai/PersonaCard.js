@@ -12,7 +12,20 @@ export function renderPersonaCard(panel) {
   const resetting = busyOf('persona-reset')
   const busy = saving || resetting
   const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
-  const parseInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
+  const interestInput = typeof draft.interestInput === 'string' ? draft.interestInput : ''
+  const splitInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
+  const addInterests = (raw = interestInput) => {
+    const incoming = splitInterestInput(raw)
+    if (incoming.length === 0) return
+    updateDraft({ interests: [...new Set([...draft.interests, ...incoming])], interestInput: '' })
+  }
+  const onInterestKeyDown = (event) => {
+    if (event.nativeEvent?.isComposing === true) return
+    if (event.key === 'Enter' || event.key === ',' || event.key === '，' || event.key === '、') {
+      event.preventDefault()
+      addInterests()
+    }
+  }
   const updateExample = (index, fieldName, value) => {
     setPersonaDraft((previous) => {
       if (previous === null) return previous
@@ -178,7 +191,44 @@ export function renderPersonaCard(panel) {
       field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
       field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
       field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true),
-      field('qqbot-persona-interests', 'qqbot-persona-interests', t('personaInterests'), draft.interests.join('、'), (value) => { updateDraft({ interests: parseInterestInput(value) }) })),
+      h('div', { className: 'qqbot-field qqbot-persona-interest-field' },
+        h('label', { className: 'qqbot-field-label', htmlFor: 'qqbot-persona-interest-input' }, t('personaInterests')),
+        h('div', { className: 'qqbot-persona-interest-bar' },
+          h('input', {
+            id: 'qqbot-persona-interest-input',
+            className: 'qqbot-input',
+            type: 'text',
+            'data-testid': 'qqbot-persona-interest-input',
+            placeholder: t('personaInterestsPlaceholder'),
+            value: interestInput,
+            onChange: (event) => { updateDraft({ interestInput: event.currentTarget.value }) },
+            onKeyDown: onInterestKeyDown,
+            onBlur: () => { addInterests() },
+          }),
+          h('button', {
+            type: 'button',
+            className: 'qqbot-btn qqbot-btn-primary',
+            'data-testid': 'qqbot-persona-interest-add',
+            'aria-label': t('personaInterestsAdd'),
+            onClick: () => { addInterests() },
+          }, t('personaInterestsAdd'))),
+        draft.interests.length === 0
+          ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-persona-interest-empty' }, t('personaInterestsEmpty'))
+          : h('div', { className: 'qqbot-persona-interest-tags', 'data-testid': 'qqbot-persona-interest-tags' },
+            ...draft.interests.map((interest) => h('span', {
+              key: `persona-interest-${interest}`,
+              className: 'qqbot-persona-interest-tag',
+              'data-testid': 'qqbot-persona-interest-chip',
+            },
+            h('span', null, interest),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-persona-interest-remove',
+              'data-testid': 'qqbot-persona-interest-remove',
+              'aria-label': `${t('personaInterestsRemove')} ${interest}`,
+              onClick: () => { updateDraft({ interests: draft.interests.filter((item) => item !== interest) }) },
+            }, '×')))),
+        h('p', { className: 'qqbot-hint' }, t('personaInterestsHint')))),
     h('div', { className: 'qqbot-persona-examples' },
       h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
       examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,
