@@ -36,7 +36,7 @@ test('buildPersonaPrompt: persona block first with role fields and few-shot exam
   assert.match(prompt, /^【角色设定】/u)
   assert.match(prompt, /名称：猫娘/u)
   assert.match(prompt, /【对话示例】/u)
-  assert.match(prompt, /用户：你好\n助手：你好喵/u)
+  assert.match(prompt, /用户：你好\n回应：你好喵/u)
 })
 
 test('buildPersonaPrompt: empty card returns empty string', () => {
