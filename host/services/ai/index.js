@@ -101,6 +101,7 @@ export class AiChatService {
     // Persona card is always the first segment; the person's long-term profile
     // is the second; caller/global instructions follow.
     const persona = await this.#persona()
+    if (this.interestStore !== null) await this.interestStore.ensurePersona(options.groupId, persona.interests)
     const personaPrompt = buildPersonaPrompt(persona)
     const profileInfo = await this.#ensureProfile(options.groupId, options.userId, options.userName)
     const profilePrompt = profileInfo === null ? '' : buildProfilePrompt(profileInfo.profile)

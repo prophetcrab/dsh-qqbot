@@ -1394,6 +1394,7 @@ window.__ModuleLoader__.load({
               confidence: clamp01(asNumber(entry.confidence) ?? 0),
               expiresAt: asNumber(entry.expiresAt) ?? 0,
               source: asText(entry.source),
+              pinned: entry.pinned === true || asText(entry.source) === 'persona',
             }
           })
           .filter((entry) => entry !== null)
@@ -1687,6 +1688,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'qqbot-interest-main' },
           h('div', { className: 'qqbot-interest-head' },
             h('strong', { className: 'qqbot-interest-label' }, interest.label),
+            interest.pinned ? h('span', { className: 'qqbot-badge qqbot-interest-longterm', 'data-testid': 'qqbot-ai-runtime-interest-longterm' }, t('aiRuntimeInterestLongTerm')) : null,
             interest.groupId !== '' ? h('span', { className: 'qqbot-badge' }, interest.groupId) : null),
           interest.summary !== '' ? h('span', { className: 'qqbot-interest-summary' }, interest.summary) : null),
         h('div', { className: 'qqbot-interest-meta' },
@@ -1961,6 +1963,7 @@ window.__ModuleLoader__.load({
         const resetting = busyOf('persona-reset')
         const busy = saving || resetting
         const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+        const parseInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
         const updateExample = (index, fieldName, value) => {
           setPersonaDraft((previous) => {
             if (previous === null) return previous
@@ -2125,7 +2128,8 @@ window.__ModuleLoader__.load({
             field('qqbot-persona-role', 'qqbot-persona-role', t('personaRole'), draft.role, (value) => { updateDraft({ role: value }) }),
             field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
             field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
-            field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true)),
+            field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true),
+            field('qqbot-persona-interests', 'qqbot-persona-interests', t('personaInterests'), draft.interests.join('、'), (value) => { updateDraft({ interests: parseInterestInput(value) }) })),
           h('div', { className: 'qqbot-persona-examples' },
             h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
             examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,
@@ -3813,6 +3817,9 @@ window.__ModuleLoader__.load({
           tone: text(source.tone),
           personality: text(source.personality),
           rules: text(source.rules),
+          interests: Array.isArray(source.interests)
+            ? source.interests.filter((item) => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())
+            : [],
           examples,
         }
       }
@@ -3824,6 +3831,7 @@ window.__ModuleLoader__.load({
           tone: draft.tone,
           personality: draft.personality,
           rules: draft.rules,
+          interests: Array.isArray(draft.interests) ? draft.interests : [],
           examples: draft.examples.map((example) => ({ user: example.user, assistant: example.assistant })),
         }
       }
@@ -3973,6 +3981,8 @@ window.__ModuleLoader__.load({
         personaRole: 'Role',
         personaTone: 'Tone',
         personaPersonality: 'Personality',
+        personaInterests: 'Long-term interests',
+        personaInterestsHint: 'Separate with commas; these are long-term memory and do not expire with chat trends',
         personaRules: 'Rules',
         personaExamples: 'Few-shot examples',
         personaExampleUser: 'User says',
@@ -4273,6 +4283,7 @@ window.__ModuleLoader__.load({
         aiRuntimeHours: 'h',
         aiRuntimeMinutes: 'm',
         aiRuntimeInterestHits: 'Matched interests',
+        aiRuntimeInterestLongTerm: 'persona · long-term',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4390,6 +4401,8 @@ window.__ModuleLoader__.load({
         personaRole: '角色',
         personaTone: '语气',
         personaPersonality: '性格',
+        personaInterests: '长期兴趣话题',
+        personaInterestsHint: '用顿号或逗号分隔；这些话题会作为长期记忆，不随群聊过期',
         personaRules: '行为准则',
         personaExamples: '对话示例',
         personaExampleUser: '用户',
@@ -4690,6 +4703,7 @@ window.__ModuleLoader__.load({
         aiRuntimeHours: '小时',
         aiRuntimeMinutes: '分钟',
         aiRuntimeInterestHits: '命中语义兴趣',
+        aiRuntimeInterestLongTerm: '人设长期',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',

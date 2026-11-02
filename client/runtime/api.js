@@ -210,6 +210,9 @@ export function draftFromPersona(persona) {
     tone: text(source.tone),
     personality: text(source.personality),
     rules: text(source.rules),
+    interests: Array.isArray(source.interests)
+      ? source.interests.filter((item) => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())
+      : [],
     examples,
   }
 }
@@ -221,6 +224,7 @@ export function personaBody(draft) {
     tone: draft.tone,
     personality: draft.personality,
     rules: draft.rules,
+    interests: Array.isArray(draft.interests) ? draft.interests : [],
     examples: draft.examples.map((example) => ({ user: example.user, assistant: example.assistant })),
   }
 }

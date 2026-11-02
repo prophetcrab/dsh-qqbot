@@ -12,6 +12,7 @@ test('normalizePersona: trims fields, drops empty examples, caps lengths', () =>
     tone: 't',
     personality: 'p',
     rules: 'x'.repeat(2000),
+    interests: ['  音乐 ', '音乐', '', '摸摸'],
     examples: [
       { user: '你好', assistant: '在的' },
       { user: '', assistant: '空 user 应丢弃' },
@@ -20,6 +21,7 @@ test('normalizePersona: trims fields, drops empty examples, caps lengths', () =>
   })
   assert.equal(card.name, '小助手')
   assert.equal(card.rules.length, 800)
+  assert.deepEqual(card.interests, ['音乐', '摸摸'])
   assert.equal(card.examples.length, 1)
   assert.deepEqual(card.examples[0], { user: '你好', assistant: '在的' })
 })
@@ -31,10 +33,12 @@ test('buildPersonaPrompt: persona block first with role fields and few-shot exam
     tone: '软萌',
     personality: '好奇',
     rules: '句尾带喵',
+    interests: ['猫薄荷', '晒太阳'],
     examples: [{ user: '你好', assistant: '你好喵' }],
   })
   assert.match(prompt, /^【角色设定】/u)
   assert.match(prompt, /名称：猫娘/u)
+  assert.match(prompt, /长期感兴趣的话题：猫薄荷、晒太阳/u)
   assert.match(prompt, /【对话示例】/u)
   assert.match(prompt, /用户：你好\n助手：你好喵/u)
 })

@@ -127,7 +127,7 @@ const FULL_PAYLOAD = {
     version: 1,
     interests: [{
       groupId: '1026855069', label: '龙图', aliases: ['龙图表情包'], summary: '群友喜欢龙图',
-      weight: 0.8, confidence: 0.9, expiresAt: Date.now() + 86400000, source: 'llm',
+      weight: 1, confidence: 1, expiresAt: 0, source: 'persona', pinned: true,
     }],
   },
   paths: {
@@ -183,6 +183,7 @@ test('deriveRuntimeView normalizes inbound, reply, groups and keywords', () => {
   assert.equal(view.paths.lexicon, '~/project/qq-bot/data/state/runtime-lexicon.json')
   assert.equal(view.interests.length, 1)
   assert.equal(view.interests[0].label, '龙图')
+  assert.equal(view.interests[0].pinned, true)
 })
 
 test('deriveRuntimeView caps group recents at the latest 10', () => {
@@ -218,6 +219,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   }
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interests').length, 1)
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest').length, 1)
+  assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest-longterm').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interest-hits')[0]).includes('龙图表情包'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-attention-final').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-final')[0]).includes('44%'))
@@ -232,6 +234,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   assert.ok(paths.includes('ai-chat-state.json'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-updated').length, 1)
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest').length, 1)
+  assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest-longterm').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interests')[0]).includes('龙图'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interests')[0]).includes('群友喜欢龙图'))
 })

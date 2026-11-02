@@ -12,6 +12,7 @@ export function renderPersonaCard(panel) {
   const resetting = busyOf('persona-reset')
   const busy = saving || resetting
   const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
+  const parseInterestInput = (value) => [...new Set(String(value).split(/[，,、;；\s]+/u).map((item) => item.trim()).filter((item) => item !== ''))]
   const updateExample = (index, fieldName, value) => {
     setPersonaDraft((previous) => {
       if (previous === null) return previous
@@ -176,7 +177,8 @@ export function renderPersonaCard(panel) {
       field('qqbot-persona-role', 'qqbot-persona-role', t('personaRole'), draft.role, (value) => { updateDraft({ role: value }) }),
       field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
       field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
-      field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true)),
+      field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true),
+      field('qqbot-persona-interests', 'qqbot-persona-interests', t('personaInterests'), draft.interests.join('、'), (value) => { updateDraft({ interests: parseInterestInput(value) }) })),
     h('div', { className: 'qqbot-persona-examples' },
       h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
       examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,

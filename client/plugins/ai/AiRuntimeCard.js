@@ -164,6 +164,7 @@ function normalizeInterests(raw) {
         confidence: clamp01(asNumber(entry.confidence) ?? 0),
         expiresAt: asNumber(entry.expiresAt) ?? 0,
         source: asText(entry.source),
+        pinned: entry.pinned === true || asText(entry.source) === 'persona',
       }
     })
     .filter((entry) => entry !== null)
@@ -457,6 +458,7 @@ function renderInterestsBlock({ t, h, interests }) {
   h('div', { className: 'qqbot-interest-main' },
     h('div', { className: 'qqbot-interest-head' },
       h('strong', { className: 'qqbot-interest-label' }, interest.label),
+      interest.pinned ? h('span', { className: 'qqbot-badge qqbot-interest-longterm', 'data-testid': 'qqbot-ai-runtime-interest-longterm' }, t('aiRuntimeInterestLongTerm')) : null,
       interest.groupId !== '' ? h('span', { className: 'qqbot-badge' }, interest.groupId) : null),
     interest.summary !== '' ? h('span', { className: 'qqbot-interest-summary' }, interest.summary) : null),
   h('div', { className: 'qqbot-interest-meta' },

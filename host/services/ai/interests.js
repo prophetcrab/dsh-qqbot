@@ -34,6 +34,7 @@ export function normalizeInterest(input, now = Date.now()) {
     expiresAt: now + ttl * 60 * 60 * 1000,
     lastSeenAt: now,
     source: 'llm',
+    pinned: false,
   }
 }
 
@@ -95,6 +96,10 @@ export class InterestStore {
         accepted.push(candidate.label)
         continue
       }
+      existing.lastSeenAt = now
+      existing.aliases = [...new Set([...(existing.aliases ?? []), ...candidate.aliases])].slice(0, 6)
+      if (candidate.summary !== '') existing.summary = candidate.summary
+      if (existing.pinned === true || existing.source === 'persona') continue
       existing.weight = clamp(Math.max(existing.weight, candidate.weight) + 0.05)
       existing.confidence = clamp(Math.max(existing.confidence, candidate.confidence))
       existing.aliases = [...new Set([...(existing.aliases ?? []), ...candidate.aliases])].slice(0, 6)
@@ -108,8 +113,45 @@ export class InterestStore {
     return accepted
   }
 
+  async ensurePersona(groupId, interests, now = Date.now()) {
+    if (this.path === null || typeof groupId !== 'string' || groupId === '') return
+    await this.load()
+    const desired = [...new Set((Array.isArray(interests) ? interests : [])
+      .filter((item) => typeof item === 'string' && item.trim() !== '')
+      .map((item) => item.trim().slice(0, 40)))]
+    let changed = false
+    const wanted = new Set(desired.map((label) => label.toLowerCase()))
+    for (const [key, interest] of this.groups) {
+      if (interest.groupId !== groupId || interest.source !== 'persona') continue
+      if (wanted.has(String(interest.label).trim().toLowerCase())) continue
+      this.groups.delete(key)
+      changed = true
+    }
+    for (const label of desired) {
+      const key = keyOf(groupId, label)
+      const existing = this.groups.get(key)
+      if (existing !== undefined && existing.source === 'persona' && existing.pinned === true && existing.expiresAt === 0) continue
+      if (existing === undefined) {
+        this.groups.set(key, {
+          groupId, label, aliases: [], summary: '', weight: 1, confidence: 1,
+          expiresAt: 0, lastSeenAt: now, source: 'persona', pinned: true,
+        })
+      } else {
+        existing.source = 'persona'
+        existing.pinned = true
+        existing.expiresAt = 0
+        existing.weight = Math.max(existing.weight, 1)
+        existing.confidence = Math.max(existing.confidence, 1)
+        existing.lastSeenAt = now
+      }
+      changed = true
+    }
+    if (changed) await this.save(now)
+  }
+
   prune(now = Date.now()) {
     for (const [key, interest] of this.groups) {
+      if (interest.pinned === true || interest.source === 'persona') continue
       if (Number(interest.expiresAt) > 0 && now >= Number(interest.expiresAt)) {
         this.groups.delete(key)
         continue
