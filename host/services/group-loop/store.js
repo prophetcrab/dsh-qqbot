@@ -93,6 +93,20 @@ export class GroupLoopStore {
     return written
   }
 
+  async profilesFor(groupId, qqs = null) {
+    if (this.profilesPath === null) return []
+    const store = await loadProfileStore(this.profilesPath)
+    const group = String(groupId)
+    const wanted = Array.isArray(qqs) ? new Set(qqs.map((qq) => String(qq))) : null
+    const result = []
+    for (const profile of Object.values(store.profiles)) {
+      if (profile.groupId !== group) continue
+      if (wanted !== null && !wanted.has(profile.qq)) continue
+      result.push(profile)
+    }
+    return result.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 20)
+  }
+
   async applyProfiles(groupId, patches) {
     if (this.profilesPath === null || !Array.isArray(patches) || patches.length === 0) return 0
     let count = 0
@@ -119,8 +133,8 @@ export class GroupLoopStore {
   }
 
   async dashboard(listenerPath) {
-    const [character, groups, memories] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40)])
+    const [character, groups, memories, profileStore] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40), this.profilesPath === null ? Promise.resolve({ profiles: {} }) : loadProfileStore(this.profilesPath)])
     const listener = await this.readJson(listenerPath, null)
-    return { character, groups: groups.groups ?? {}, memories, listener, updatedAt: new Date().toISOString() }
+    return { character, groups: groups.groups ?? {}, memories, profiles: Object.values(profileStore.profiles ?? {}).slice(0, 300), listener, updatedAt: new Date().toISOString() }
   }
 }

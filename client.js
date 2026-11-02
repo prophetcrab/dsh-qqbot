@@ -722,6 +722,19 @@ window.__ModuleLoader__.load({
         return `${Math.round(seconds / 3600)} 小时前`
       }
 
+      function profilesBlock(h, selectedId, profiles) {
+        return h('div', { className: 'qqbot-ai-profile-block', 'data-testid': 'qqbot-ai-profiles' },
+          h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '成员画像'), h('span', null, selectedId === null ? '选择群查看' : selectedId)),
+          selectedId === null
+            ? h('p', { className: 'qqbot-ai-empty-line' }, '进入群详情后显示成员画像')
+            : profiles.length === 0
+              ? h('p', { className: 'qqbot-ai-empty-line' }, '这个群还没有成员画像')
+              : profiles.map((profile) => h('div', { key: `${profile.groupId}:${profile.qq}`, className: 'qqbot-ai-profile' },
+                h('div', { className: 'qqbot-ai-profile-name' }, h('strong', null, text(profile.nickname) || text(profile.qq)), h('span', null, text(profile.qq))),
+                h('p', null, text(profile.summary) || text(profile.personality) || text(profile.recent) || '暂无概要'),
+                arr(profile.interests).length > 0 ? h('div', { className: 'qqbot-ai-profile-tags' }, ...arr(profile.interests).slice(0, 4).map((tag) => h('span', { key: tag }, tag))) : null)))
+      }
+
       function useAi(panel) {
         const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null })
         const load = React.useCallback(async (manual = false) => {
@@ -833,6 +846,7 @@ window.__ModuleLoader__.load({
         const loopSource = arr(data.loops).length > 0 ? data.loops : arr(data.listener?.loops)
         const loops = arr(loopSource).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
         const selectedId = view.overview === true ? null : (view.selected ?? groups[0]?.[0] ?? null)
+        const selectedProfiles = selectedId === null ? [] : arr(data.profiles).filter((profile) => String(profile.groupId) === String(selectedId)).slice(0, 4)
         const selectedEntry = selectedId === null ? null : groups.find(([id]) => id === selectedId)
         const selectedGroup = selectedEntry === undefined || selectedEntry === null ? null : selectedEntry[1]
         const activeLoop = selectedGroup?.lastLoop ?? null
@@ -891,7 +905,8 @@ window.__ModuleLoader__.load({
                 emotionBar(h, '精力', emotion.energy, 'blue'),
                 emotionBar(h, '社交电量', emotion.socialBattery, 'violet'),
                 emotionBar(h, '压力', emotion.stress, 'amber')),
-              h('p', { className: 'qqbot-ai-voice' }, `语气：${text(core.voice) || '—'}`))),
+              h('p', { className: 'qqbot-ai-voice' }, `语气：${text(core.voice) || '—'}`),
+              profilesBlock(h, selectedId, selectedProfiles))),
           h('div', { className: 'qqbot-ai-lower-grid' },
             h('section', { className: 'qqbot-ai-card' },
               h('div', { className: 'qqbot-ai-card-head' },
@@ -3728,6 +3743,13 @@ window.__ModuleLoader__.load({
       .qqbot-ai-group-name-wrap { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
       .qqbot-ai-group-name { color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .qqbot-ai-group-id { color: var(--dsw-alias-label-tertiary); font-size: 9px; font-weight: 400; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-ai-profile-block { margin-top: 12px; border-top: .5px solid var(--dsw-alias-border-l1); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-profile-head { display: flex; justify-content: space-between; gap: 8px; color: var(--dsw-alias-label-tertiary); font-size: 9.5px; }
+      .qqbot-ai-profile { display: flex; flex-direction: column; gap: 3px; padding: 7px 8px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
+      .qqbot-ai-profile-name { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+      .qqbot-ai-profile-name strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; } .qqbot-ai-profile-name span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-ai-profile p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .qqbot-ai-profile-tags { display: flex; gap: 4px; flex-wrap: wrap; } .qqbot-ai-profile-tags span { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 8.5px; }
       `
 
       return { CSS }
