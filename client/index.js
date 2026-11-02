@@ -2,21 +2,25 @@
  * dsh-qqbot — browser half entry point.
  *
  * Registers the locale dictionaries, the panel stylesheet, the main control
- * center seat and the sidebar row. Everything else is a plugin: each tab
- * lives under `plugins/<name>/` and contributes its own hooks and view.
+ * center seat, the sidebar row and the external tab-registry bridge.
+ *
+ * The built-in tabs register themselves as a side effect of being imported
+ * (`plugins/<name>/index.js` -> `runtime/tab-registry.js`), so this entry
+ * point no longer owns a static tab list: the Host decides which tabs render.
  */
 import React from 'react'
 import { Panel } from './components/Panel.js'
 import { QqbotIcon } from './components/Icon.js'
 import { NS, en, zh } from './runtime/locale.js'
 import { CSS } from './runtime/styles.js'
-import * as overview from './plugins/overview/index.js'
-import * as ai from './plugins/ai/index.js'
-import * as messages from './plugins/messages/index.js'
-import * as access from './plugins/access/index.js'
-import * as plugins from './plugins/plugins/index.js'
-import * as features from './plugins/features/index.js'
-import * as logs from './plugins/logs/index.js'
+import { registerClientTabApi } from './runtime/tab-registry.js'
+import './plugins/overview/index.js'
+import './plugins/ai/index.js'
+import './plugins/messages/index.js'
+import './plugins/access/index.js'
+import './plugins/plugins/index.js'
+import './plugins/features/index.js'
+import './plugins/logs/index.js'
 
 const h = React.createElement
 
@@ -24,12 +28,12 @@ const NSID = 'qqbot'
 const PANEL_ID = 'qqbot'
 const SIDEBAR_ID = 'qqbot'
 
-/** Tab plugin order; the first one is the default view. */
-const PLUGINS = [overview, ai, messages, access, plugins, features, logs]
-
 export default {
   inject: ['slots', 'locale'],
   apply(ctx) {
+    // Expose the tab bridge before the panel mounts, so external client
+    // plugins can contribute tabs from their own apply().
+    registerClientTabApi()
     ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-qqbot: dictionaries')
     // One plugin-owned stylesheet: hover, focus and breakpoints are not
     // expressible inline; the tokens keep dark and light themes working.
@@ -43,7 +47,7 @@ export default {
     const t = ctx.locale.bind(NSID)
     // The main seat passes no locale binding, so bind it here and hand the
     // translator down; a missing one used to crash the render.
-    const ConnectedPanel = (props) => h(Panel, { ...props, t, plugins: PLUGINS })
+    const ConnectedPanel = (props) => h(Panel, { ...props, t })
     ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({
       name: 'main',
       key: PANEL_ID,
