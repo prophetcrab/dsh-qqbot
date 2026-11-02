@@ -211,3 +211,5 @@ npm run check            # 全部
 
 - [事件运行时架构计划](docs/decisions/0001-event-runtime-plan.md)
 - [运行时内核 v1 详细设计](docs/decisions/0002-runtime-v1-detailed-design.md)
+
+- [AI 回复逻辑与当前方案](docs/ai-reply-flow.md)
