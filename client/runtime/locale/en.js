@@ -400,6 +400,7 @@ export const en = {
   aiRuntimeFactorSilence: 'Group silence',
   aiRuntimeFactorRecent: 'Recently replied',
   aiRuntimeFactorBudget: 'Budget exhausted',
+  aiRuntimeFollowUp: 'Conversation follow-up',
   aiRuntimeLastInbound: 'Latest message',
   aiRuntimeLastReply: 'Latest reply',
   aiRuntimeNoReplyYet: 'No reply recorded yet.',

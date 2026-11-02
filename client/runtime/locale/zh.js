@@ -400,6 +400,7 @@ export const zh = {
   aiRuntimeFactorSilence: '群聊沉默',
   aiRuntimeFactorRecent: '最近刚回复',
   aiRuntimeFactorBudget: '预算耗尽',
+  aiRuntimeFollowUp: '对话跟随',
   aiRuntimeLastInbound: '最近消息',
   aiRuntimeLastReply: '最近回复',
   aiRuntimeNoReplyYet: '还没有回复记录。',

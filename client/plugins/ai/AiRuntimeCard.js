@@ -9,7 +9,7 @@
  * of crashing the AI tab.
  */
 import { formatTime } from '../../runtime/api.js'
-import { attentionFactors } from './attentionView.js'
+import { attentionFactors, decisionFromScore } from './attentionView.js'
 
 // --------------------------------------------------------------- normalizers --
 
@@ -22,13 +22,6 @@ const asNumber = (value) => {
 const asList = (value) => (Array.isArray(value) ? value : [])
 const asReasons = (value) => asList(value).filter((item) => typeof item === 'string' && item !== '')
 const clamp01 = (value) => Math.min(1, Math.max(0, value))
-
-/** Map a normalized attention score to the tier currently used by the runtime. */
-export function decisionFromScore(score) {
-  if (score >= 0.5) return 'high'
-  if (score >= 0.3) return 'medium'
-  return 'low'
-}
 
 function decisionOf(source, attention, reasons) {
   const explicit = asText(source.attentionDecision) || asText(source.decision) || asText(source.reason)
@@ -55,6 +48,7 @@ export function normalizeInbound(raw) {
     keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
     interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
     hotTopics: asList(source.hotTopics).filter((item) => typeof item === 'string' && item !== ''),
+    followUp: source.followUp === true,
     attention,
     attentionDecision: decisionOf(source, attention, attentionReasons),
     budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -374,6 +368,11 @@ function renderInboundBlock({ t, h, row, inbound }) {
       ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-hot-topics' },
         h('span', { className: 'qqbot-row-label' }, t('aiRuntimeHotTopics')),
         chips(h, inbound.hotTopics, 'qqbot-chip qqbot-chip-hot'))
+      : null,
+    inbound.followUp
+      ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-follow-up' },
+        h('span', { className: 'qqbot-row-label' }, t('aiRuntimeFollowUp')),
+        h('span', { className: 'qqbot-chip qqbot-chip-follow' }, '×2'))
       : null,
     reasonChips,
     h('p', { className: 'qqbot-hint' },

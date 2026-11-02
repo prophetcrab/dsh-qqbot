@@ -81,6 +81,7 @@ const INBOUND = {
   keywordScore: 0.96,
   interestLabels: ['龙图表情包'],
   hotTopics: ['龙图表情包'],
+  followUp: true,
   attention: 0.438,
   attentionReasons: ['keyword', 'thread'],
   shouldReply: true,
@@ -223,6 +224,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest-longterm').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interest-hits')[0]).includes('龙图表情包'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-hot-topics')[0]).includes('龙图表情包'))
+  assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-follow-up')[0]).includes('×2'))
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-factors')[0]).includes('Thread continuity +15%'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-attention-final').length, 1)
   assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-attention-final')[0]).includes('44%'))

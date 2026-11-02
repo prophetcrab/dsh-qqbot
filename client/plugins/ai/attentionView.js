@@ -1,5 +1,11 @@
 /** Human-readable attention contribution breakdown for the runtime card. */
 
+export function decisionFromScore(score) {
+  if (score >= 0.5) return 'high'
+  if (score >= 0.3) return 'medium'
+  return 'low'
+}
+
 export function attentionFactors(t, inbound) {
   if (inbound.budgetExhausted) return [{ label: t('aiRuntimeFactorBudget'), delta: 0 }]
   if (inbound.attentionDecision === 'forced') return [{ label: t('aiRuntimeFactorForced'), delta: 100 }]

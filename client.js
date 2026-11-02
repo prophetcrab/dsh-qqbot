@@ -1239,7 +1239,7 @@ window.__ModuleLoader__.load({
        * of crashing the AI tab.
        */
       const { formatTime } = __require("client/runtime/api.js")
-      const { attentionFactors } = __require("client/plugins/ai/attentionView.js")
+      const { attentionFactors, decisionFromScore } = __require("client/plugins/ai/attentionView.js")
 
       // --------------------------------------------------------------- normalizers --
 
@@ -1252,13 +1252,6 @@ window.__ModuleLoader__.load({
       const asList = (value) => (Array.isArray(value) ? value : [])
       const asReasons = (value) => asList(value).filter((item) => typeof item === 'string' && item !== '')
       const clamp01 = (value) => Math.min(1, Math.max(0, value))
-
-      /** Map a normalized attention score to the tier currently used by the runtime. */
-      function decisionFromScore(score) {
-        if (score >= 0.5) return 'high'
-        if (score >= 0.3) return 'medium'
-        return 'low'
-      }
 
       function decisionOf(source, attention, reasons) {
         const explicit = asText(source.attentionDecision) || asText(source.decision) || asText(source.reason)
@@ -1285,6 +1278,7 @@ window.__ModuleLoader__.load({
           keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
           interestLabels: asList(source.interestLabels).filter((item) => typeof item === 'string' && item !== ''),
           hotTopics: asList(source.hotTopics).filter((item) => typeof item === 'string' && item !== ''),
+          followUp: source.followUp === true,
           attention,
           attentionDecision: decisionOf(source, attention, attentionReasons),
           budgetExhausted: attentionReasons.includes('budget-exhausted'),
@@ -1605,6 +1599,11 @@ window.__ModuleLoader__.load({
               h('span', { className: 'qqbot-row-label' }, t('aiRuntimeHotTopics')),
               chips(h, inbound.hotTopics, 'qqbot-chip qqbot-chip-hot'))
             : null,
+          inbound.followUp
+            ? h('div', { className: 'qqbot-runtime-reasons', 'data-testid': 'qqbot-ai-runtime-follow-up' },
+              h('span', { className: 'qqbot-row-label' }, t('aiRuntimeFollowUp')),
+              h('span', { className: 'qqbot-chip qqbot-chip-follow' }, '×2'))
+            : null,
           reasonChips,
           h('p', { className: 'qqbot-hint' },
             `${t('aiRuntimeDecision')}: ${inbound.attentionDecision}${inbound.budgetExhausted ? ' · ' + t('aiRuntimeFactorBudget') : ''}`))
@@ -1726,7 +1725,7 @@ window.__ModuleLoader__.load({
           pathRow(t('aiRuntimePathChat'), paths.aiChat))
       }
 
-      return { decisionFromScore, normalizeInbound, deriveRuntimeView, renderAiRuntimeCard }
+      return { normalizeInbound, deriveRuntimeView, renderAiRuntimeCard }
     },
     "client/plugins/ai/AiSettingsCard.js": (__require) => {
 
@@ -2467,6 +2466,12 @@ window.__ModuleLoader__.load({
     "client/plugins/ai/attentionView.js": (__require) => {
       /** Human-readable attention contribution breakdown for the runtime card. */
 
+      function decisionFromScore(score) {
+        if (score >= 0.5) return 'high'
+        if (score >= 0.3) return 'medium'
+        return 'low'
+      }
+
       function attentionFactors(t, inbound) {
         if (inbound.budgetExhausted) return [{ label: t('aiRuntimeFactorBudget'), delta: 0 }]
         if (inbound.attentionDecision === 'forced') return [{ label: t('aiRuntimeFactorForced'), delta: 100 }]
@@ -2480,7 +2485,7 @@ window.__ModuleLoader__.load({
         return factors
       }
 
-      return { attentionFactors }
+      return { decisionFromScore, attentionFactors }
     },
     "client/plugins/ai/index.js": (__require) => {
       const { registerTab } = __require("client/runtime/tab-registry.js")
@@ -4378,6 +4383,7 @@ window.__ModuleLoader__.load({
         aiRuntimeFactorSilence: 'Group silence',
         aiRuntimeFactorRecent: 'Recently replied',
         aiRuntimeFactorBudget: 'Budget exhausted',
+        aiRuntimeFollowUp: 'Conversation follow-up',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4813,6 +4819,7 @@ window.__ModuleLoader__.load({
         aiRuntimeFactorSilence: '群聊沉默',
         aiRuntimeFactorRecent: '最近刚回复',
         aiRuntimeFactorBudget: '预算耗尽',
+        aiRuntimeFollowUp: '对话跟随',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',
@@ -5537,6 +5544,7 @@ window.__ModuleLoader__.load({
         transition: width .18s ease; }
       .qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
         font-variant-numeric: tabular-nums; }
+      .qqbot-chip-follow { color: var(--dsw-alias-state-success-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 35%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-hot { color: var(--dsw-alias-state-warn-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 38%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-interest { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, var(--dsw-alias-border-l1)); }
       .qqbot-chip-reason.is-negative { color: var(--dsw-alias-state-danger-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-danger-primary) 35%, var(--dsw-alias-border-l1)); }
