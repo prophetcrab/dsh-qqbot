@@ -222,7 +222,7 @@ lastTriggerAt = now
 等待下一次触发事件
 ```
 
-是否更新画像/群状态由独立的 `update` 判断决定，可以和 `speak` 无关。
+不论是否发言，后面都会执行一次固定的 `state_update`。
 
 ### 5.3 连续 ignore 的群级退避
 
@@ -510,22 +510,18 @@ unknown      未知转发类型
 
 ### 10.2 输出
 
-分析仍然只有两个顶层判断：
+分析只判断怎么发言：
 
 ```json
 {
   "speak": {
     "enabled": false
   },
-  "update": {
-    "userProfile": false,
-    "groupState": true
-  },
   "reason": "这一轮补充了群话题，但没有必要插话"
 }
 ```
 
-需要发言时，`speak` 再细分方向：
+或：
 
 ```json
 {
@@ -538,10 +534,6 @@ unknown      未知转发类型
       "userIds": ["20000"]
     }
   },
-  "update": {
-    "userProfile": true,
-    "groupState": false
-  },
   "reason": "小明直接问了机器人一个问题"
 }
 ```
@@ -550,81 +542,39 @@ unknown      未知转发类型
 
 | 字段 | 规则 |
 | --- | --- |
-| `speak.enabled` | 是否发言；false 时不进入 speaking 状态 |
+| `speak.enabled` | 是否发言；false 时不进入生成 |
 | `speak.kind` | `statement` 或 `reply` |
 | `speak.replyType` | kind=reply 时：`normal` / `quote` / `action` / `at` |
 | `speak.target.messageIds` | 这条回复在语义上针对的消息；normal/quote 使用 |
 | `speak.target.userIds` | 回复/@/戳的对象 QQ；normal/at/action 使用 |
-| `update.*` | 是否更新画像/群状态，独立于发言 |
 | `reason` | 一句话解释，仅用于日志/调试 |
 
-### 10.2.1 target 与 replyType 的区别
+**不再输出 `update` 判断。**
 
-```text
-target
-  = 这条回复在语义上针对哪一条或哪几条消息/哪个人
-  = 决定生成时看什么，不决定发送协议
+状态更新是固定后置步骤，不论 `speak.enabled` 是 true 还是 false 都必须执行一次。
 
-replyType
-  = 发送时是否带引用、@、动作
-```
-
-例如：
-
-```text
-target.messageIds = ["m105", "m106"]
-replyType = "normal"
-```
-
-表示：
-
-```text
-回复内容只针对 m105 和 m106
-但发送时只是普通文本
-不带引用、不带 @、不戳人
-```
-
-`normal` 不是“随便回整段分析素材”，而是：
-
-> **没有额外动作的文本回复，但仍然明确针对特定消息。**
-
-`statement` 不带 target：
-
-```json
-{
-  "speak": {
-    "enabled": true,
-    "kind": "statement",
-    "replyType": null
-  },
-  "update": {
-    "userProfile": false,
-    "groupState": false
-  },
-  "reason": "群里的讨论值得发表一句主观看法"
-}
-```
-
-### 10.3 两个判断的边界
+### 10.3 发言判断与固定状态更新
 
 ```text
 speak
-  = 这一轮要不要接话
+  = 这一轮要不要接话、怎么接
 
-update.userProfile
-  = 这段对话里有没有新的、稳定的用户信息
-
-update.groupState
-  = 群话题/参与者/未解决问题是否发生了值得记录的变化
+state_update
+  = 这一轮结束后必须执行一次的状态维护
 ```
 
-两者互相独立：
+两者不是同一层判断：
 
 ```text
-可以只看不说话
-可以说话但不更新画像
-可以只更新群状态
-也可以只更新画像
+speak: 由分析 LLM 决定
+state_update: 由系统固定调度，不询问分析 LLM
+```
+
+这样保证：
+
+```text
+不发言也会更新自身记忆/用户画像/情绪
+发言也不会漏掉状态更新
 ```
 
 ### 10.4 发言状态
@@ -704,7 +654,7 @@ common_send
 长度延迟
 发送失败记录
 群级冷却
-update 异步旁路
+state_update 异步旁路
 ```
 
 不要把发送、延迟、错误处理复制成两套；只有“生成上下文”和“发送协议”分流。
@@ -731,22 +681,77 @@ update 异步旁路
 
 `action` 第一版建议只戳，不附带文本；文本回复走 normal/at/quote。
 
-### 10.6 update 不是写入
+### 10.6 固定状态更新
 
-分析模型只负责打标记，不直接写文件。
+每次分析结束后，无论是否发言，都调用一次 `state_update`。
+
+#### 输入
 
 ```text
-update.userProfile = true
-  → 由画像更新器读取素材并更新 profiles
-
-update.groupState = true
-  → 由群状态更新器读取素材并更新 group state
-
-update 失败
-  → 只影响画像/群状态，不影响本次发言
+本次分析素材
+分析结果 speak
+当前自身记忆
+当前用户画像
+当前群状态
+当前情绪状态
+角色核心摘要
 ```
 
-更新器必须有独立的 schema、长度限制和失败重试；不能复用分析模型的自由文本。
+#### 输出 patch
+
+```json
+{
+  "memory": [
+    {
+      "summary": "被说可爱时先回了“才不是”，但后面还是接受了。",
+      "kind": "event",
+      "importance": "medium",
+      "tags": ["被夸", "嘴硬"],
+      "participants": ["20000"]
+    }
+  ],
+  "userProfiles": [
+    {
+      "qq": "20000",
+      "patch": {
+        "summary": "喜欢被关注，但被夸时会嘴硬",
+        "interests": ["游戏"]
+      }
+    }
+  ],
+  "emotion": {
+    "valenceDelta": 0.02,
+    "socialBatteryDelta": -0.04
+  },
+  "groupState": {
+    "topic": "周末开黑",
+    "participants": ["20000", "20001"],
+    "unansweredQuestion": null
+  }
+}
+```
+
+字段说明：
+
+| 字段 | 规则 |
+| --- | --- |
+| `memory` | 只写有保留价值的事件/关系变化，可为空 |
+| `userProfiles` | 只允许本次素材中出现的用户 |
+| `emotion` | 只接受 delta，代码 clamp 后再写入 |
+| `groupState` | 可选；话题/参与者/未解决问题 |
+
+#### 执行规则
+
+```text
+每个分析触发只执行一次
+使用 analysisId 做幂等
+与生成/发送并行，不阻塞回复
+写入前做 schema 校验、长度限制、越界 clamp
+update 失败只记录，不影响发言
+不改写人格 anchor
+```
+
+自身记忆、用户画像、情绪状态是必维护项；群状态是本次素材有变化时的可选 patch。
 
 ### 10.7 分析提示原则
 
@@ -756,10 +761,10 @@ update 失败
 不要因为被 @ 就机械回答。
 别人已经回答、话题与你无关、或者你刚说过话，可以不发言。
 
-同时判断：
-1. 是否发言；如果发言，是 statement 还是 reply；如果是 reply，选 normal/quote/action/at
-2. 这段对话是否包含值得长期记住的用户信息
-3. 群话题/参与者/未解决问题是否发生了值得记录的变化
+判断：
+1. 是否发言
+2. 如果发言，是 statement 还是 reply
+3. 如果是 reply，选 normal / quote / action / at，并给出 target
 ```
 
 输出必须是严格 JSON，不要输出解释性前后缀。
@@ -773,19 +778,23 @@ collecting
   ↓ 触发条件
 analyzing
   ├── speak.enabled=false
-  │     → update(可选) → cooldown → idle
+  │     → state_update → cooldown → idle
   └── speak.enabled=true
-        ├── statement_node → composing → common_send
-        └── reply_node     → composing → common_send
+        ├── state_update（固定，异步）
+        ├── statement_node → composing
+        └── reply_node     → composing
                                       ├ normal
                                       ├ quote
                                       ├ at
                                       └ action
                                               ↓
+                                         common_send
+                                              ↓
                                          cooldown → idle
 ```
 
-`update` 是异步旁路，不阻塞发言。  
+`state_update` 是固定后置节点，不论是否发言都执行一次。  
+生成/发送可以与 state_update 并行，不等待它完成。  
 每个群同一时间只允许一个 `analyzing` 或 `speaking`。
 
 `common_send` 负责发送、分条、延迟、失败记录和冷却；`statement_node` / `reply_node` 只负责生成输入与协议选择。
@@ -913,17 +922,19 @@ action 后如果还有文本：
     "kind": "reply",
     "replyType": "quote",
     "target": {
-      "qq": "20000",
-      "messageId": "m105"
+      "messageIds": ["m105"],
+      "userIds": ["20000"]
     }
-  },
-  "update": {
-    "userProfile": true,
-    "groupState": false
   },
   "analysisMs": 812,
   "replyMs": 1300,
   "sent": true,
+  "stateUpdate": {
+    "memory": 1,
+    "userProfiles": 1,
+    "emotion": true,
+    "groupState": false
+  },
   "error": null
 }
 ```
@@ -954,14 +965,16 @@ action 后如果还有文本：
 少量相关经历
 ```
 
-回复成功后，DSH 侧异步：
+**每次分析结束后**，DSH 侧异步执行 `state_update`：
 
 ```text
-写 event 记忆
-更新情绪
-必要时更新关系
+写 memory
+更新用户画像
+更新情绪 delta
+可选更新群状态
 ```
 
+不论是否发言都会执行一次；失败不影响本次发言。  
 分析阶段不修改人格核心。
 
 ## 15. 失败与降级
@@ -1011,6 +1024,7 @@ time 触发至少 2 个不同发送者
 一个触发只分析一次
 只有 speak.enabled=true 才生成
 speak.enabled=false 不生成
+每个分析触发固定增加一次 state_update 调用
 ```
 
 ## 18. 持久化
@@ -1066,6 +1080,7 @@ envelope：普通/引用/转发/回复转发/超限
 render：层级、发送者、时间、去重、截断
 trigger：@/引用/x/y/同时满足/无新消息
 state：单分析在途/direct 排队/count 丢弃
+state_update：是否发言都执行一次、幂等、失败不影响回复
 cooldown：speak.enabled=true / false 后行为
 ```
 
@@ -1073,7 +1088,7 @@ cooldown：speak.enabled=true / false 后行为
 
 ```text
 fake clock 推进 5 分钟
-fake LLM 返回不发言、statement、四种 reply 与 update 组合
+fake LLM 返回不发言、statement、四种 reply；fake state_update 返回 patch
 伪造 105 条消息验证素材只取 100 条
 两个用户同时 @ 验证只产生一个分析
 ```
@@ -1083,7 +1098,7 @@ fake LLM 返回不发言、statement、四种 reply 与 update 组合
 ```text
 录一组真实群聊
 重放触发规则
-人工检查 speak / update 是否符合预期
+人工检查 speak 和 state_update 是否符合预期
 ```
 
 ## 21. 验收标准
@@ -1111,8 +1126,9 @@ reply 只针对目标消息
 4. `action` 回复是否允许附带文本，还是只戳
 5. 四种 replyType 是否需要组合（例如 quote + at）
 6. 消息延迟公式的最终参数
-7. `update.userProfile` 的判断标准与证据门槛
-8. `update.groupState` 的具体字段和更新频率
-9. 转发记录优先从当前消息取，还是调用适配器 API 展开
-10. 分析日志保留多久
-11. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
+7. state_update 中用户画像的证据门槛
+8. 群状态的字段和更新频率
+9. 状态更新 LLM 与生成 LLM 是否共享模型/配额
+10. 转发记录优先从当前消息取，还是调用适配器 API 展开
+11. 分析日志保留多久
+12. 第一版是否直接替换现有 `ai-chat` 随机触发，还是用 feature flag 并存
