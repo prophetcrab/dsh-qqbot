@@ -1,0 +1,33 @@
+name: Architecture and tests
+
+on:
+  push:
+    branches: [dshbot-mac]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: prophetcrab/qq-bot
+          path: qq-bot
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Unit and contract tests
+        run: npm test
+      - name: Client bundle drift
+        run: npm run build:client -- --check
+      - name: Architecture guard
+        run: npm run check:architecture
+      - name: Template drift
+        run: node scripts/sync-template.mjs --check
+      - name: Offline payload
+        run: npm run offline:verify

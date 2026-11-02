@@ -1,12 +1,19 @@
+import { registerTab } from '../../runtime/tab-registry.js'
 import {
-  usePlugins, loadPlugins, installPlugin, refreshAfterPluginChange, renderPlugins
+  usePlugins, loadPlugins, installPlugin, refreshAfterPluginChange, renderPlugins,
 } from './PluginsTab.js'
 
-export const id = 'plugins'
-export const labelKey = 'tabPlugins'
-export const handlers = { loadPlugins, installPlugin, refreshAfterPluginChange }
-
-export function use(panel) {
-  usePlugins(panel)
-  return () => renderPlugins(panel)
-}
+registerTab({
+  id: 'plugins',
+  labelKey: 'tabPlugins',
+  order: 4,
+  use(panel) {
+    usePlugins(panel)
+    return () => renderPlugins(panel)
+  },
+  handlers: {
+    loadPlugins,
+    installPlugin,
+    refreshAfterPluginChange,
+  },
+})

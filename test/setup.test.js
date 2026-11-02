@@ -256,7 +256,7 @@ test('ensureProject: seeds shipped persona presets into data without overwriting
   const settings = await makeSettings(root)
   const setup = new SetupManager({ settings, logger, deps: { templateDir } })
   await setup.ensureProject()
-  const target = join(settings.projectDir, 'data', 'persona-presets.json')
+  const target = join(settings.projectDir, 'data', 'assets', 'persona-presets.json')
   assert.equal(await readFile(target, 'utf8'), JSON.stringify(seed))
   await writeFile(target, '{"version":1,"presets":[]}')
   await setup.ensureProject()

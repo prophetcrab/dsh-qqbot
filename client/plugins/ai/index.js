@@ -1,3 +1,4 @@
+import { registerTab } from '../../runtime/tab-registry.js'
 import { useAi, renderAiTab } from './AiTab.js'
 import {
   loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
@@ -7,17 +8,19 @@ import {
   savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
 } from './AiActions.js'
 
-export const id = 'ai'
-export const labelKey = 'tabAi'
-export const handlers = {
-  loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
-  testAi, applyPersonaPayload, savePersona, resetPersona,
-  applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
-  selectProfile, saveProfile, deleteProfile,
-  savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
-}
-
-export function use(panel) {
-  useAi(panel)
-  return () => renderAiTab(panel)
-}
+registerTab({
+  id: 'ai',
+  labelKey: 'tabAi',
+  order: 1,
+  use(panel) {
+    useAi(panel)
+    return () => renderAiTab(panel)
+  },
+  handlers: {
+    loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
+    testAi, applyPersonaPayload, savePersona, resetPersona,
+    applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
+    selectProfile, saveProfile, deleteProfile,
+    savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
+  },
+})

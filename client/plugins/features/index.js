@@ -1,10 +1,16 @@
+import { registerTab } from '../../runtime/tab-registry.js'
 import { useFeatures, loadFeatures, runFeatureAction, renderFeatures } from './FeaturesTab.js'
 
-export const id = 'features'
-export const labelKey = 'tabFeatures'
-export const handlers = { loadFeatures, runFeatureAction }
-
-export function use(panel) {
-  useFeatures(panel)
-  return () => renderFeatures(panel)
-}
+registerTab({
+  id: 'features',
+  labelKey: 'tabFeatures',
+  order: 5,
+  use(panel) {
+    useFeatures(panel)
+    return () => renderFeatures(panel)
+  },
+  handlers: {
+    loadFeatures,
+    runFeatureAction,
+  },
+})

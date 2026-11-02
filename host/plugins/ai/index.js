@@ -3,7 +3,7 @@
  * discovery endpoint file and `POST /qqbot/ai/chat`.
  */
 
-import { join } from 'node:path'
+import { dataPaths } from '../../platform/mac/index.js'
 import { AiChatService } from '../../services/ai/index.js'
 import { createDiscovery } from './discovery.js'
 import { routes } from './routes.js'
@@ -21,8 +21,9 @@ export default {
   description: 'AI chat gateway over the harness LLM, runtime settings and user profiles.',
   async apply(api) {
     const persona = api.get('persona')
-    const aiSettingsPath = join(api.settings.projectDir, 'data', 'ai-settings.json')
-    const profilesPath = join(api.settings.projectDir, 'data', 'profiles.json')
+    const paths = dataPaths(api.settings.projectDir)
+    const aiSettingsPath = paths.config.aiSettings
+    const profilesPath = paths.assets.profiles
     const ai = new AiChatService({
       ctx: api.ctx,
       settings: api.settings,

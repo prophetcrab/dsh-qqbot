@@ -35,17 +35,17 @@ export function renderHero(panel) {
 }
 
 export function renderTabs(panel) {
-  const { h, t, tab, setTab, tabPlugins } = panel
-  const tabItems = tabPlugins.map((plugin) => ({ id: plugin.id, label: t(plugin.labelKey) }))
+  const { h, t, setTab, tabItems, activeTabId } = panel
+  const items = Array.isArray(tabItems) ? tabItems : []
   return h('div', { className: 'qqbot-tabs', role: 'tablist', 'aria-label': t('title') },
-    ...tabItems.map((item) => h('button', {
+    ...items.map((item) => h('button', {
       key: item.id,
       type: 'button',
       role: 'tab',
-      className: `qqbot-tab${tab === item.id ? ' active' : ''}`,
+      className: `qqbot-tab${activeTabId === item.id ? ' active' : ''}`,
       'data-testid': `qqbot-tab-${item.id}`,
       'aria-label': item.label,
-      'aria-selected': tab === item.id ? 'true' : 'false',
+      'aria-selected': activeTabId === item.id ? 'true' : 'false',
       'aria-controls': `qqbot-tabpanel-${item.id}`,
       onClick: () => { setTab(item.id) },
       onKeyDown: (event) => {

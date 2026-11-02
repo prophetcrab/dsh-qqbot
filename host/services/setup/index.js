@@ -12,8 +12,7 @@ import { existsSync as fsExistsSync } from 'node:fs'
 import { copyFile, cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { RingLog, readJson, run } from '../../platform/mac/index.js'
-import { npmExecutable } from '../../platform/mac/index.js'
+import { RingLog, dataPaths, migrateDataLayout, npmExecutable, portPid, readJson, run } from '../../platform/mac/index.js'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
@@ -104,6 +103,10 @@ export class SetupManager {
     const packagePath = join(this.projectDir, 'package.json')
     if (fsExistsSync(packagePath)) {
       await mkdir(join(this.projectDir, 'runtime'), { recursive: true })
+      // SQLite must only move while Koishi is stopped; wait for the next
+      // bootstrap/restart when the port is still in use.
+      const koishiRunning = await portPid(this.settings.koishiPort).catch(() => null) !== null
+      await migrateDataLayout(this.projectDir, { includeDatabase: !koishiRunning })
       await this.#seedPresets()
       return { ok: true, created: false, skipped: true }
     }
@@ -123,8 +126,8 @@ export class SetupManager {
         recursive: true,
         filter: (source) => !SKIP_NAMES.has(basename(source)),
       })
-      await mkdir(join(this.projectDir, 'data'), { recursive: true })
       await mkdir(join(this.projectDir, 'runtime'), { recursive: true })
+      await migrateDataLayout(this.projectDir)
       const bundled = await this.#extractBundle()
       await this.#seedPresets()
       if (bundled) this.logger.info('已从内置离线包安装 Koishi 依赖')
@@ -277,9 +280,9 @@ export class SetupManager {
    */
   async #seedPresets() {
     const seed = join(this.templateDir, 'presets', 'persona-presets.json')
-    const target = join(this.projectDir, 'data', 'persona-presets.json')
+    const target = dataPaths(this.projectDir).assets.personaPresets
     if (!fsExistsSync(seed) || fsExistsSync(target)) return false
-    await mkdir(join(this.projectDir, 'data'), { recursive: true })
+    await mkdir(dirname(target), { recursive: true })
     await copyFile(seed, target)
     this.logger.info('已导入内置人设预设卡：%s', target)
     return true

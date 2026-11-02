@@ -1,10 +1,15 @@
+import { registerTab } from '../../runtime/tab-registry.js'
 import { useLogs, loadLogs, renderLogs } from './LogsTab.js'
 
-export const id = 'logs'
-export const labelKey = 'tabLogs'
-export const handlers = { loadLogs }
-
-export function use(panel) {
-  useLogs(panel)
-  return () => renderLogs(panel)
-}
+registerTab({
+  id: 'logs',
+  labelKey: 'tabLogs',
+  order: 6,
+  use(panel) {
+    useLogs(panel)
+    return () => renderLogs(panel)
+  },
+  handlers: {
+    loadLogs,
+  },
+})

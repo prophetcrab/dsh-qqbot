@@ -155,27 +155,32 @@ node scripts/install-profile.mjs --profile desktop --install
 
 ```text
 ~/project/qq-bot/data/
-├── access.json
-├── ai-settings.json
-├── ai-chat-state.json
-├── ai.json
-├── persona.json
-├── persona-presets.json
-├── profiles.json
-├── koishi.db
+├── config/
+│   ├── access.json
+│   ├── ai-settings.json
+│   └── persona.json
+├── state/
+│   ├── ai.json
+│   ├── ai-chat-state.json
+│   ├── koishi.db
+│   └── napcat-login-qr.png
+├── assets/
+│   ├── persona-presets.json
+│   └── profiles.json
 └── logs/
 ```
 
-DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。
+DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平铺的 `data/*.json` 可用 `node scripts/migrate-data.mjs ~/project/qq-bot --database` 一次性迁移（迁移前停止 Koishi）。
 
 ## 开发
 
 ```bash
-npm test                 # 183 tests
+npm test                 # 198 tests
 npm run build:client
 npm run smoke:host       # 41 routes / 6 tools / 5 features
 npm run smoke:client
 npm run check:architecture
+npm run check:template
 npm run offline:verify
 npm run check            # 全部
 ```

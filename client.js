@@ -36,12 +36,14 @@ window.__ModuleLoader__.load({
     "client/components/Panel.js": (__require) => {
       const React = __require("react")
       const { useStore, deriveStatus } = __require("client/runtime/store.js")
+      const { pickText } = __require("client/runtime/api.js")
+      const { listTabs, resolveVisibleTabs } = __require("client/runtime/tab-registry.js")
       const { row, pill, actionButton } = __require("client/components/primitives.js")
       const { renderHero, renderTabs, renderBanner, renderPollWarn, renderFooter } = __require("client/components/Shell.js")
 
       const h = React.createElement
 
-      /** Bind a plugin's `(panel, ...args)` handlers onto the flat panel context. */
+      /** Bind a tab's `(panel, ...args)` handlers onto the flat panel context. */
       function bindHandlers(panel, handlers) {
         for (const name of Object.keys(handlers)) {
           panel[name] = (...args) => handlers[name](panel, ...args)
@@ -50,27 +52,65 @@ window.__ModuleLoader__.load({
 
       /**
        * The composition root: owns the shared state store, calls every registered
-       * plugin hook in a fixed order, then renders the active plugin's view inside
-       * the shared chrome.
+       * tab hook, then renders the Host-approved tabs inside the shared chrome.
+       *
+       * Hook order is the registry's stable order, never the Host tab list, so a
+       * changed tab list can reorder the strip without reordering React hooks. The
+       * Host only decides which registered tabs are visible and in what order.
        */
       function Panel(props) {
         const t = typeof (props && props.t) === 'function' ? props.t : (key) => String(key)
         const lang = t('__lang') === 'zh' ? 'zh' : 'en'
-        const plugins = props.plugins || []
 
         const store = useStore(t)
         const status = deriveStatus(store.snapshot, t, store.loggedInRef)
         const panel = { h, t, lang, ...store, ...status }
-        panel.tabPlugins = plugins
+
+        const registryTabs = listTabs()
+        const hostTabs = store.snapshot !== null && Array.isArray(store.snapshot.clientTabs)
+          ? store.snapshot.clientTabs
+          : null
+        const visibleTabs = resolveVisibleTabs(hostTabs)
+        const hostById = new Map()
+        if (Array.isArray(hostTabs)) {
+          for (const hostTab of hostTabs) {
+            if (hostTab !== null && typeof hostTab === 'object'
+              && typeof hostTab.id === 'string' && !hostById.has(hostTab.id)) {
+              hostById.set(hostTab.id, hostTab)
+            }
+          }
+        }
+
+        // Built-in tabs translate their labelKey; external tabs fall back to the
+        // Host title for the same id when their key is not in the dictionary.
+        const labelOf = (entry) => {
+          const localized = t(entry.labelKey)
+          if (localized !== entry.labelKey) return localized
+          const hostTab = hostById.get(entry.id)
+          const hostLabel = hostTab !== undefined && hostTab.title !== undefined ? pickText(hostTab.title, lang) : ''
+          return hostLabel !== '' ? hostLabel : entry.labelKey
+        }
+
         panel.row = (...args) => row(panel, ...args)
         panel.pill = (...args) => pill(panel, ...args)
         panel.actionButton = (...args) => actionButton(panel, ...args)
-        for (const plugin of plugins) bindHandlers(panel, plugin.handlers || {})
+        for (const tab of registryTabs) bindHandlers(panel, tab.handlers)
 
-        const renderers = plugins.map((plugin) => plugin.use(panel))
+        const renderers = new Map()
+        for (const tab of registryTabs) {
+          const render = tab.use(panel)
+          renderers.set(tab.id, typeof render === 'function' ? render : () => null)
+        }
+
+        const tab = store.tab
+        const visibleIds = new Set(visibleTabs.map((entry) => entry.id))
+        const activeTabId = visibleIds.has(tab) ? tab : (visibleTabs.length > 0 ? visibleTabs[0].id : tab)
+        const activeRenderer = renderers.get(activeTabId)
+        panel.tabItems = visibleTabs.map((entry) => ({ id: entry.id, label: labelOf(entry) }))
+        panel.activeTabId = activeTabId
 
         // Both tabs that show contact names keep the list fresh while visible.
-        const { tab, loadContacts } = panel
+        const { loadContacts } = panel
         React.useEffect(() => {
           if (tab !== 'messages' && tab !== 'access') return undefined
           loadContacts()
@@ -78,8 +118,7 @@ window.__ModuleLoader__.load({
           return () => { clearInterval(timer) }
         }, [tab])
 
-        const index = Math.max(0, plugins.findIndex((plugin) => plugin.id === tab))
-        const body = renderers[index]()
+        const body = activeRenderer === undefined ? null : activeRenderer()
 
         return h('div', { className: 'qqbot-page', 'data-testid': 'qqbot-panel' },
           renderHero(panel),
@@ -89,7 +128,7 @@ window.__ModuleLoader__.load({
           h('div', {
             className: 'qqbot-body',
             role: 'tabpanel',
-            id: `qqbot-tabpanel-${tab}`,
+            id: `qqbot-tabpanel-${activeTabId}`,
             'aria-label': t('title'),
           }, body),
           renderFooter(panel))
@@ -135,17 +174,17 @@ window.__ModuleLoader__.load({
       }
 
       function renderTabs(panel) {
-        const { h, t, tab, setTab, tabPlugins } = panel
-        const tabItems = tabPlugins.map((plugin) => ({ id: plugin.id, label: t(plugin.labelKey) }))
+        const { h, t, setTab, tabItems, activeTabId } = panel
+        const items = Array.isArray(tabItems) ? tabItems : []
         return h('div', { className: 'qqbot-tabs', role: 'tablist', 'aria-label': t('title') },
-          ...tabItems.map((item) => h('button', {
+          ...items.map((item) => h('button', {
             key: item.id,
             type: 'button',
             role: 'tab',
-            className: `qqbot-tab${tab === item.id ? ' active' : ''}`,
+            className: `qqbot-tab${activeTabId === item.id ? ' active' : ''}`,
             'data-testid': `qqbot-tab-${item.id}`,
             'aria-label': item.label,
-            'aria-selected': tab === item.id ? 'true' : 'false',
+            'aria-selected': activeTabId === item.id ? 'true' : 'false',
             'aria-controls': `qqbot-tabpanel-${item.id}`,
             onClick: () => { setTab(item.id) },
             onKeyDown: (event) => {
@@ -234,21 +273,25 @@ window.__ModuleLoader__.load({
        * dsh-qqbot — browser half entry point.
        *
        * Registers the locale dictionaries, the panel stylesheet, the main control
-       * center seat and the sidebar row. Everything else is a plugin: each tab
-       * lives under `plugins/<name>/` and contributes its own hooks and view.
+       * center seat, the sidebar row and the external tab-registry bridge.
+       *
+       * The built-in tabs register themselves as a side effect of being imported
+       * (`plugins/<name>/index.js` -> `runtime/tab-registry.js`), so this entry
+       * point no longer owns a static tab list: the Host decides which tabs render.
        */
       const React = __require("react")
       const { Panel } = __require("client/components/Panel.js")
       const { QqbotIcon } = __require("client/components/Icon.js")
       const { NS, en, zh } = __require("client/runtime/locale.js")
       const { CSS } = __require("client/runtime/styles.js")
-      const overview = __require("client/plugins/overview/index.js")
-      const ai = __require("client/plugins/ai/index.js")
-      const messages = __require("client/plugins/messages/index.js")
-      const access = __require("client/plugins/access/index.js")
-      const plugins = __require("client/plugins/plugins/index.js")
-      const features = __require("client/plugins/features/index.js")
-      const logs = __require("client/plugins/logs/index.js")
+      const { registerClientTabApi } = __require("client/runtime/tab-registry.js")
+      __require("client/plugins/overview/index.js")
+      __require("client/plugins/ai/index.js")
+      __require("client/plugins/messages/index.js")
+      __require("client/plugins/access/index.js")
+      __require("client/plugins/plugins/index.js")
+      __require("client/plugins/features/index.js")
+      __require("client/plugins/logs/index.js")
 
       const h = React.createElement
 
@@ -256,12 +299,12 @@ window.__ModuleLoader__.load({
       const PANEL_ID = 'qqbot'
       const SIDEBAR_ID = 'qqbot'
 
-      /** Tab plugin order; the first one is the default view. */
-      const PLUGINS = [overview, ai, messages, access, plugins, features, logs]
-
       const __default = {
         inject: ['slots', 'locale'],
         apply(ctx) {
+          // Expose the tab bridge before the panel mounts, so external client
+          // plugins can contribute tabs from their own apply().
+          registerClientTabApi()
           ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-qqbot: dictionaries')
           // One plugin-owned stylesheet: hover, focus and breakpoints are not
           // expressible inline; the tokens keep dark and light themes working.
@@ -275,7 +318,7 @@ window.__ModuleLoader__.load({
           const t = ctx.locale.bind(NSID)
           // The main seat passes no locale binding, so bind it here and hand the
           // translator down; a missing one used to crash the render.
-          const ConnectedPanel = (props) => h(Panel, { ...props, t, plugins: PLUGINS })
+          const ConnectedPanel = (props) => h(Panel, { ...props, t })
           ctx.effect(() => ctx.slots.inject('main', () => ctx.slots.register({
             name: 'main',
             key: PANEL_ID,
@@ -633,18 +676,24 @@ window.__ModuleLoader__.load({
       return { loadAccess, saveAccess, renderAccess, useAccess }
     },
     "client/plugins/access/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useAccess, loadAccess, saveAccess, renderAccess } = __require("client/plugins/access/AccessTab.js")
 
-      const id = 'access'
-      const labelKey = 'tabAccess'
-      const handlers = { loadAccess, saveAccess }
+      registerTab({
+        id: 'access',
+        labelKey: 'tabAccess',
+        order: 3,
+        use(panel) {
+          useAccess(panel)
+          return () => renderAccess(panel)
+        },
+        handlers: {
+          loadAccess,
+          saveAccess,
+        },
+      })
 
-      function use(panel) {
-        useAccess(panel)
-        return () => renderAccess(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/ai/AiActions.js": (__require) => {
       const { requestJson, messageOf, aiSettingsDraftFrom, aiSettingsBodyFrom, draftFromPersona, personaBody, profileDraftFrom, profileBodyFrom, AI_TEST_PROMPT } = __require("client/runtime/api.js")
@@ -1728,25 +1777,28 @@ window.__ModuleLoader__.load({
       return { renderFullPromptCard }
     },
     "client/plugins/ai/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useAi, renderAiTab } = __require("client/plugins/ai/AiTab.js")
       const { loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset } = __require("client/plugins/ai/AiActions.js")
 
-      const id = 'ai'
-      const labelKey = 'tabAi'
-      const handlers = {
-        loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
-        testAi, applyPersonaPayload, savePersona, resetPersona,
-        applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
-        selectProfile, saveProfile, deleteProfile,
-        savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
-      }
+      registerTab({
+        id: 'ai',
+        labelKey: 'tabAi',
+        order: 1,
+        use(panel) {
+          useAi(panel)
+          return () => renderAiTab(panel)
+        },
+        handlers: {
+          loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
+          testAi, applyPersonaPayload, savePersona, resetPersona,
+          applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
+          selectProfile, saveProfile, deleteProfile,
+          savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
+        },
+      })
 
-      function use(panel) {
-        useAi(panel)
-        return () => renderAiTab(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/features/FeaturesTab.js": (__require) => {
       const React = __require("react")
@@ -1861,18 +1913,24 @@ window.__ModuleLoader__.load({
       return { loadFeatures, runFeatureAction, renderFeatures, useFeatures }
     },
     "client/plugins/features/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useFeatures, loadFeatures, runFeatureAction, renderFeatures } = __require("client/plugins/features/FeaturesTab.js")
 
-      const id = 'features'
-      const labelKey = 'tabFeatures'
-      const handlers = { loadFeatures, runFeatureAction }
+      registerTab({
+        id: 'features',
+        labelKey: 'tabFeatures',
+        order: 5,
+        use(panel) {
+          useFeatures(panel)
+          return () => renderFeatures(panel)
+        },
+        handlers: {
+          loadFeatures,
+          runFeatureAction,
+        },
+      })
 
-      function use(panel) {
-        useFeatures(panel)
-        return () => renderFeatures(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/logs/LogsTab.js": (__require) => {
       const React = __require("react")
@@ -1948,18 +2006,23 @@ window.__ModuleLoader__.load({
       return { loadLogs, renderLogs, useLogs }
     },
     "client/plugins/logs/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useLogs, loadLogs, renderLogs } = __require("client/plugins/logs/LogsTab.js")
 
-      const id = 'logs'
-      const labelKey = 'tabLogs'
-      const handlers = { loadLogs }
+      registerTab({
+        id: 'logs',
+        labelKey: 'tabLogs',
+        order: 6,
+        use(panel) {
+          useLogs(panel)
+          return () => renderLogs(panel)
+        },
+        handlers: {
+          loadLogs,
+        },
+      })
 
-      function use(panel) {
-        useLogs(panel)
-        return () => renderLogs(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/messages/MessagesTab.js": (__require) => {
       const React = __require("react")
@@ -2113,18 +2176,23 @@ window.__ModuleLoader__.load({
       return { loadMessages, renderMessages, useMessages }
     },
     "client/plugins/messages/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useMessages, loadMessages, renderMessages } = __require("client/plugins/messages/MessagesTab.js")
 
-      const id = 'messages'
-      const labelKey = 'tabMessages'
-      const handlers = { loadMessages }
+      registerTab({
+        id: 'messages',
+        labelKey: 'tabMessages',
+        order: 2,
+        use(panel) {
+          useMessages(panel)
+          return () => renderMessages(panel)
+        },
+        handlers: {
+          loadMessages,
+        },
+      })
 
-      function use(panel) {
-        useMessages(panel)
-        return () => renderMessages(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/overview/LoginCard.js": (__require) => {
 
@@ -2708,24 +2776,27 @@ window.__ModuleLoader__.load({
       return { renderSetupCard }
     },
     "client/plugins/overview/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useOverview, renderOverview } = __require("client/plugins/overview/OverviewTab.js")
       const { loadLogin, loadSetup, refreshLoginQr, installKoishiEnv, runSetupFull, installSetupNapcat, startAll, stopAll, installNapcat, configureNapcat, startNapcat, stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps } = __require("client/plugins/overview/OverviewActions.js")
 
-      const id = 'overview'
-      const labelKey = 'tabOverview'
-      const handlers = {
-        loadLogin, loadSetup, refreshLoginQr,
-        installKoishiEnv, runSetupFull, installSetupNapcat,
-        startAll, stopAll, installNapcat, configureNapcat,
-        startNapcat, stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps,
-      }
+      registerTab({
+        id: 'overview',
+        labelKey: 'tabOverview',
+        order: 0,
+        use(panel) {
+          useOverview(panel)
+          return () => renderOverview(panel)
+        },
+        handlers: {
+          loadLogin, loadSetup, refreshLoginQr,
+          installKoishiEnv, runSetupFull, installSetupNapcat,
+          startAll, stopAll, installNapcat, configureNapcat,
+          startNapcat, stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps,
+        },
+      })
 
-      function use(panel) {
-        useOverview(panel)
-        return () => renderOverview(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/plugins/plugins/PluginsTab.js": (__require) => {
       const React = __require("react")
@@ -2885,18 +2956,25 @@ window.__ModuleLoader__.load({
       return { loadPlugins, installPlugin, refreshAfterPluginChange, renderPlugins, usePlugins }
     },
     "client/plugins/plugins/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
       const { usePlugins, loadPlugins, installPlugin, refreshAfterPluginChange, renderPlugins } = __require("client/plugins/plugins/PluginsTab.js")
 
-      const id = 'plugins'
-      const labelKey = 'tabPlugins'
-      const handlers = { loadPlugins, installPlugin, refreshAfterPluginChange }
+      registerTab({
+        id: 'plugins',
+        labelKey: 'tabPlugins',
+        order: 4,
+        use(panel) {
+          usePlugins(panel)
+          return () => renderPlugins(panel)
+        },
+        handlers: {
+          loadPlugins,
+          installPlugin,
+          refreshAfterPluginChange,
+        },
+      })
 
-      function use(panel) {
-        usePlugins(panel)
-        return () => renderPlugins(panel)
-      }
-
-      return { id, labelKey, handlers, use }
+      return {  }
     },
     "client/runtime/api.js": (__require) => {
       /**
@@ -4427,6 +4505,114 @@ window.__ModuleLoader__.load({
       `
 
       return { CSS }
+    },
+    "client/runtime/tab-registry.js": (__require) => {
+      /**
+       * Runtime tab registry for the control-center panel.
+       *
+       * A tab is a contribution point: the Host decides which tabs exist and in
+       * which order (`clientTabs` on `/qqbot/status`), while the client registers
+       * the matching render/hook pair here. Built-in tabs register themselves as a
+       * side effect of importing `plugins/<name>/index.js`; external client plugins
+       * can register at runtime through `window.__DSH_QQBOT__.registerTab()`.
+       *
+       * Registration is expected to be complete before the panel mounts (every DSH
+       * client bundle is evaluated and applied before the UI renders). The registry
+       * exposes no events on purpose: hooks have to be called in a stable order.
+       */
+
+      /** @type {Map<string, {id: string, labelKey: string, order: number, use: Function, handlers: object}>} */
+      const registry = new Map()
+
+      /** Global bridge used by external client plugins. */
+      const EXTERNAL_SCOPE_KEY = '__DSH_QQBOT__'
+
+      const orderOf = (value) => {
+        const number = Number(value)
+        return Number.isFinite(number) ? number : 0
+      }
+
+      /**
+       * Register one tab.
+       *
+       * @param {{ id: string, labelKey?: string, order?: number, use: (panel: object) => (() => any), handlers?: object }} tab
+       * @returns object the stored tab entry
+       */
+      function registerTab(tab) {
+        if (tab === null || typeof tab !== 'object') {
+          throw new Error('client tab must be an object')
+        }
+        const { id, labelKey, order, use, handlers } = tab
+        if (typeof id !== 'string' || id === '') {
+          throw new Error('client tab id must be a non-empty string')
+        }
+        if (typeof use !== 'function') {
+          throw new Error(`client tab ${id} must provide a use(panel) function`)
+        }
+        if (registry.has(id)) {
+          throw new Error(`client tab already registered: ${id}`)
+        }
+        const entry = {
+          id,
+          labelKey: typeof labelKey === 'string' && labelKey !== '' ? labelKey : id,
+          order: orderOf(order),
+          use,
+          handlers: handlers !== null && typeof handlers === 'object' ? handlers : {},
+        }
+        registry.set(id, entry)
+        return entry
+      }
+
+      /** All registered tabs, ordered the same way the Host orders them. */
+      function listTabs() {
+        return [...registry.values()].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+      }
+
+      /**
+       * Resolve the tabs the panel may show.
+       *
+       * With a Host tab list the Host wins: its order is kept, unknown ids are
+       * ignored and duplicate ids are collapsed. Without a Host list (older Host or
+       * before the first snapshot) every registered tab is shown, ordered by its
+       * declared `order`.
+       *
+       * @param {Array<{ id: string, title?: object, order?: number }> | null | undefined} hostTabs
+       */
+      function resolveVisibleTabs(hostTabs) {
+        const registered = listTabs()
+        if (!Array.isArray(hostTabs)) return registered
+        const byId = new Map(registered.map((tab) => [tab.id, tab]))
+        const seen = new Set()
+        const visible = []
+        for (const hostTab of hostTabs) {
+          const id = hostTab !== null && typeof hostTab === 'object' ? hostTab.id : null
+          if (typeof id !== 'string' || id === '' || seen.has(id)) continue
+          seen.add(id)
+          const entry = byId.get(id)
+          if (entry !== undefined) visible.push(entry)
+        }
+        return visible
+      }
+
+      /**
+       * Expose the public registration API. Called at module load and again from
+       * the client entry's `apply`; idempotent and safe in non-browser test hosts.
+       *
+       * @param {object} [scope] defaults to `window` when present
+       */
+      function registerClientTabApi(scope) {
+        const target = scope !== undefined ? scope : (typeof window === 'undefined' ? null : window)
+        if (target === null || target === undefined) return null
+        const api = { registerTab, listTabs }
+        target[EXTERNAL_SCOPE_KEY] = api
+        return api
+      }
+
+      // Make the bridge available as early as possible: external client bundles may
+      // be evaluated after this module but before the panel mounts.
+      registerClientTabApi()
+
+      return { EXTERNAL_SCOPE_KEY, registerTab, listTabs, resolveVisibleTabs, registerClientTabApi }
     },
     }
     const __cache = Object.create(null)
