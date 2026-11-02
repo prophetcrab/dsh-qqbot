@@ -328,7 +328,8 @@ export class KoishiManager {
     let pid = this.managedPid
     const wasManaged = pid !== null
     if (pid === null) {
-      pid = await this.findPortPid(this.port)
+      const externalPid = await this.findPortPid(this.port)
+      if (externalPid !== null) return { ok: false, error: `端口 ${this.port} 上的 Koishi 不是由当前面板启动的（pid=${externalPid}）；为防止误杀其他进程，面板不会自动停止它，请手动处理` }
     }
     if (pid === null) {
       const health = await this.health()
