@@ -101,9 +101,13 @@ export class AiChatService {
     const extraSystem = typeof options.system === 'string' && options.system.trim() !== ''
       ? options.system.trim()
       : (typeof this.settings.aiSystemPrompt === 'string' ? this.settings.aiSystemPrompt.trim() : '')
+    const sender = typeof options.userName === 'string' ? options.userName.trim() : ''
+    const senderPrompt = sender === ''
+      ? ''
+      : `【当前消息发送者】${sender}\n这是最后一条消息的发送者；群聊背景里其他人的发言不属于这个发送者，不要合并成同一个人。`
     const background = typeof options.background === 'string' ? options.background.trim() : ''
     const backgroundPrompt = background !== ''
-      ? `【最近群聊背景】\n${background.slice(-24000)}\n（以上只是背景信息，不要逐条回应，也不要复述消息前的人名或标签。）`
+      ? `【最近群聊背景】\n（每行格式为“- 发送者：内容”，不同发送者相互独立；只用于理解上下文，不要逐条回应，也不要把不同人的话合并成同一个人。）\n${background.slice(-24000)}\n（以上只是背景信息，不要逐条回应，也不要复述消息前的人名或标签。）`
       : ''
     const quote = options.quote !== null && typeof options.quote === 'object' ? options.quote : null
     const quotePrompt = quote !== null && (typeof quote.text === 'string' && quote.text !== '' || quote.imageCount > 0)
@@ -125,9 +129,9 @@ export class AiChatService {
       targetPrompt = '【当前消息对象】这条消息 @ 了全体成员；可以按普通群聊氛围自然参与，不要假装被单独点名。'
     }
     const focus = messages.length > 1 || background !== '' || targetPrompt !== '' || quotePrompt !== ''
-      ? '【回复要求】只针对用户最后发送的这一条消息决定是否以及如何接话；如果存在【当前消息引用的内容】，优先针对被引用的那条消息回答或分析。群聊背景、用户画像和话题记忆都只用于理解上下文，不要复述背景里的消息，也不要输出任何上下文标记、消息标签或发送者名前缀。'
+      ? '【回复要求】只针对用户最后发送的这一条消息决定是否以及如何接话；如果存在【当前消息引用的内容】，优先针对被引用的那条消息回答或分析。群聊背景中的每一行可能来自不同发送者，按行首的“- 名字：”区分，不要把不同人的发言合并成同一个人，也不要把背景里其他人的话归到当前发送者。群聊背景、用户画像和话题记忆都只用于理解上下文，不要复述背景里的消息，也不要输出任何上下文标记、消息标签或发送者名前缀。'
       : ''
-    const system = [personaPrompt, profilePrompt, backgroundPrompt, quotePrompt, targetPrompt, extraSystem, focus].filter((part) => part !== '').join('\n\n')
+    const system = [personaPrompt, profilePrompt, senderPrompt, backgroundPrompt, quotePrompt, targetPrompt, extraSystem, focus].filter((part) => part !== '').join('\n\n')
     // Let the character decide whether to speak, even after a trigger fired.
     const gateBackground = background !== '' ? background.split('\n').slice(-6).join('\n') : ''
     if (this.settings.aiSelfCheck !== false && messages.length > 0
@@ -137,7 +141,7 @@ export class AiChatService {
       const gate = await this.#selfCheck({
         selection,
         messages,
-        system: [personaPrompt, profilePrompt, gateBackground === '' ? '' : `【最近群聊背景】\n${gateBackground}`, quotePrompt, targetPrompt]
+        system: [personaPrompt, profilePrompt, senderPrompt, gateBackground === '' ? '' : `【最近群聊背景】\n${gateBackground}`, quotePrompt, targetPrompt]
           .filter((part) => part !== '')
           .join('\n\n'),
       })

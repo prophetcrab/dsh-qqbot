@@ -167,6 +167,7 @@ test('chat: profile is the second system segment and focus instruction follows',
   })
   await ai.chat({
     messages: [{ role: 'user', text: '[背景] A：旧消息' }, { role: 'user', text: '[当前消息] 小明：你好' }],
+    background: '- 小明：今晚有空吗\n- 小红：我也在',
     groupId: 'g1',
     userId: '20000',
     userName: '小明',
@@ -175,6 +176,9 @@ test('chat: profile is the second system segment and focus instruction follows',
   assert.ok(captured.system.indexOf('【用户画像】') > captured.system.indexOf('【角色设定】'))
   assert.ok(captured.system.indexOf('【回复要求】') > captured.system.indexOf('【用户画像】'))
   assert.match(captured.system, /昵称：小明/u)
+  assert.match(captured.system, /【当前消息发送者】小明/u)
+  assert.match(captured.system, /不同发送者相互独立/u)
+  assert.match(captured.system, /不要把不同人的发言合并成同一个人/u)
   await rm(dir, { recursive: true, force: true })
 })
 
