@@ -2,7 +2,7 @@
  * Persona card: the first segment of every AI chat system prompt.
  *
  * A card describes the character (name / role / tone / personality / rules) and
- * few-shot dialogue examples. It lives in `<projectDir>/data/persona.json` so
+ * few-shot dialogue examples. It lives in `<projectDir>/data/config/persona.json` so
  * the DSH panel can edit it while the QQ side keeps no model configuration.
  */
 

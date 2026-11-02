@@ -10,7 +10,7 @@ export function tools(api, access) {
   return [
     {
       name: 'qqbot_access',
-      description: 'Read or replace the QQ bot access policy: which groups may message the bot (inbound), which groups it may send to (outbound), and quiet mode. The policy is enforced by the Koishi access-control plugin and written to the Koishi project data/access.json.',
+      description: 'Read or replace the QQ bot access policy: which groups may message the bot (inbound), which groups it may send to (outbound), and quiet mode. The policy is enforced by the Koishi access-control plugin and written to the Koishi project data/config/access.json.',
       parameters: {
         type: 'object',
         properties: {
