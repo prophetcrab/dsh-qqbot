@@ -49,9 +49,9 @@ export function validateAiChatRequest(body) {
  */
 export function normalizeAiChatRequest(body) {
   const source = body !== null && typeof body === 'object' ? body : {}
-  const strings = ['groupId', 'userId', 'userName', 'background', 'system']
+  const strings = ['groupId', 'userId', 'userName', 'background', 'system', 'replyMode']
   const booleans = ['mentionSelf', 'mentionAll', 'replyToBot']
-  const arrays = ['images', 'backgroundImages', 'quotedImages', 'mentionOthers']
+  const arrays = ['images', 'backgroundImages', 'quotedImages', 'mentionOthers', 'recentReplies']
   const request = {
     apiVersion: Number.isInteger(source.apiVersion) && source.apiVersion > 0 ? source.apiVersion : AI_CHAT_API_VERSION,
     messages: Array.isArray(source.messages) ? source.messages : [],

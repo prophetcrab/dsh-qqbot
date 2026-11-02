@@ -93,6 +93,23 @@
       "type": "number",
       "minimum": 0,
       "maximum": 2
+    },
+    "replyMode": {
+      "type": "string",
+      "enum": [
+        "short",
+        "casual",
+        "reaction",
+        "normal"
+      ]
+    },
+    "recentReplies": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "maxLength": 240
+      }
     }
   },
   "additionalProperties": true

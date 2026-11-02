@@ -7,6 +7,7 @@ import { DEFAULT_PERSONA, buildPersonaPrompt, normalizePersona, readPersonaFile 
 import { InterestStore } from './interests.js'
 import { maintainInterests } from './interest-extract.js'
 import { toImageParts } from './images.js'
+import { recentRepliesPrompt, replyStylePrompt } from './style.js'
 import {
   buildProfilePrompt,
   buildProfileUpdatePrompt,
@@ -133,10 +134,12 @@ export class AiChatService {
     } else if (options.mentionAll === true) {
       targetPrompt = '【当前消息对象】这条消息 @ 了全体成员；可以按普通群聊氛围自然参与，不要假装被单独点名。'
     }
+    const stylePrompt = replyStylePrompt(options.replyMode)
+    const recentPrompt = recentRepliesPrompt(options.recentReplies)
     const focus = messages.length > 1 || background !== '' || targetPrompt !== '' || quotePrompt !== ''
       ? '【回复要求】只针对用户最后发送的这一条消息决定是否以及如何接话；如果存在【当前消息引用的内容】，优先针对被引用的那条消息回答或分析。群聊背景中的每一行可能来自不同发送者，按行首的“- 名字：”区分，不要把不同人的发言合并成同一个人，也不要把背景里其他人的话归到当前发送者。群聊背景、用户画像和话题记忆都只用于理解上下文，不要复述背景里的消息，也不要输出任何上下文标记、消息标签或发送者名前缀。'
       : ''
-    const system = [personaPrompt, profilePrompt, senderPrompt, backgroundPrompt, quotePrompt, targetPrompt, extraSystem, focus].filter((part) => part !== '').join('\n\n')
+    const system = [personaPrompt, profilePrompt, senderPrompt, backgroundPrompt, quotePrompt, targetPrompt, recentPrompt, stylePrompt, extraSystem, focus].filter((part) => part !== '').join('\n\n')
     // Let the character decide whether to speak, even after a trigger fired.
     const gateBackground = background !== '' ? background.split('\n').slice(-6).join('\n') : ''
     if (this.settings.aiSelfCheck !== false && messages.length > 0
@@ -165,6 +168,7 @@ export class AiChatService {
       model: selection.model,
       messages,
       ...(system === '' ? {} : { system }),
+      replyMode: options.replyMode ?? null,
       maxTokens: boundedInt(options.maxTokens, this.settings.aiMaxTokens, 64, 4096, 800),
       temperature: boundedNumber(options.temperature, this.settings.aiTemperature, 0, 2, 0.7),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
@@ -221,6 +225,8 @@ export class AiChatService {
       backgroundImageCount: backgroundImageParts.length,
       quotedImageCount: quotedImageParts.length,
       quote: quote === null ? null : { userName: quote.userName ?? null, text: quote.text ?? '', imageCount: quotedImageParts.length },
+      replyMode: options.replyMode ?? null,
+      recentReplies: Array.isArray(options.recentReplies) ? options.recentReplies : [],
       maxTokens: request.maxTokens,
       temperature: request.temperature,
       gate: this.lastGate,

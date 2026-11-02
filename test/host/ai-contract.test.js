@@ -35,6 +35,14 @@ test('AI contract: quote object is accepted and preserved', () => {
   assert.deepEqual(normalizeAiChatRequest(body).quote, body.quote)
 })
 
+test('AI contract: replyMode and recentReplies are accepted and normalized', () => {
+  const body = legacyBody({ replyMode: 'short', recentReplies: ['上一条回复'] })
+  assert.equal(validateAiChatRequest(body).valid, true)
+  const request = normalizeAiChatRequest(body)
+  assert.equal(request.replyMode, 'short')
+  assert.deepEqual(request.recentReplies, ['上一条回复'])
+})
+
 test('AI contract: future apiVersion is rejected', () => {
   const validation = validateAiChatRequest(legacyBody({ apiVersion: 99 }))
   assert.equal(validation.valid, false)
