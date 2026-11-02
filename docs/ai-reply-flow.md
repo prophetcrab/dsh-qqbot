@@ -68,8 +68,8 @@ NapCat → QQ
 3. ai-chat 跳过自己 / 机器人 / 命令 / 私聊（按配置）
 4. runtime.observeMessage()
    ├── 分配 thread
-   ├── 计算 keywordScore
-   ├── 学习候选关键词
+   ├── 匹配 AI 抽取的语义兴趣
+   ├── 计算 interest/attention score
    └── 计算 attention
 5. 如果这个用户已有 active batch：
    └── 追加消息，重新调度 batch，结束
@@ -86,6 +86,7 @@ NapCat → QQ
 9. DSH 生成回复
 10. Koishi 写入历史、记录预算、分条发送
 11. DSH 异步更新当前用户画像
+12. DSH 异步抽取本轮群聊的语义兴趣（有频率限制）
 ```
 
 ## 4. 第一层：能不能处理
@@ -142,7 +143,7 @@ reason = budget-exhausted
 ```text
 score = 0
 
-keyword   : min(0.3, keywordScore * 0.3)
+interest  : min(0.3, keywordScore * 0.3)
 thread    : 当前 thread 已有历史消息 → +0.15
 question  : 问句 → +0.10
 silence   : 同群沉默 ≥ 5 分钟 → +0.10
@@ -170,6 +171,47 @@ low    < 0.30
 | budget-exhausted | 0% |
 
 `p = 1` 时三档都按 100% 处理，主要用于手动测试。
+
+### 语义兴趣从哪来
+
+runtime 不再从每条消息里学习 2–4 字片段。关键词分来自 Host 的语义兴趣文件：
+
+```text
+回复成功后
+  ↓
+DSH 用 LLM 从群聊片段提取主题
+  ↓
+{"label":"龙图表情包","aliases":["龙图","表情包"],"summary":"..."}
+  ↓
+写入 data/state/interests.json
+  ↓
+Koishi runtime 监听文件
+  ↓
+下一条消息按语义主题的 label/aliases 命中
+```
+
+特点：
+
+```text
+每个群最多提取 3 个候选
+同一群 10 分钟内最多抽取一次
+label 必须是具体主题，不是逐字片段
+每个兴趣有 weight / confidence / TTL
+默认 TTL 约 3–7 天（由抽取结果指定）
+运行时会按 expiresAt 过滤，Host 会做衰减和清理
+每群最多保留 20 个兴趣
+```
+
+所以“感兴趣”现在是：
+
+```text
+LLM 抽取的语义主题
++ 标签/同义表达命中
++ 权重和置信度
++ 过期与衰减
+```
+
+而不是原始 n-gram 词表。
 
 ## 6. 第三层：什么时候回
 
@@ -393,7 +435,7 @@ profiles.json
 │   │   └── profiles.json
 │   └── state/
 │       ├── ai-chat-state.json
-│       └── runtime-lexicon.json
+│       └── interests.json
 ```
 
 内存数据：
@@ -412,7 +454,7 @@ Koishi 重启后丢失：
 画像
 人设
 AI 设置
-动态关键词
+语义兴趣
 ```
 
 ## 13. 失败时的行为
@@ -471,7 +513,7 @@ AI 设置
 ```text
 多群独立预算
 @ / 引用强制触发
-动态关键词
+LLM 抽取的语义兴趣
 attention 三档
 ActivationScheduler 批量延迟
 图片 / 引用图片
@@ -499,6 +541,7 @@ followUpMinutes 的实际语义（目前字段存在但不再参与判定）
 | 想改什么 | 去哪里 |
 | --- | --- |
 | 回复概率 | AI 面板 → 回复设置 |
+| 语义兴趣抽取频率 | `host/services/ai/interest-extract.js` 的调用阈值 |
 | 高/中/低概率 | `plugins/runtime/attention.ts` |
 | 上下文条数 | AI 面板 → 上下文条数 |
 | 群预算 | AI 面板 → 群预算 |
