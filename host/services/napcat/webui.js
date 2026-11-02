@@ -119,6 +119,13 @@ export async function loginProbe(manager, detected = undefined) {
     }
     manager.webuiReachable = true
     const checkPayload = unwrapData(check.data)
+    // NapCat can answer an expired cached credential with HTTP 200 + code != 0.
+    // Drop the cache so the next poll re-authenticates instead of reporting a
+    // logged-in QQ as "logged out" for the rest of the 10-minute TTL.
+    if (typeof checkPayload?.code === 'number' && checkPayload.code !== 0) {
+      manager.auth = null
+      return { ...fallback, reachable: true }
+    }
     const loggedIn = toBoolean(checkPayload?.isLogin ?? checkPayload?.loggedIn)
     const extra = {
       phase: typeof checkPayload?.loginPhase === 'string' ? checkPayload.loginPhase : null,
