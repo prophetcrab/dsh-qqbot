@@ -309,4 +309,87 @@ export const CSS = `
   .qqbot-page { padding: 16px 14px 44px; }
   .qqbot-title { font-size: 21px; }
 }
+/* ---------------------------------------------------------- AI tab polish -- */
+.qqbot-ai-tab { gap: 12px; }
+.qqbot-section-head { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 -2px; padding-left: 2px; }
+.qqbot-section-title { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px;
+  font-weight: 600; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); }
+.qqbot-section-title::before { content: ''; width: 3px; height: 14px; border-radius: 999px;
+  background: var(--dsw-alias-brand-primary); }
+.qqbot-section-hint { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+
+.qqbot-ai-status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 18px; }
+.qqbot-ai-runtime-card { gap: 12px; }
+.qqbot-runtime-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+.qqbot-runtime-block { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
+.qqbot-runtime-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; }
+.qqbot-runtime-text { padding: 8px 10px; border-radius: 10px; background: var(--dsw-alias-bg-layer-2);
+  font-size: 12.5px; line-height: 1.55; color: var(--dsw-alias-label-primary); word-break: break-word; }
+.qqbot-runtime-metrics { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-runtime-reasons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qqbot-runtime-reply { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.qqbot-runtime-section { display: flex; flex-direction: column; gap: 8px; padding-top: 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1); }
+.qqbot-runtime-groups { display: flex; flex-direction: column; gap: 8px; }
+.qqbot-runtime-group { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); }
+.qqbot-runtime-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.qqbot-runtime-recent-list { display: flex; flex-direction: column; gap: 4px; }
+.qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr; gap: 8px;
+  font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
+.qqbot-runtime-recent-time { color: var(--dsw-alias-label-tertiary); }
+.qqbot-runtime-recent-sender { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-runtime-scopes { display: flex; flex-direction: column; gap: 8px; }
+.qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
+  border-top: 0.5px solid var(--dsw-alias-border-l1); }
+
+.qqbot-meter-row { display: flex; align-items: center; gap: 10px; font-size: 11.5px; }
+.qqbot-meter { flex: 1; min-width: 60px; height: 7px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 22%, transparent); }
+.qqbot-meter-fill { display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, var(--dsw-alias-brand-primary),
+    color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-state-success-primary)));
+  transition: width .18s ease; }
+.qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums; }
+.qqbot-chip-reason { color: var(--dsw-alias-brand-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }
+.qqbot-chip-keyword { font-variant-numeric: tabular-nums; }
+.qqbot-chip-keyword.is-pinned { color: var(--dsw-alias-state-success-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, var(--dsw-alias-border-l1)); }
+.qqbot-chip-keyword.is-suppressed { opacity: 0.55; text-decoration: line-through; }
+.qqbot-chip-ghost { background: transparent; color: var(--dsw-alias-label-tertiary); border-style: dashed; }
+
+.qqbot-field-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.qqbot-range { width: 100%; margin: 4px 0 6px; accent-color: var(--dsw-alias-brand-primary); }
+.qqbot-ai-probability-value { display: inline-flex; align-items: center; gap: 4px; }
+.qqbot-input-number { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }
+.qqbot-ai-probability-unit { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+.qqbot-ai-settings-group { margin: 6px 0 -2px; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--dsw-alias-label-tertiary); }
+.qqbot-switch-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; user-select: none; }
+.qqbot-switch-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.qqbot-switch-track { position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 30%, transparent);
+  transition: background .16s ease; }
+.qqbot-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: #ffffff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform .16s ease; }
+.qqbot-switch-input:checked + .qqbot-switch-track { background: var(--dsw-alias-brand-primary); }
+.qqbot-switch-input:checked + .qqbot-switch-track .qqbot-switch-knob { transform: translateX(16px); }
+.qqbot-switch-input:focus-visible + .qqbot-switch-track { outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px; }
+.qqbot-switch-label { font-size: 12.5px; color: var(--dsw-alias-label-primary); }
+
+@media (max-width: 720px) {
+  .qqbot-runtime-grid { grid-template-columns: 1fr; }
+  .qqbot-runtime-recent { grid-template-columns: 62px 80px 1fr; }
+  .qqbot-ai-status-grid { grid-template-columns: 1fr; }
+}
+
 `

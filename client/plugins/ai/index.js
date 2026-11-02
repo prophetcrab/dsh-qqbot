@@ -1,7 +1,7 @@
 import { registerTab } from '../../runtime/tab-registry.js'
 import { useAi, renderAiTab } from './AiTab.js'
 import {
-  loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
+  loadPersona, loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt,
   testAi, applyPersonaPayload, savePersona, resetPersona,
   applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
   selectProfile, saveProfile, deleteProfile,
@@ -17,7 +17,7 @@ registerTab({
     return () => renderAiTab(panel)
   },
   handlers: {
-    loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
+    loadPersona, loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt,
     testAi, applyPersonaPayload, savePersona, resetPersona,
     applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
     selectProfile, saveProfile, deleteProfile,

@@ -143,6 +143,9 @@ export function useStore(t) {
   const [aiSettingsPath, setAiSettingsPath] = React.useState(null)
   const [aiSettingsPhase, setAiSettingsPhase] = React.useState('idle')
   const [aiSettingsError, setAiSettingsError] = React.useState(null)
+  const [aiRuntime, setAiRuntime] = React.useState(null)
+  const [aiRuntimePhase, setAiRuntimePhase] = React.useState('idle')
+  const [aiRuntimeError, setAiRuntimeError] = React.useState(null)
   const [profiles, setProfiles] = React.useState(null)
   const [profilesPhase, setProfilesPhase] = React.useState('idle')
   const [profilesError, setProfilesError] = React.useState(null)
@@ -256,7 +259,9 @@ export function useStore(t) {
     personaPreview, setPersonaPreview, personaPath, setPersonaPath, personaPhase, setPersonaPhase,
     personaError, setPersonaError, personaPreviewOpen, setPersonaPreviewOpen, aiSettingsDraft, setAiSettingsDraft,
     aiSettingsDefaults, setAiSettingsDefaults, aiSettingsPath, setAiSettingsPath, aiSettingsPhase, setAiSettingsPhase,
-    aiSettingsError, setAiSettingsError, profiles, setProfiles, profilesPhase, setProfilesPhase,
+    aiSettingsError, setAiSettingsError, aiRuntime, setAiRuntime,
+    aiRuntimePhase, setAiRuntimePhase, aiRuntimeError, setAiRuntimeError,
+    profiles, setProfiles, profilesPhase, setProfilesPhase,
     profilesError, setProfilesError, profilesSearch, setProfilesSearch, profilesPath, setProfilesPath,
     selectedProfileKey, setSelectedProfileKey, profileDraft, setProfileDraft, personaPresets, setPersonaPresets,
     personaPresetsPhase, setPersonaPresetsPhase, personaPresetsError, setPersonaPresetsError, personaPresetsPath, setPersonaPresetsPath,

@@ -740,6 +740,23 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Runtime diagnostics for the AI tab (gate decisions, keywords, paths). */
+      async function loadAiRuntime(panel) {
+        const { setAiRuntime, setAiRuntimePhase, setAiRuntimeError } = panel
+        setAiRuntimePhase('loading')
+        try {
+          const payload = await requestJson('/qqbot/ai/runtime')
+          const data = payload && payload.data
+          if (data === null || typeof data !== 'object') throw new Error('unexpected payload')
+          setAiRuntime(data)
+          setAiRuntimeError(null)
+          setAiRuntimePhase('ready')
+        } catch (error) {
+          setAiRuntimeError(messageOf(error))
+          setAiRuntimePhase('error')
+        }
+      }
+
       async function loadProfiles(panel, search) {
         const { setProfiles, setProfilesPhase, setProfilesError, profilesSearch, setProfilesPath } = panel
         const query = typeof search === 'string' ? search : profilesSearch
@@ -1139,17 +1156,22 @@ window.__ModuleLoader__.load({
         }
       }
 
-      return { loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset }
+      return { loadPersona, loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset }
     },
     "client/plugins/ai/AiCard.js": (__require) => {
 
-
+      /**
+       * AI status card: connection state, provider/model/endpoint and the local
+       * self-test against the DSH bridge.
+       */
       function renderAiCard(panel) {
         const { t, snapshot, aiReply, aiError, busyOf, testAi, h } = panel
         const ai = (snapshot && snapshot.ai) || {}
         const available = ai.available === true
+        const ready = ai.ready === true
         const provider = typeof ai.provider === 'string' ? ai.provider : ''
         const model = typeof ai.model === 'string' ? ai.model : ''
+        const endpoint = typeof ai.endpoint === 'string' ? ai.endpoint : ''
         const sourceLabel = ai.source === 'config'
           ? t('aiSourceConfig')
           : ai.source === 'harness-default' ? t('aiSourceHarness') : ai.source === 'fallback' ? t('aiSourceFallback') : ''
@@ -1157,19 +1179,38 @@ window.__ModuleLoader__.load({
           ? `${t('aiConnected')} · ${provider || '—'}/${model || '—'}${sourceLabel !== '' ? ` · ${sourceLabel}` : ''}`
           : t('aiUnavailable')
         const working = busyOf('ai-test')
+        const detail = (testid, label, value, mono) => h('div', { className: 'qqbot-row-item' },
+          h('span', { className: 'qqbot-row-label' }, label),
+          h('span', {
+            className: `qqbot-row-value${mono ? ' qqbot-mono' : ''}`,
+            'data-testid': testid,
+          }, value !== '' ? value : '—'))
         return h('section', { className: 'qqbot-card qqbot-ai-card', 'data-testid': 'qqbot-ai-card' },
           h('div', { className: 'qqbot-card-head' },
-            h('h2', { className: 'qqbot-card-title' }, t('aiTitle')),
-            h('span', { className: available ? 'qqbot-ai-state is-ok' : 'qqbot-ai-state is-bad' }, available ? '✓' : '✕')),
+            h('div', null,
+              h('h2', { className: 'qqbot-card-title' }, t('aiTitle')),
+              h('span', { className: 'qqbot-card-sub' }, t('aiStatusSubtitle'))),
+            h('span', {
+              className: `qqbot-pill qqbot-pill-${available ? 'ok' : 'warn'}`,
+              'data-testid': 'qqbot-ai-state',
+            },
+              h('i', { className: 'qqbot-pill-dot' }),
+              h('span', { className: 'qqbot-pill-text' }, available ? t('aiStateReady') : t('aiStateUnavailable')))),
           h('div', { className: 'qqbot-ai-status', 'data-testid': 'qqbot-ai-status' },
             h('span', { className: `qqbot-pill qqbot-pill-${available ? 'ok' : 'warn'}` },
               h('i', { className: 'qqbot-pill-dot' }),
               h('span', { className: 'qqbot-pill-text' }, statusText))),
+          h('div', { className: 'qqbot-rows qqbot-ai-status-grid' },
+            detail('qqbot-ai-provider', t('aiProviderLabel'), provider),
+            detail('qqbot-ai-model', t('aiModelLabel'), model),
+            detail('qqbot-ai-endpoint', t('aiEndpointLabel'), endpoint, true),
+            detail('qqbot-ai-source', t('aiSourceLabel'), sourceLabel),
+            detail('qqbot-ai-ready', t('aiReadyLabel'), ready ? t('aiYes') : t('aiNo'))),
           h('p', { className: 'qqbot-hint' }, t('aiHint')),
           h('div', { className: 'qqbot-btns' },
             h('button', {
               type: 'button',
-              className: 'qqbot-btn',
+              className: 'qqbot-btn qqbot-btn-primary',
               'data-testid': 'qqbot-ai-test',
               'aria-label': t('aiTest'),
               'aria-busy': working ? 'true' : undefined,
@@ -1186,9 +1227,424 @@ window.__ModuleLoader__.load({
 
       return { renderAiCard }
     },
+    "client/plugins/ai/AiRuntimeCard.js": (__require) => {
+      /**
+       * AI runtime diagnostics card.
+       *
+       * Reads `GET /qqbot/ai/runtime`, which returns the Koishi runtime's latest
+       * gate decision (`state.lastInbound` / `state.lastReply`), per-group recents
+       * (`state.groups`), the learned keyword lexicon (`keywords.sets`) and the
+       * data file paths. Every branch is defensive: a missing payload, an older
+       * Host or a partially written JSON file still renders an empty state instead
+       * of crashing the AI tab.
+       */
+      const { formatTime } = __require("client/runtime/api.js")
+
+      // --------------------------------------------------------------- normalizers --
+
+      const asObject = (value) => (value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null)
+      const asText = (value) => (typeof value === 'string' ? value : '')
+      const asNumber = (value) => {
+        const number = Number(value)
+        return Number.isFinite(number) ? number : null
+      }
+      const asList = (value) => (Array.isArray(value) ? value : [])
+      const asReasons = (value) => asList(value).filter((item) => typeof item === 'string' && item !== '')
+      const clamp01 = (value) => Math.min(1, Math.max(0, value))
+
+      /** One `state.lastInbound` record (also reused for per-group recent rows). */
+      function normalizeInbound(raw) {
+        const source = asObject(raw)
+        if (source === null) return null
+        const sender = asText(source.sender) || asText(source.userName) || asText(source.userId)
+        const text = asText(source.text) || asText(source.content)
+        return {
+          at: asText(source.at),
+          groupId: asText(source.groupId),
+          userId: asText(source.userId),
+          sender,
+          text,
+          threadId: asText(source.threadId),
+          keywordScore: clamp01(asNumber(source.keywordScore) ?? 0),
+          attention: clamp01(asNumber(source.attention) ?? 0),
+          attentionReasons: asReasons(source.attentionReasons ?? source.reasons),
+          shouldReply: source.shouldReply === true,
+          reason: asText(source.reason),
+          mention: source.mention === true,
+          replyToBot: source.replyToBot === true,
+          images: asNumber(source.images) ?? 0,
+        }
+      }
+
+      /** One `state.lastReply` record. */
+      function normalizeReply(raw) {
+        const source = asObject(raw)
+        if (source === null) return null
+        return {
+          at: asText(source.at),
+          ok: source.ok === true,
+          skipped: source.skipped === true,
+          busy: source.busy === true,
+          error: asText(source.error),
+          reason: asText(source.reason),
+          text: asText(source.text) || asText(source.reply),
+        }
+      }
+
+      /** `state.groups` may be a keyed object (current runtime) or an array. */
+      function normalizeGroups(raw) {
+        const groups = []
+        const push = (groupId, item) => {
+          const source = asObject(item)
+          if (source === null) return
+          const recent = asList(source.recent)
+            .map((entry) => normalizeInbound(entry))
+            .filter((entry) => entry !== null)
+            .slice(-10)
+          const latest = normalizeInbound(source)
+          const id = asText(source.groupId) || asText(groupId)
+          groups.push({ groupId: id, latest, recent })
+        }
+        if (Array.isArray(raw)) {
+          raw.forEach((item, index) => push(`#${index}`, item))
+        } else {
+          const map = asObject(raw) ?? {}
+          for (const key of Object.keys(map)) push(key, map[key])
+        }
+        return groups.sort((a, b) => {
+          const left = a.latest !== null ? a.latest.at : ''
+          const right = b.latest !== null ? b.latest.at : ''
+          return String(right).localeCompare(String(left))
+        })
+      }
+
+      /** `keywords.sets` grouped by `key.scope` / `key.owner`. */
+      function normalizeKeywords(raw) {
+        const source = asObject(raw) ?? {}
+        const sets = Array.isArray(source.sets) ? source.sets : Array.isArray(raw) ? raw : []
+        const byScope = new Map()
+        for (const setRaw of sets) {
+          const set = asObject(setRaw)
+          if (set === null) continue
+          const key = asObject(set.key) ?? {}
+          const scope = asText(key.scope) || asText(set.scope) || 'global'
+          const owner = asText(key.owner) || asText(set.owner)
+          const terms = asList(set.terms)
+            .map((termRaw) => {
+              const term = asObject(termRaw)
+              const text = term === null ? '' : asText(term.text) || asText(term.term)
+              if (text === '') return null
+              const status = term.status === 'pinned' || term.status === 'suppressed' ? term.status : 'active'
+              return {
+                text,
+                weight: clamp01(asNumber(term.weight) ?? 0),
+                confidence: clamp01(asNumber(term.confidence) ?? 0),
+                status,
+                expiresAt: asNumber(term.expiresAt),
+              }
+            })
+            .filter((term) => term !== null)
+          if (terms.length === 0) continue
+          const id = `${scope}:${owner}`
+          const existing = byScope.get(id)
+          if (existing === undefined) byScope.set(id, { scope, owner, terms })
+          else existing.terms.push(...terms)
+        }
+        return {
+          version: asNumber(source.version),
+          scopes: [...byScope.values()].sort((a, b) => a.scope.localeCompare(b.scope) || a.owner.localeCompare(b.owner)),
+        }
+      }
+
+      /**
+       * Normalize the Host payload into the exact shape the card renders.
+       * Exported for unit tests; never throws.
+       */
+      function deriveRuntimeView(payload) {
+        const data = asObject(payload)
+        const state = asObject(data && data.state) ?? {}
+        const paths = asObject(data && data.paths) ?? {}
+        return {
+          available: data !== null,
+          state: {
+            lastInbound: normalizeInbound(state.lastInbound),
+            lastReply: normalizeReply(state.lastReply),
+            groups: normalizeGroups(state.groups),
+            updatedAt: asText(state.updatedAt),
+          },
+          keywords: normalizeKeywords(data && data.keywords),
+          paths: {
+            aiChat: asText(paths.aiChat),
+            lexicon: asText(paths.lexicon),
+          },
+        }
+      }
+
+      // ------------------------------------------------------------------ renderer --
+
+      const percent = (score) => Math.round(clamp01(score) * 100)
+      const scoreText = (score) => (Math.round(score * 1000) / 1000).toFixed(3)
+
+      /** Inline meter: one labelled 0..1 score with its numeric value. */
+      function meter(h, label, score) {
+        return h('div', { className: 'qqbot-meter-row' },
+          h('span', { className: 'qqbot-row-label' }, label),
+          h('div', { className: 'qqbot-meter', 'aria-hidden': true },
+            h('i', { className: 'qqbot-meter-fill', style: { width: `${percent(score)}%` } })),
+          h('span', { className: 'qqbot-meter-value qqbot-mono' }, scoreText(score)))
+      }
+
+      function chips(h, values, className = 'qqbot-chip') {
+        return h('div', { className: 'qqbot-chips' },
+          ...values.map((value) => h('span', { key: value, className }, value)))
+      }
+
+      function statusPill(h, text, tone) {
+        return h('span', { className: `qqbot-pill qqbot-pill-${tone}` },
+          h('i', { className: 'qqbot-pill-dot' }),
+          h('span', { className: 'qqbot-pill-text' }, text))
+      }
+
+      function renderAiRuntimeCard(panel) {
+        const {
+          t, h, aiRuntime, aiRuntimePhase, aiRuntimeError, busyOf, loadAiRuntime, row,
+        } = panel
+        const view = deriveRuntimeView(aiRuntime)
+        const loading = aiRuntimePhase === 'loading' && aiRuntime === null
+        const failed = aiRuntimePhase === 'error'
+        const hasData = view.state.lastInbound !== null
+          || view.state.groups.length > 0
+          || view.keywords.scopes.length > 0
+
+        const refreshButton = h('button', {
+          type: 'button',
+          className: 'qqbot-btn',
+          'data-testid': 'qqbot-ai-runtime-refresh',
+          'aria-label': t('aiRuntimeRefresh'),
+          'aria-busy': aiRuntimePhase === 'loading' ? 'true' : undefined,
+          disabled: aiRuntimePhase === 'loading',
+          onClick: () => { loadAiRuntime() },
+        }, aiRuntimePhase === 'loading' ? t('working') : t('refresh'))
+
+        const head = h('div', { className: 'qqbot-card-head' },
+          h('div', null,
+            h('h2', { className: 'qqbot-card-title' }, t('aiRuntimeTitle')),
+            h('span', { className: 'qqbot-card-sub' }, t('aiRuntimeSubtitle'))),
+          h('div', { className: 'qqbot-btns' },
+            view.state.updatedAt !== ''
+              ? h('span', {
+                className: 'qqbot-card-sub qqbot-mono',
+                'data-testid': 'qqbot-ai-runtime-updated',
+              }, `${t('aiRuntimeUpdated')} ${formatTime(view.state.updatedAt) || view.state.updatedAt}`)
+              : null,
+            refreshButton))
+
+        const body = []
+
+        if (failed) {
+          body.push(h('div', {
+            className: 'qqbot-banner qqbot-banner-error',
+            role: 'alert',
+            'data-testid': 'qqbot-ai-runtime-error',
+          },
+            h('span', null, `${t('aiRuntimeLoadFail')}${aiRuntimeError !== null ? `: ${aiRuntimeError}` : ''}`),
+            h('button', {
+              type: 'button',
+              className: 'qqbot-btn',
+              'aria-label': t('retry'),
+              onClick: () => { loadAiRuntime() },
+            }, t('retry'))))
+        }
+        if (loading) {
+          body.push(h('div', {
+            className: 'qqbot-empty',
+            role: 'status',
+            'data-testid': 'qqbot-ai-runtime-loading',
+          }, t('aiRuntimeLoading')))
+        } else if (!view.available || !hasData) {
+          body.push(h('div', { className: 'qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
+            t('aiRuntimeEmpty')))
+        } else {
+          body.push(h('div', { className: 'qqbot-runtime-grid' },
+            renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
+            renderReplyBlock({ t, h, reply: view.state.lastReply })))
+          body.push(renderGroupsBlock({ t, h, groups: view.state.groups }))
+          body.push(renderKeywordsBlock({ t, h, keywordView: view.keywords }))
+          if (view.paths.aiChat !== '' || view.paths.lexicon !== '') {
+            body.push(renderPathsBlock({ t, h, paths: view.paths }))
+          }
+        }
+
+        return h('section', {
+          className: 'qqbot-card qqbot-ai-runtime-card',
+          'data-testid': 'qqbot-ai-runtime-card',
+        }, head, ...body)
+      }
+
+      function renderInboundBlock({ t, h, row, inbound }) {
+        const reasonChips = inbound.attentionReasons.length > 0
+          ? h('div', { className: 'qqbot-runtime-reasons' },
+            h('span', { className: 'qqbot-row-label' }, t('aiRuntimeReasons')),
+            chips(h, inbound.attentionReasons, 'qqbot-chip qqbot-chip-reason'))
+          : null
+        return h('div', {
+          className: 'qqbot-runtime-block',
+          'data-testid': 'qqbot-ai-runtime-last-inbound',
+        },
+          h('div', { className: 'qqbot-runtime-block-head' },
+            h('span', { className: 'qqbot-field-label' }, t('aiRuntimeLastInbound')),
+            h('span', { 'data-testid': 'qqbot-ai-runtime-should-reply' },
+              statusPill(h, inbound.shouldReply ? t('aiRuntimeShouldReply') : t('aiRuntimeNoReply'),
+                inbound.shouldReply ? 'ok' : 'warn'))),
+          h('div', { className: 'qqbot-rows' },
+            row(t('aiRuntimeGroup'), inbound.groupId || '—', null, true),
+            row(t('aiRuntimeSender'), inbound.sender || '—', null),
+            row(t('aiRuntimeThread'), inbound.threadId || '—', null, true)),
+          h('div', { className: 'qqbot-runtime-text' }, inbound.text !== '' ? inbound.text : '—'),
+          h('div', { className: 'qqbot-runtime-metrics' },
+            meter(h, t('aiRuntimeKeywordScore'), inbound.keywordScore),
+            meter(h, t('aiRuntimeAttention'), inbound.attention)),
+          reasonChips,
+          inbound.reason !== ''
+            ? h('p', { className: 'qqbot-hint' }, `${t('aiRuntimeReasons')}: ${inbound.reason}`)
+            : null)
+      }
+
+      function renderReplyBlock({ t, h, reply }) {
+        const detail = reply === null
+          ? h('p', { className: 'qqbot-hint' }, t('aiRuntimeNoReplyYet'))
+          : h('div', { className: 'qqbot-runtime-reply' },
+            statusPill(h,
+              reply.busy ? t('aiRuntimeReplyBusy')
+                : reply.skipped ? t('aiRuntimeReplySkipped')
+                  : reply.ok ? t('aiRuntimeReplyOk') : t('aiRuntimeReplyError'),
+              reply.ok ? 'ok' : 'warn'),
+            reply.at !== ''
+              ? h('span', { className: 'qqbot-card-sub' }, formatTime(reply.at) || reply.at)
+              : null,
+            reply.text !== '' ? h('div', { className: 'qqbot-runtime-text' }, reply.text) : null,
+            reply.reason !== '' ? h('p', { className: 'qqbot-hint' }, reply.reason) : null,
+            reply.error !== '' ? h('p', { className: 'qqbot-error' }, reply.error) : null)
+        return h('div', {
+          className: 'qqbot-runtime-block',
+          'data-testid': 'qqbot-ai-runtime-last-reply',
+        },
+          h('div', { className: 'qqbot-runtime-block-head' },
+            h('span', { className: 'qqbot-field-label' }, t('aiRuntimeLastReply'))),
+          detail)
+      }
+
+      function renderGroupRow({ t, h, group }) {
+        const latest = group.latest
+        const headRow = h('div', { className: 'qqbot-runtime-group-head' },
+          h('span', { className: 'qqbot-badge' }, group.groupId || '—'),
+          latest !== null
+            ? h('span', { className: 'qqbot-card-sub' },
+              `${latest.sender || '—'} · ${formatTime(latest.at) || '—'}`)
+            : null,
+          latest !== null
+            ? statusPill(h, latest.shouldReply ? t('aiRuntimeShouldReply') : t('aiRuntimeNoReply'),
+              latest.shouldReply ? 'ok' : 'warn')
+            : null)
+        const recentList = group.recent.length === 0
+          ? h('p', { className: 'qqbot-hint' }, t('aiRuntimeNoRecent'))
+          : h('div', { className: 'qqbot-runtime-recent-list' },
+            ...group.recent.slice(-10).map((entry, index) => h('div', {
+              key: `${group.groupId}-recent-${index}`,
+              className: 'qqbot-runtime-recent',
+              'data-testid': 'qqbot-ai-runtime-group-recent',
+            },
+              h('span', { className: 'qqbot-mono qqbot-runtime-recent-time' }, formatTime(entry.at) || '—'),
+              h('span', { className: 'qqbot-runtime-recent-sender' }, entry.sender || '—'),
+              h('span', { className: 'qqbot-runtime-recent-text' }, entry.text || '—'))))
+        return h('div', {
+          key: group.groupId,
+          className: 'qqbot-runtime-group',
+          'data-testid': 'qqbot-ai-runtime-group',
+          'data-group': group.groupId,
+        }, headRow, recentList)
+      }
+
+      function renderGroupsBlock({ t, h, groups }) {
+        return h('div', { className: 'qqbot-runtime-section' },
+          h('div', { className: 'qqbot-runtime-block-head' },
+            h('span', { className: 'qqbot-field-label' }, t('aiRuntimeRecentGroups')),
+            h('span', { className: 'qqbot-card-sub' }, `${groups.length}`)),
+          groups.length === 0
+            ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-ai-runtime-groups-empty' },
+              t('aiRuntimeNoGroups'))
+            : h('div', {
+              className: 'qqbot-runtime-groups',
+              'data-testid': 'qqbot-ai-runtime-groups',
+            }, ...groups.slice(0, 10).map((group) => renderGroupRow({ t, h, group }))))
+      }
+
+      function statusLabel(t, status) {
+        if (status === 'pinned') return t('aiRuntimeStatusPinned')
+        if (status === 'suppressed') return t('aiRuntimeStatusSuppressed')
+        return t('aiRuntimeStatusActive')
+      }
+
+      function renderScopeRow({ t, h, scope }) {
+        const termCount = h('span', { className: 'qqbot-chip qqbot-chip-ghost' },
+          `${scope.terms.length} ${t('aiRuntimeTerms')}`)
+        const termChips = scope.terms.map((term) => h('span', {
+          key: `${term.text}-${term.status}`,
+          className: `qqbot-chip qqbot-chip-keyword is-${term.status}`,
+          'data-testid': 'qqbot-ai-runtime-keyword-chip',
+          'data-status': term.status,
+          title: `${t('aiRuntimeTermConfidence')} ${scoreText(term.confidence)}`,
+        },
+          h('span', { className: 'qqbot-chip-term' }, term.text),
+          h('span', { className: 'qqbot-chip-meta' },
+            ` · ${scoreText(term.weight)} · ${statusLabel(t, term.status)}`)))
+        return h('div', {
+          key: `${scope.scope}:${scope.owner}`,
+          className: 'qqbot-runtime-scope',
+          'data-testid': 'qqbot-ai-runtime-keyword-scope',
+          'data-scope': scope.scope,
+          'data-owner': scope.owner,
+        },
+          h('span', { className: 'qqbot-badge' },
+            scope.owner !== '' ? `${scope.scope} · ${scope.owner}` : scope.scope),
+          h('div', { className: 'qqbot-chips' }, ...termChips, termCount))
+      }
+
+      function renderKeywordsBlock({ t, h, keywordView }) {
+        return h('div', {
+          className: 'qqbot-runtime-section',
+          'data-testid': 'qqbot-ai-runtime-keywords',
+        },
+          h('div', { className: 'qqbot-runtime-block-head' },
+            h('span', { className: 'qqbot-field-label' }, t('aiRuntimeKeywords')),
+            keywordView.version !== null
+              ? h('span', { className: 'qqbot-card-sub qqbot-mono' },
+                `${t('aiRuntimeLexiconVersion')} v${keywordView.version}`)
+              : null),
+          keywordView.scopes.length === 0
+            ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-ai-runtime-keywords-empty' },
+              t('aiRuntimeNoKeywords'))
+            : h('div', { className: 'qqbot-runtime-scopes' },
+              ...keywordView.scopes.map((scope) => renderScopeRow({ t, h, scope }))))
+      }
+
+      function renderPathsBlock({ t, h, paths }) {
+        const pathRow = (label, value) => h('div', { className: 'qqbot-row-item' },
+          h('span', { className: 'qqbot-row-label' }, label),
+          h('span', { className: 'qqbot-row-value qqbot-mono' }, value))
+        return h('div', { className: 'qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
+          paths.aiChat !== '' ? pathRow(t('aiRuntimePathChat'), paths.aiChat) : null,
+          paths.lexicon !== '' ? pathRow(t('aiRuntimePathLexicon'), paths.lexicon) : null)
+      }
+
+      return { normalizeInbound, deriveRuntimeView, renderAiRuntimeCard }
+    },
     "client/plugins/ai/AiSettingsCard.js": (__require) => {
 
-
+      /**
+       * Reply behavior form: runtime AI settings with a probability slider, timing
+       * fields, batching window and the save/reset/path affordances.
+       */
       function renderAiSettingsCard(panel) {
         const {
           t, aiSettingsDraft, setAiSettingsDraft, aiSettingsDefaults, aiSettingsPath, aiSettingsPhase,
@@ -1198,10 +1654,16 @@ window.__ModuleLoader__.load({
         const saving = busyOf('ai-settings-save')
         const updateDraft = (patch) => setAiSettingsDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
         const head = h('div', { className: 'qqbot-card-head' },
-          h('h2', { className: 'qqbot-card-title' }, t('aiSettingsTitle')),
-          h('span', { className: 'qqbot-card-sub' }, t('aiSettingsSubtitle')))
+          h('div', null,
+            h('h2', { className: 'qqbot-card-title' }, t('aiSettingsTitle')),
+            h('span', { className: 'qqbot-card-sub' }, t('aiSettingsSubtitle'))),
+          draft !== null
+            ? h('span', { className: `qqbot-pill qqbot-pill-${draft.enabled ? 'ok' : 'warn'}` },
+              h('i', { className: 'qqbot-pill-dot' }),
+              h('span', { className: 'qqbot-pill-text' }, draft.enabled ? t('aiSettingsOn') : t('aiSettingsOff')))
+            : null)
         if (draft === null) {
-          return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
+          return h('section', { className: 'qqbot-card qqbot-ai-settings-card', 'data-testid': 'qqbot-ai-settings-card' },
             head,
             aiSettingsPhase === 'error'
               ? h('div', { className: 'qqbot-empty' },
@@ -1209,7 +1671,8 @@ window.__ModuleLoader__.load({
                 h('button', { type: 'button', className: 'qqbot-btn', 'aria-label': t('retry'), onClick: () => { loadAiSettings() } }, t('retry')))
               : h('div', { className: 'qqbot-empty', role: 'status' }, t('aiSettingsLoading')))
         }
-        const field = (testid, label, value, onChange, options) => {
+
+        const numberField = (testid, label, value, onChange, options) => {
           const extra = options || {}
           return h('div', { className: 'qqbot-field' },
             h('label', { className: 'qqbot-field-label', htmlFor: testid }, label),
@@ -1225,34 +1688,76 @@ window.__ModuleLoader__.load({
               onChange: (event) => { onChange(event.currentTarget.value) },
             }))
         }
-        return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
+
+        const probability = Number(draft.replyProbabilityPercent)
+        const probabilityValue = Number.isFinite(probability) ? Math.min(100, Math.max(0, probability)) : 0
+        const probabilityBlock = h('div', { className: 'qqbot-field qqbot-ai-probability' },
+          h('div', { className: 'qqbot-field-row' },
+            h('label', { className: 'qqbot-field-label', htmlFor: 'qqbot-ai-settings-probability' }, t('aiSettingsProbability')),
+            h('div', { className: 'qqbot-ai-probability-value' },
+              h('input', {
+                id: 'qqbot-ai-settings-probability-value',
+                className: 'qqbot-input qqbot-input-number',
+                type: 'number',
+                min: 0,
+                max: 100,
+                step: 1,
+                'data-testid': 'qqbot-ai-settings-probability-value',
+                'aria-label': t('aiSettingsProbabilityValue'),
+                value: draft.replyProbabilityPercent,
+                onChange: (event) => { updateDraft({ replyProbabilityPercent: event.currentTarget.value === '' ? '' : Number(event.currentTarget.value) }) },
+              }),
+              h('span', { className: 'qqbot-ai-probability-unit' }, '%'))),
+          h('input', {
+            id: 'qqbot-ai-settings-probability',
+            className: 'qqbot-range',
+            type: 'range',
+            min: 0,
+            max: 100,
+            step: 1,
+            'data-testid': 'qqbot-ai-settings-probability',
+            'aria-label': t('aiSettingsProbability'),
+            value: probabilityValue,
+            onChange: (event) => { updateDraft({ replyProbabilityPercent: event.currentTarget.value === '' ? '' : Number(event.currentTarget.value) }) },
+          }),
+          h('div', { className: 'qqbot-meter', 'aria-hidden': true },
+            h('i', { className: 'qqbot-meter-fill', style: { width: `${probabilityValue}%` } })),
+          h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint')))
+
+        const enabledToggle = h('label', { className: 'qqbot-switch-row' },
+          h('input', {
+            type: 'checkbox',
+            className: 'qqbot-switch-input',
+            'data-testid': 'qqbot-ai-settings-enabled',
+            checked: draft.enabled,
+            onChange: (event) => { updateDraft({ enabled: event.currentTarget.checked }) },
+          }),
+          h('span', { className: 'qqbot-switch-track', 'aria-hidden': true }, h('i', { className: 'qqbot-switch-knob' })),
+          h('span', { className: 'qqbot-switch-label' }, t('aiSettingsEnabled')),
+          h('span', { className: `qqbot-pill qqbot-pill-${draft.enabled ? 'ok' : 'warn'}` },
+            h('span', { className: 'qqbot-pill-text' }, draft.enabled ? t('aiSettingsOn') : t('aiSettingsOff'))))
+
+        return h('section', { className: 'qqbot-card qqbot-ai-settings-card', 'data-testid': 'qqbot-ai-settings-card' },
           head,
           h('div', { className: 'qqbot-form' },
-            h('label', { className: 'qqbot-check' },
-              h('input', {
-                type: 'checkbox',
-                'data-testid': 'qqbot-ai-settings-enabled',
-                checked: draft.enabled,
-                onChange: (event) => { updateDraft({ enabled: event.currentTarget.checked }) },
-              }),
-              t('aiSettingsEnabled')),
+            enabledToggle,
+            probabilityBlock,
+            h('div', { className: 'qqbot-field-label qqbot-ai-settings-group' }, t('aiSettingsTimingTitle')),
             h('div', { className: 'qqbot-ai-settings-grid' },
-              field('qqbot-ai-settings-probability', t('aiSettingsProbability'), draft.replyProbabilityPercent,
-                (value) => { updateDraft({ replyProbabilityPercent: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 100, step: 1 }),
-              field('qqbot-ai-settings-followup', t('aiSettingsFollowUp'), draft.followUpMinutes,
+              numberField('qqbot-ai-settings-followup', t('aiSettingsFollowUp'), draft.followUpMinutes,
                 (value) => { updateDraft({ followUpMinutes: value === '' ? '' : Number(value) }) },
                 { min: 0, max: 60, step: 1 }),
-              field('qqbot-ai-settings-history', t('aiSettingsHistory'), draft.historyLimit,
+              numberField('qqbot-ai-settings-history', t('aiSettingsHistory'), draft.historyLimit,
                 (value) => { updateDraft({ historyLimit: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 200, step: 1 }),
-              field('qqbot-ai-settings-batch-window', t('aiSettingsBatchWindow'), draft.batchWindowMs,
+                { min: 0, max: 200, step: 1 })),
+            h('div', { className: 'qqbot-field-label qqbot-ai-settings-group' }, t('aiSettingsBatchTitle')),
+            h('div', { className: 'qqbot-ai-settings-grid' },
+              numberField('qqbot-ai-settings-batch-window', t('aiSettingsBatchWindow'), draft.batchWindowMs,
                 (value) => { updateDraft({ batchWindowMs: value === '' ? '' : Number(value) }) },
                 { min: 0, max: 10000, step: 100 }),
-              field('qqbot-ai-settings-batch-max', t('aiSettingsBatchMax'), draft.batchMaxWaitMs,
+              numberField('qqbot-ai-settings-batch-max', t('aiSettingsBatchMax'), draft.batchMaxWaitMs,
                 (value) => { updateDraft({ batchMaxWaitMs: value === '' ? '' : Number(value) }) },
                 { min: 0, max: 30000, step: 100 })),
-            h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint')),
             h('p', { className: 'qqbot-hint' }, t('aiSettingsBatchHint'))),
           h('div', { className: 'qqbot-btns' },
             h('button', {
@@ -1283,37 +1788,44 @@ window.__ModuleLoader__.load({
     "client/plugins/ai/AiTab.js": (__require) => {
       const React = __require("react")
       const { renderAiCard } = __require("client/plugins/ai/AiCard.js")
+      const { renderAiRuntimeCard } = __require("client/plugins/ai/AiRuntimeCard.js")
       const { renderAiSettingsCard } = __require("client/plugins/ai/AiSettingsCard.js")
       const { renderFullPromptCard } = __require("client/plugins/ai/PromptCard.js")
       const { renderPersonaCard } = __require("client/plugins/ai/PersonaCard.js")
       const { renderProfilesCard } = __require("client/plugins/ai/ProfilesCard.js")
+      const { renderSectionHead } = __require("client/plugins/ai/SectionHead.js")
 
       function renderAiTab(panel) {
         const { h } = panel
-        return h('div', { className: 'qqbot-stack' },
+        return h('div', { className: 'qqbot-stack qqbot-ai-tab' },
+          renderSectionHead(panel, 'aiSectionStatus', 'aiSectionStatusHint'),
           renderAiCard(panel),
+          renderAiRuntimeCard(panel),
+          renderSectionHead(panel, 'aiSectionBehavior', 'aiSectionBehaviorHint'),
           renderAiSettingsCard(panel),
+          renderSectionHead(panel, 'aiSectionPrompt', 'aiSectionPromptHint'),
           renderFullPromptCard(panel),
           renderPersonaCard(panel),
           renderProfilesCard(panel))
       }
 
       /**
-       * AI tab hooks: lazy-load the settings/presets/profiles/prompt cards the
-       * first time the tab is opened, and read the persona card on mount.
+       * AI tab hooks: lazy-load the runtime/settings/presets/profiles/prompt cards
+       * the first time the tab is opened, and read the persona card on mount.
        */
       function useAi(panel) {
         const {
-          tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, lastPromptState, profilesSearch,
-          loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, loadPersona
+          tab, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState, profilesSearch,
+          loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt, loadPersona
         } = panel
 
         React.useEffect(() => {
           if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
+          if (tab === 'ai' && aiRuntimePhase === 'idle') loadAiRuntime()
           if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
           if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
           if (tab === 'ai' && lastPromptState.phase === 'idle') loadLastPrompt()
-        }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, lastPromptState.phase])
+        }, [tab, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState.phase])
 
         React.useEffect(() => {
           loadPersona()
@@ -1776,10 +2288,21 @@ window.__ModuleLoader__.load({
 
       return { renderFullPromptCard }
     },
+    "client/plugins/ai/SectionHead.js": (__require) => {
+      /** Small section header used to group the AI tab into clear areas. */
+      function renderSectionHead(panel, titleKey, hintKey) {
+        const { h, t } = panel
+        return h('div', { className: 'qqbot-section-head', 'data-testid': 'qqbot-ai-section', 'data-section': titleKey },
+          h('h2', { className: 'qqbot-section-title' }, t(titleKey)),
+          h('p', { className: 'qqbot-section-hint' }, t(hintKey)))
+      }
+
+      return { renderSectionHead }
+    },
     "client/plugins/ai/index.js": (__require) => {
       const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useAi, renderAiTab } = __require("client/plugins/ai/AiTab.js")
-      const { loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset } = __require("client/plugins/ai/AiActions.js")
+      const { loadPersona, loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset } = __require("client/plugins/ai/AiActions.js")
 
       registerTab({
         id: 'ai',
@@ -1790,7 +2313,7 @@ window.__ModuleLoader__.load({
           return () => renderAiTab(panel)
         },
         handlers: {
-          loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
+          loadPersona, loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt,
           testAi, applyPersonaPayload, savePersona, resetPersona,
           applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
           selectProfile, saveProfile, deleteProfile,
@@ -3580,6 +4103,62 @@ window.__ModuleLoader__.load({
         actionDone: 'Done.',
         actionFailed: 'Action failed',
         working: 'Working…',
+        aiStatusSubtitle: 'Connection to the DSH AI bridge, plus a live self-test.',
+        aiStateReady: 'Ready',
+        aiStateUnavailable: 'Unavailable',
+        aiProviderLabel: 'Provider',
+        aiModelLabel: 'Model',
+        aiEndpointLabel: 'Endpoint',
+        aiSourceLabel: 'Source',
+        aiReadyLabel: 'Endpoint ready',
+        aiYes: 'yes',
+        aiNo: 'no',
+        aiSectionStatus: 'Runtime status',
+        aiSectionStatusHint: 'Connection, gate diagnostics and learned attention.',
+        aiSectionBehavior: 'Reply behavior',
+        aiSectionBehaviorHint: 'Probability, follow-up window and batching.',
+        aiSectionPrompt: 'Prompt & memory',
+        aiSectionPromptHint: 'Last prompt, persona card and member profiles.',
+        aiSettingsOn: 'Enabled',
+        aiSettingsOff: 'Disabled',
+        aiSettingsProbabilityValue: 'Reply probability value',
+        aiSettingsTimingTitle: 'Timing',
+        aiSettingsBatchTitle: 'Batching',
+        aiRuntimeTitle: 'Runtime diagnostics',
+        aiRuntimeSubtitle: 'Latest gate decision, per-group recents and learned keywords.',
+        aiRuntimeUpdated: 'Updated',
+        aiRuntimeRefresh: 'Refresh diagnostics',
+        aiRuntimeLoading: 'Reading runtime diagnostics…',
+        aiRuntimeLoadFail: 'Could not read the runtime diagnostics',
+        aiRuntimeEmpty: 'No runtime diagnostics yet. Send a group message and refresh.',
+        aiRuntimeLastInbound: 'Latest message',
+        aiRuntimeLastReply: 'Latest reply',
+        aiRuntimeNoReplyYet: 'No reply recorded yet.',
+        aiRuntimeShouldReply: 'Reply',
+        aiRuntimeNoReply: 'No reply',
+        aiRuntimeGroup: 'Group',
+        aiRuntimeSender: 'Sender',
+        aiRuntimeThread: 'Thread',
+        aiRuntimeKeywordScore: 'Keyword score',
+        aiRuntimeAttention: 'Attention',
+        aiRuntimeReasons: 'Reasons',
+        aiRuntimeRecentGroups: 'Per-group recents',
+        aiRuntimeNoGroups: 'No group diagnostics yet.',
+        aiRuntimeNoRecent: 'No recent messages for this group.',
+        aiRuntimeKeywords: 'Learned keywords',
+        aiRuntimeNoKeywords: 'No learned keywords yet.',
+        aiRuntimeLexiconVersion: 'Lexicon',
+        aiRuntimeTerms: 'terms',
+        aiRuntimeTermConfidence: 'confidence',
+        aiRuntimePathChat: 'Runtime state',
+        aiRuntimePathLexicon: 'Keyword lexicon',
+        aiRuntimeReplyOk: 'Replied',
+        aiRuntimeReplySkipped: 'Skipped',
+        aiRuntimeReplyError: 'Failed',
+        aiRuntimeReplyBusy: 'Busy',
+        aiRuntimeStatusActive: 'active',
+        aiRuntimeStatusPinned: 'pinned',
+        aiRuntimeStatusSuppressed: 'suppressed',
       }
 
       return { en }
@@ -3912,6 +4491,62 @@ window.__ModuleLoader__.load({
         actionDone: '操作完成。',
         actionFailed: '操作失败',
         working: '处理中…',
+        aiStatusSubtitle: '与 DSH AI 网关的连接状态，以及一次实时自检。',
+        aiStateReady: '可用',
+        aiStateUnavailable: '不可用',
+        aiProviderLabel: '提供方',
+        aiModelLabel: '模型',
+        aiEndpointLabel: '接口地址',
+        aiSourceLabel: '配置来源',
+        aiReadyLabel: '地址就绪',
+        aiYes: '是',
+        aiNo: '否',
+        aiSectionStatus: '运行状态',
+        aiSectionStatusHint: '连接、门控诊断与注意力学习。',
+        aiSectionBehavior: '回复行为',
+        aiSectionBehaviorHint: '概率、跟进窗口与批量策略。',
+        aiSectionPrompt: '提示词与记忆',
+        aiSectionPromptHint: '完整提示词、人设卡与成员画像。',
+        aiSettingsOn: '已启用',
+        aiSettingsOff: '已停用',
+        aiSettingsProbabilityValue: '回复概率数值',
+        aiSettingsTimingTitle: '时序',
+        aiSettingsBatchTitle: '批量',
+        aiRuntimeTitle: '运行诊断',
+        aiRuntimeSubtitle: '最近一次门控决策、按群最近消息与学习到的关键词。',
+        aiRuntimeUpdated: '更新于',
+        aiRuntimeRefresh: '刷新诊断',
+        aiRuntimeLoading: '正在读取运行诊断…',
+        aiRuntimeLoadFail: '运行诊断读取失败',
+        aiRuntimeEmpty: '暂无运行诊断数据。在群里发一条消息后刷新。',
+        aiRuntimeLastInbound: '最近消息',
+        aiRuntimeLastReply: '最近回复',
+        aiRuntimeNoReplyYet: '还没有回复记录。',
+        aiRuntimeShouldReply: '回复',
+        aiRuntimeNoReply: '不回复',
+        aiRuntimeGroup: '群',
+        aiRuntimeSender: '发送者',
+        aiRuntimeThread: '线程',
+        aiRuntimeKeywordScore: '关键词分数',
+        aiRuntimeAttention: '注意力',
+        aiRuntimeReasons: '原因',
+        aiRuntimeRecentGroups: '按群最近诊断',
+        aiRuntimeNoGroups: '还没有群诊断数据。',
+        aiRuntimeNoRecent: '该群暂无最近消息。',
+        aiRuntimeKeywords: '关键词',
+        aiRuntimeNoKeywords: '还没有学习到关键词。',
+        aiRuntimeLexiconVersion: '词典',
+        aiRuntimeTerms: '个词',
+        aiRuntimeTermConfidence: '置信度',
+        aiRuntimePathChat: '运行状态文件',
+        aiRuntimePathLexicon: '关键词词典',
+        aiRuntimeReplyOk: '已回复',
+        aiRuntimeReplySkipped: '已跳过',
+        aiRuntimeReplyError: '失败',
+        aiRuntimeReplyBusy: '忙碌',
+        aiRuntimeStatusActive: '生效',
+        aiRuntimeStatusPinned: '置顶',
+        aiRuntimeStatusSuppressed: '抑制',
       }
 
       return { zh }
@@ -4062,6 +4697,9 @@ window.__ModuleLoader__.load({
         const [aiSettingsPath, setAiSettingsPath] = React.useState(null)
         const [aiSettingsPhase, setAiSettingsPhase] = React.useState('idle')
         const [aiSettingsError, setAiSettingsError] = React.useState(null)
+        const [aiRuntime, setAiRuntime] = React.useState(null)
+        const [aiRuntimePhase, setAiRuntimePhase] = React.useState('idle')
+        const [aiRuntimeError, setAiRuntimeError] = React.useState(null)
         const [profiles, setProfiles] = React.useState(null)
         const [profilesPhase, setProfilesPhase] = React.useState('idle')
         const [profilesError, setProfilesError] = React.useState(null)
@@ -4175,7 +4813,9 @@ window.__ModuleLoader__.load({
           personaPreview, setPersonaPreview, personaPath, setPersonaPath, personaPhase, setPersonaPhase,
           personaError, setPersonaError, personaPreviewOpen, setPersonaPreviewOpen, aiSettingsDraft, setAiSettingsDraft,
           aiSettingsDefaults, setAiSettingsDefaults, aiSettingsPath, setAiSettingsPath, aiSettingsPhase, setAiSettingsPhase,
-          aiSettingsError, setAiSettingsError, profiles, setProfiles, profilesPhase, setProfilesPhase,
+          aiSettingsError, setAiSettingsError, aiRuntime, setAiRuntime,
+          aiRuntimePhase, setAiRuntimePhase, aiRuntimeError, setAiRuntimeError,
+          profiles, setProfiles, profilesPhase, setProfilesPhase,
           profilesError, setProfilesError, profilesSearch, setProfilesSearch, profilesPath, setProfilesPath,
           selectedProfileKey, setSelectedProfileKey, profileDraft, setProfileDraft, personaPresets, setPersonaPresets,
           personaPresetsPhase, setPersonaPresetsPhase, personaPresetsError, setPersonaPresetsError, personaPresetsPath, setPersonaPresetsPath,
@@ -4502,6 +5142,89 @@ window.__ModuleLoader__.load({
         .qqbot-page { padding: 16px 14px 44px; }
         .qqbot-title { font-size: 21px; }
       }
+      /* ---------------------------------------------------------- AI tab polish -- */
+      .qqbot-ai-tab { gap: 12px; }
+      .qqbot-section-head { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 -2px; padding-left: 2px; }
+      .qqbot-section-title { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px;
+        font-weight: 600; letter-spacing: -0.01em; color: var(--dsw-alias-label-primary); }
+      .qqbot-section-title::before { content: ''; width: 3px; height: 14px; border-radius: 999px;
+        background: var(--dsw-alias-brand-primary); }
+      .qqbot-section-hint { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+
+      .qqbot-ai-status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 18px; }
+      .qqbot-ai-runtime-card { gap: 12px; }
+      .qqbot-runtime-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
+      .qqbot-runtime-block { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+        border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
+      .qqbot-runtime-block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        flex-wrap: wrap; }
+      .qqbot-runtime-text { padding: 8px 10px; border-radius: 10px; background: var(--dsw-alias-bg-layer-2);
+        font-size: 12.5px; line-height: 1.55; color: var(--dsw-alias-label-primary); word-break: break-word; }
+      .qqbot-runtime-metrics { display: flex; flex-direction: column; gap: 6px; }
+      .qqbot-runtime-reasons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .qqbot-runtime-reply { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+      .qqbot-runtime-section { display: flex; flex-direction: column; gap: 8px; padding-top: 12px;
+        border-top: 0.5px solid var(--dsw-alias-border-l1); }
+      .qqbot-runtime-groups { display: flex; flex-direction: column; gap: 8px; }
+      .qqbot-runtime-group { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px;
+        border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 55%, transparent); }
+      .qqbot-runtime-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .qqbot-runtime-recent-list { display: flex; flex-direction: column; gap: 4px; }
+      .qqbot-runtime-recent { display: grid; grid-template-columns: 76px 100px 1fr; gap: 8px;
+        font-size: 11.5px; line-height: 1.45; color: var(--dsw-alias-label-secondary); }
+      .qqbot-runtime-recent-time { color: var(--dsw-alias-label-tertiary); }
+      .qqbot-runtime-recent-sender { color: var(--dsw-alias-label-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .qqbot-runtime-scopes { display: flex; flex-direction: column; gap: 8px; }
+      .qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+      .qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
+        border-top: 0.5px solid var(--dsw-alias-border-l1); }
+
+      .qqbot-meter-row { display: flex; align-items: center; gap: 10px; font-size: 11.5px; }
+      .qqbot-meter { flex: 1; min-width: 60px; height: 7px; border-radius: 999px; overflow: hidden;
+        background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 22%, transparent); }
+      .qqbot-meter-fill { display: block; height: 100%; border-radius: inherit;
+        background: linear-gradient(90deg, var(--dsw-alias-brand-primary),
+          color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-state-success-primary)));
+        transition: width .18s ease; }
+      .qqbot-meter-value { min-width: 46px; text-align: right; color: var(--dsw-alias-label-secondary);
+        font-variant-numeric: tabular-nums; }
+      .qqbot-chip-reason { color: var(--dsw-alias-brand-primary);
+        border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }
+      .qqbot-chip-keyword { font-variant-numeric: tabular-nums; }
+      .qqbot-chip-keyword.is-pinned { color: var(--dsw-alias-state-success-primary);
+        border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, var(--dsw-alias-border-l1)); }
+      .qqbot-chip-keyword.is-suppressed { opacity: 0.55; text-decoration: line-through; }
+      .qqbot-chip-ghost { background: transparent; color: var(--dsw-alias-label-tertiary); border-style: dashed; }
+
+      .qqbot-field-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .qqbot-range { width: 100%; margin: 4px 0 6px; accent-color: var(--dsw-alias-brand-primary); }
+      .qqbot-ai-probability-value { display: inline-flex; align-items: center; gap: 4px; }
+      .qqbot-input-number { width: 72px; text-align: right; font-variant-numeric: tabular-nums; }
+      .qqbot-ai-probability-unit { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+      .qqbot-ai-settings-group { margin: 6px 0 -2px; font-size: 10px; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--dsw-alias-label-tertiary); }
+      .qqbot-switch-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        cursor: pointer; user-select: none; }
+      .qqbot-switch-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+      .qqbot-switch-track { position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px;
+        background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 30%, transparent);
+        transition: background .16s ease; }
+      .qqbot-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+        background: #ffffff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: transform .16s ease; }
+      .qqbot-switch-input:checked + .qqbot-switch-track { background: var(--dsw-alias-brand-primary); }
+      .qqbot-switch-input:checked + .qqbot-switch-track .qqbot-switch-knob { transform: translateX(16px); }
+      .qqbot-switch-input:focus-visible + .qqbot-switch-track { outline: 2px solid var(--dsw-alias-brand-primary);
+        outline-offset: 2px; }
+      .qqbot-switch-label { font-size: 12.5px; color: var(--dsw-alias-label-primary); }
+
+      @media (max-width: 720px) {
+        .qqbot-runtime-grid { grid-template-columns: 1fr; }
+        .qqbot-runtime-recent { grid-template-columns: 62px 80px 1fr; }
+        .qqbot-ai-status-grid { grid-template-columns: 1fr; }
+      }
+
       `
 
       return { CSS }

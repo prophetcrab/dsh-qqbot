@@ -317,6 +317,54 @@ const LAST_PROMPT = {
 }
 let lastPromptData = LAST_PROMPT
 
+const RUNTIME_INBOUND = {
+  at: '2026-11-02T13:00:00.000Z',
+  groupId: '1026855069',
+  userId: '676512192',
+  sender: '天青色瞪眼鱼',
+  text: '今天真热',
+  threadId: 'thread:12',
+  keywordScore: 0.96,
+  attention: 0.438,
+  attentionReasons: ['keyword', 'thread'],
+  images: 0,
+  shouldReply: true,
+  reason: 'reply',
+}
+const RUNTIME_FIXTURE = {
+  state: {
+    lastInbound: RUNTIME_INBOUND,
+    lastReply: { at: '2026-11-02T13:00:02.000Z', ok: true, text: '那就开空调呀' },
+    groups: {
+      '1026855069': { ...RUNTIME_INBOUND, recent: [RUNTIME_INBOUND, { ...RUNTIME_INBOUND, text: '有人吗', threadId: 'thread:11', shouldReply: false }] },
+      '805836168': { ...RUNTIME_INBOUND, groupId: '805836168', text: '晚上开黑', recent: [RUNTIME_INBOUND] },
+    },
+    updatedAt: '2026-11-02T13:00:02.000Z',
+  },
+  keywords: {
+    version: 1,
+    sets: [
+      {
+        key: { scope: 'group', owner: '1026855069' },
+        terms: [
+          { text: '龙图', weight: 0.96, confidence: 0.8, status: 'pinned', expiresAt: null },
+          { text: '开黑', weight: 0.42, confidence: 0.6, status: 'active', expiresAt: 1767225600000 },
+        ],
+      },
+      {
+        key: { scope: 'global', owner: '' },
+        terms: [{ text: '今天真热', weight: 0.7, confidence: 0.5, status: 'suppressed', expiresAt: null }],
+      },
+    ],
+  },
+  paths: {
+    aiChat: '~/project/qq-bot/data/state/ai-chat-state.json',
+    lexicon: '~/project/qq-bot/data/state/runtime-lexicon.json',
+  },
+}
+let runtimeData = RUNTIME_FIXTURE
+let runtimeFail = false
+
 const fetchLog = []
 let failStatus = false
 globalThis.fetch = async (url, init) => {
@@ -342,6 +390,10 @@ globalThis.fetch = async (url, init) => {
   }
   if (path === '/qqbot/ai/last-prompt') {
     return json({ ok: true, data: { prompt: lastPromptData } })
+  }
+  if (path === '/qqbot/ai/runtime') {
+    if (runtimeFail) return json({ ok: false, error: 'runtime boom' })
+    return json({ ok: true, data: runtimeData })
   }
   if (path === '/qqbot/ai/settings') {
     if (method === 'POST') {
@@ -755,6 +807,81 @@ if (aiBody.messages[0].role !== 'user' || aiBody.messages[0].text !== '请只回
 if (!text(expectTestId(tree, 'qqbot-ai-reply')).includes('AI 面板测试成功')) throw new Error('AI reply missing')
 console.log('ai card: ok')
 
+// ---- AI runtime diagnostics -------------------------------------------------
+if (fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length < 1) {
+  throw new Error('runtime diagnostics were not fetched when the AI tab opened')
+}
+const runtimeCard = expectTestId(tree, 'qqbot-ai-runtime-card')
+const runtimeText = text(runtimeCard)
+for (const needle of ['运行诊断', '最近消息', '天青色瞪眼鱼', '1026855069', 'thread:12', '0.960', '0.438', 'keyword', 'thread']) {
+  if (!runtimeText.includes(needle)) throw new Error(`runtime card copy missing: ${needle}`)
+}
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-inbound')).includes('今天真热')) {
+  throw new Error('runtime latest inbound text missing')
+}
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-should-reply')).includes('回复')) {
+  throw new Error('runtime shouldReply pill missing: ' + JSON.stringify(text(expectTestId(tree, 'qqbot-ai-runtime-should-reply'))))
+}
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-last-reply')).includes('已回复')) {
+  throw new Error('runtime last reply state missing')
+}
+const runtimeGroups = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group')
+if (runtimeGroups.length !== 2) throw new Error(`expected 2 runtime groups, got ${runtimeGroups.length}`)
+const runtimeRecent = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group-recent')
+if (runtimeRecent.length !== 3) throw new Error(`expected 3 per-group recents, got ${runtimeRecent.length}`)
+const keywordScopes = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-scope')
+if (keywordScopes.length !== 2) throw new Error(`expected 2 keyword scopes, got ${keywordScopes.length}`)
+const keywordChips = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-keyword-chip')
+if (keywordChips.length !== 3) throw new Error(`expected 3 keyword chips, got ${keywordChips.length}`)
+const pinnedChip = keywordChips.find((node) => node.props['data-status'] === 'pinned')
+if (pinnedChip === undefined || !text(pinnedChip).includes('龙图') || !text(pinnedChip).includes('0.960') || !text(pinnedChip).includes('置顶')) {
+  throw new Error('pinned keyword chip missing or wrong')
+}
+const suppressedChip = keywordChips.find((node) => node.props['data-status'] === 'suppressed')
+if (suppressedChip === undefined || !text(suppressedChip).includes('今天真热')) {
+  throw new Error('suppressed keyword chip missing')
+}
+if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('runtime-lexicon.json')) {
+  throw new Error('runtime paths missing')
+}
+if (!text(expectTestId(tree, 'qqbot-ai-endpoint')).includes('http://127.0.0.1:3000/qqbot/ai/chat')) {
+  throw new Error('AI endpoint row missing')
+}
+const aiSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
+if (aiSections.length !== 3) throw new Error(`expected 3 AI section headings, got ${aiSections.length}`)
+const runtimeCallsBefore = fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length
+clickTestId(tree, 'qqbot-ai-runtime-refresh')
+tree = await settle()
+if (fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length < runtimeCallsBefore + 1) {
+  throw new Error('runtime refresh did not re-fetch')
+}
+console.log('ai runtime: ok')
+
+// runtime empty state
+runtimeData = {
+  state: { lastInbound: null, lastReply: null, groups: {}, updatedAt: null },
+  keywords: { version: 1, sets: [] },
+  paths: { aiChat: null, lexicon: null },
+}
+clickTestId(tree, 'qqbot-ai-runtime-refresh')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-runtime-empty')
+
+// runtime error state
+runtimeFail = true
+clickTestId(tree, 'qqbot-ai-runtime-refresh')
+tree = await settle()
+const runtimeErrorNode = expectTestId(tree, 'qqbot-ai-runtime-error')
+if (!text(runtimeErrorNode).includes('运行诊断读取失败') || !text(runtimeErrorNode).includes('runtime boom')) {
+  throw new Error('runtime error state missing the failure copy')
+}
+runtimeFail = false
+runtimeData = RUNTIME_FIXTURE
+clickTestId(tree, 'qqbot-ai-runtime-refresh')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-runtime-last-inbound')
+console.log('ai runtime states: ok')
+
 STATUS.ai = { ...STATUS.ai, available: false, ready: false }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
@@ -885,6 +1012,10 @@ if (Number(settingsBody.batchWindowMs) !== 2500) throw new Error(`batchWindowMs 
 if (Number(settingsBody.batchMaxWaitMs) !== 10000) throw new Error(`batchMaxWaitMs not sent: ${String(settingsBody.batchMaxWaitMs)}`)
 if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 40) {
   throw new Error('probability draft not refreshed after save')
+}
+expectTestId(tree, 'qqbot-ai-settings-probability-value')
+if (Number(expectTestId(tree, 'qqbot-ai-settings-probability-value').props.value) !== 40) {
+  throw new Error('probability value input was not refreshed after save')
 }
 console.log('ai settings: ok')
 

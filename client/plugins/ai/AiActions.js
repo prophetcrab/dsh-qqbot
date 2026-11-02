@@ -45,6 +45,23 @@ export async function loadAiSettings(panel) {
   }
 }
 
+/** Runtime diagnostics for the AI tab (gate decisions, keywords, paths). */
+export async function loadAiRuntime(panel) {
+  const { setAiRuntime, setAiRuntimePhase, setAiRuntimeError } = panel
+  setAiRuntimePhase('loading')
+  try {
+    const payload = await requestJson('/qqbot/ai/runtime')
+    const data = payload && payload.data
+    if (data === null || typeof data !== 'object') throw new Error('unexpected payload')
+    setAiRuntime(data)
+    setAiRuntimeError(null)
+    setAiRuntimePhase('ready')
+  } catch (error) {
+    setAiRuntimeError(messageOf(error))
+    setAiRuntimePhase('error')
+  }
+}
+
 export async function loadProfiles(panel, search) {
   const { setProfiles, setProfilesPhase, setProfilesError, profilesSearch, setProfilesPath } = panel
   const query = typeof search === 'string' ? search : profilesSearch
