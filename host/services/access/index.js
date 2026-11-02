@@ -1,7 +1,7 @@
 /**
  * QQ bot access policy: which groups may talk to the bot (inbound) and which
  * groups the bot may send to (outbound). The policy lives in the Koishi
- * project's `data/access.json`, where the companion Koishi plugin
+ * project's `data/config/access.json`, where the companion Koishi plugin
  * `plugins/access-control` watches it.
  */
 

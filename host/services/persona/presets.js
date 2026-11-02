@@ -2,8 +2,8 @@
  * Persistent persona presets ("预设卡"): named snapshots of an AI character
  * card that can be saved, listed, loaded into the active persona, and deleted.
  *
- * Stored in `<projectDir>/data/persona-presets.json`; the active persona keeps
- * living in `data/persona.json`, so loading a preset immediately affects the
+ * Stored in `<projectDir>/data/assets/persona-presets.json`; the active persona keeps
+ * living in `data/config/persona.json`, so loading a preset immediately affects the
  * next AI reply.
  */
 

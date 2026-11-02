@@ -1,7 +1,7 @@
 /**
  * Runtime AI chat settings shared by the panel and the Koishi `ai-chat` plugin.
  *
- * The panel writes `<projectDir>/data/ai-settings.json`; the Koishi plugin
+ * The panel writes `<projectDir>/data/config/ai-settings.json`; the Koishi plugin
  * watches the same file, so probability / follow-up / history changes apply on
  * the next message without restarting Koishi.
  */

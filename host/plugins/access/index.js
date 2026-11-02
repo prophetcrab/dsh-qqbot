@@ -1,6 +1,6 @@
 /**
  * Access plugin: read/replace the QQ bot access policy enforced by the Koishi
- * access-control plugin (stored in `<projectDir>/data/access.json`).
+ * access-control plugin (stored in `<projectDir>/data/config/access.json`).
  */
 
 import {

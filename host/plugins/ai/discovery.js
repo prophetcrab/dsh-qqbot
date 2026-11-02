@@ -1,6 +1,6 @@
 /**
  * Publish the local AI bridge endpoint for the Koishi `ai-chat` plugin by
- * updating `<projectDir>/data/ai.json`. Retried on every status read; a write
+ * updating `<projectDir>/sdata/state/ai.json`. Retried on every status read; a write
  * failure never breaks the panel.
  */
 
