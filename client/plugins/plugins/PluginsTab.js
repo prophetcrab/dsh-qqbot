@@ -35,7 +35,7 @@ export function renderPlugins(panel) {
   const {
     t, plugins, pluginsPhase, pluginsError, installSpec, setInstallSpec, restartAfter, setRestartAfter,
     pendingUninstall, setPendingUninstall, busyOf, loadPlugins, runPost, refreshAfterPluginChange,
-    restartKoishi, installDeps, installPlugin, actionButton, h
+    installDeps, installPlugin, actionButton, h
   } = panel
   const items = Array.isArray(plugins) ? plugins : []
   let table = null
@@ -114,7 +114,6 @@ export function renderPlugins(panel) {
           disabled: installSpec.trim() === '' || busyOf('plugin-install'),
           onClick: installPlugin,
         }, busyOf('plugin-install') ? t('plInstalling') : t('plInstall')),
-        actionButton('koishi-restart', t('koishiRestart'), null, restartKoishi),
         actionButton('koishi-install-deps', t('installDeps'), null, installDeps)),
       h('div', { className: 'qqbot-toolbar-right' },
         h('label', { className: 'qqbot-check' },

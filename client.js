@@ -2469,7 +2469,7 @@ window.__ModuleLoader__.load({
       function renderOverview(panel) {
         const {
           t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
-          stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
+          stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
           settings, napcatSupported, platformInstallHint, napcatAccounts, wsClients, napcatInstalled,
           napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, h
         } = panel
@@ -2531,8 +2531,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'qqbot-rows' }, ...koishiRows),
           h('div', { className: 'qqbot-actions-row' },
             actionButton('koishi-start', t('koishiStart'), null, startKoishi, { disabled: koishiRunning }),
-            actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning }),
-            actionButton('koishi-restart', t('koishiRestart'), null, restartKoishi)))
+            actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning })))
 
         return h('div', { className: 'qqbot-stack' },
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
@@ -2836,7 +2835,7 @@ window.__ModuleLoader__.load({
         const {
           t, plugins, pluginsPhase, pluginsError, installSpec, setInstallSpec, restartAfter, setRestartAfter,
           pendingUninstall, setPendingUninstall, busyOf, loadPlugins, runPost, refreshAfterPluginChange,
-          restartKoishi, installDeps, installPlugin, actionButton, h
+          installDeps, installPlugin, actionButton, h
         } = panel
         const items = Array.isArray(plugins) ? plugins : []
         let table = null
@@ -2915,7 +2914,6 @@ window.__ModuleLoader__.load({
                 disabled: installSpec.trim() === '' || busyOf('plugin-install'),
                 onClick: installPlugin,
               }, busyOf('plugin-install') ? t('plInstalling') : t('plInstall')),
-              actionButton('koishi-restart', t('koishiRestart'), null, restartKoishi),
               actionButton('koishi-install-deps', t('installDeps'), null, installDeps)),
             h('div', { className: 'qqbot-toolbar-right' },
               h('label', { className: 'qqbot-check' },
