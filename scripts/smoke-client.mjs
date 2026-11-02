@@ -692,7 +692,9 @@ expectTestId(tree, 'qqbot-action-napcat-install')
 expectTestId(tree, 'qqbot-action-napcat-configure')
 expectTestId(tree, 'qqbot-action-napcat-start')
 expectTestId(tree, 'qqbot-action-koishi-start')
-expectTestId(tree, 'qqbot-action-koishi-restart')
+if (findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-action-koishi-restart').length !== 0) {
+  throw new Error('overview restart button should be removed')
+}
 console.log('overview testids: ok')
 if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/access')) {
   throw new Error('access policy was not prefetched on mount')

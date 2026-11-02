@@ -6,7 +6,7 @@ import { renderSetupCard } from './SetupCard.js'
 export function renderOverview(panel) {
   const {
     t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
-    stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
+    stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
     settings, napcatSupported, platformInstallHint, napcatAccounts, wsClients, napcatInstalled,
     napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, h
   } = panel
@@ -68,8 +68,7 @@ export function renderOverview(panel) {
     h('div', { className: 'qqbot-rows' }, ...koishiRows),
     h('div', { className: 'qqbot-actions-row' },
       actionButton('koishi-start', t('koishiStart'), null, startKoishi, { disabled: koishiRunning }),
-      actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning }),
-      actionButton('koishi-restart', t('koishiRestart'), null, restartKoishi)))
+      actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning })))
 
   return h('div', { className: 'qqbot-stack' },
     h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
