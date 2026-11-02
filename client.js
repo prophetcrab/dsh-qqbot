@@ -1374,6 +1374,31 @@ window.__ModuleLoader__.load({
         }
       }
 
+      /** Curated semantic interests written by the AI host. */
+      function normalizeInterests(raw) {
+        const source = asObject(raw) ?? {}
+        const list = Array.isArray(source.interests) ? source.interests : Array.isArray(raw) ? raw : []
+        return list
+          .map((item) => {
+            const entry = asObject(item)
+            if (entry === null) return null
+            const label = asText(entry.label)
+            if (label === '') return null
+            return {
+              groupId: asText(entry.groupId),
+              label,
+              aliases: asList(entry.aliases).filter((alias) => typeof alias === 'string' && alias !== ''),
+              summary: asText(entry.summary),
+              weight: clamp01(asNumber(entry.weight) ?? 0),
+              confidence: clamp01(asNumber(entry.confidence) ?? 0),
+              expiresAt: asNumber(entry.expiresAt) ?? 0,
+              source: asText(entry.source),
+            }
+          })
+          .filter((entry) => entry !== null)
+          .sort((left, right) => right.weight * right.confidence - left.weight * left.confidence)
+      }
+
       /**
        * Normalize the Host payload into the exact shape the card renders.
        * Exported for unit tests; never throws.
@@ -1391,6 +1416,7 @@ window.__ModuleLoader__.load({
             updatedAt: asText(state.updatedAt),
           },
           keywords: normalizeKeywords(data && data.keywords),
+          interests: normalizeInterests(data && data.interests),
           paths: {
             aiChat: asText(paths.aiChat),
             lexicon: asText(paths.lexicon),
@@ -1460,6 +1486,7 @@ window.__ModuleLoader__.load({
         const failed = aiRuntimePhase === 'error'
         const hasData = view.state.lastInbound !== null
           || view.state.groups.length > 0
+          || view.interests.length > 0
 
         const refreshButton = h('button', {
           type: 'button',
@@ -1510,10 +1537,13 @@ window.__ModuleLoader__.load({
           body.push(h('div', { className: 'qqbot-card qqbot-runtime-state qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
             t('aiRuntimeEmpty')))
         } else {
-          body.push(h('div', { className: 'qqbot-runtime-grid' },
-            renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
-            renderReplyBlock({ t, h, reply: view.state.lastReply })))
+          if (view.state.lastInbound !== null) {
+            body.push(h('div', { className: 'qqbot-runtime-grid' },
+              renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
+              renderReplyBlock({ t, h, reply: view.state.lastReply })))
+          }
           body.push(renderGroupsBlock({ t, h, groups: view.state.groups }))
+          body.push(renderInterestsBlock({ t, h, interests: view.interests }))
           if (view.paths.aiChat !== '') {
             body.push(renderPathsBlock({ t, h, paths: view.paths }))
           }
@@ -1631,6 +1661,43 @@ window.__ModuleLoader__.load({
               className: 'qqbot-runtime-groups',
               'data-testid': 'qqbot-ai-runtime-groups',
             }, ...groups.slice(0, 10).map((group) => renderGroupRow({ t, h, group }))))
+      }
+
+      function remainingText(t, expiresAt) {
+        if (!Number.isFinite(expiresAt) || expiresAt <= 0) return t('aiRuntimeInterestNoExpiry')
+        const remaining = expiresAt - Date.now()
+        if (remaining <= 0) return t('aiRuntimeInterestExpired')
+        if (remaining >= 24 * 60 * 60 * 1000) return `${Math.ceil(remaining / (24 * 60 * 60 * 1000))} ${t('aiRuntimeDays')}`
+        if (remaining >= 60 * 60 * 1000) return `${Math.ceil(remaining / (60 * 60 * 1000))} ${t('aiRuntimeHours')}`
+        return `${Math.max(1, Math.ceil(remaining / 60000))} ${t('aiRuntimeMinutes')}`
+      }
+
+      function renderInterestsBlock({ t, h, interests }) {
+        const rows = interests.slice(0, 8).map((interest, index) => h('div', {
+          key: `${interest.groupId}:${interest.label}:${index}`,
+          className: 'qqbot-interest-row',
+          'data-testid': 'qqbot-ai-runtime-interest',
+        },
+        h('div', { className: 'qqbot-interest-main' },
+          h('div', { className: 'qqbot-interest-head' },
+            h('strong', { className: 'qqbot-interest-label' }, interest.label),
+            interest.groupId !== '' ? h('span', { className: 'qqbot-badge' }, interest.groupId) : null),
+          interest.summary !== '' ? h('span', { className: 'qqbot-interest-summary' }, interest.summary) : null),
+        h('div', { className: 'qqbot-interest-meta' },
+          h('span', { className: 'qqbot-chip qqbot-chip-ghost' }, `${Math.round(interest.weight * 100)}%`),
+          h('span', { className: 'qqbot-interest-ttl' }, remainingText(t, interest.expiresAt)))))
+        return h('section', {
+          className: 'qqbot-card qqbot-runtime-card qqbot-runtime-interests',
+          'data-testid': 'qqbot-ai-runtime-interests',
+        },
+        h('div', { className: 'qqbot-runtime-block-head' },
+          h('div', null,
+            h('span', { className: 'qqbot-field-label' }, t('aiRuntimeInterests')),
+            h('span', { className: 'qqbot-hint' }, t('aiRuntimeInterestsHint'))),
+          h('span', { className: 'qqbot-card-sub' }, `${interests.length}`)),
+        interests.length === 0
+          ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-ai-runtime-interests-empty' }, t('aiRuntimeNoInterests'))
+          : h('div', { className: 'qqbot-interest-list' }, ...rows))
       }
 
       function renderPathsBlock({ t, h, paths }) {
@@ -4191,6 +4258,14 @@ window.__ModuleLoader__.load({
         aiRuntimeAttentionMedium: 'Medium',
         aiRuntimeAttentionLow: 'Low',
         aiRuntimeAttentionBudget: 'Budget exhausted',
+        aiRuntimeInterests: 'Semantic interests',
+        aiRuntimeInterestsHint: 'Durable topics extracted by AI, not character fragments',
+        aiRuntimeNoInterests: 'No stable semantic interests yet.',
+        aiRuntimeInterestNoExpiry: 'long-lived',
+        aiRuntimeInterestExpired: 'expired',
+        aiRuntimeDays: 'd',
+        aiRuntimeHours: 'h',
+        aiRuntimeMinutes: 'm',
         aiRuntimeLastInbound: 'Latest message',
         aiRuntimeLastReply: 'Latest reply',
         aiRuntimeNoReplyYet: 'No reply recorded yet.',
@@ -4199,7 +4274,7 @@ window.__ModuleLoader__.load({
         aiRuntimeGroup: 'Group',
         aiRuntimeSender: 'Sender',
         aiRuntimeThread: 'Thread',
-        aiRuntimeKeywordScore: 'Keyword score',
+        aiRuntimeKeywordScore: 'Semantic interest score',
         aiRuntimeAttention: 'Attention',
         aiRuntimeReasons: 'Reasons',
         aiRuntimeRecentGroups: 'Per-group recents',
@@ -4599,6 +4674,14 @@ window.__ModuleLoader__.load({
         aiRuntimeAttentionMedium: '中关注',
         aiRuntimeAttentionLow: '低关注',
         aiRuntimeAttentionBudget: '预算耗尽',
+        aiRuntimeInterests: '语义兴趣',
+        aiRuntimeInterestsHint: '由 AI 从群聊中抽取的持续主题，不是逐字片段',
+        aiRuntimeNoInterests: '还没有形成稳定的语义兴趣。',
+        aiRuntimeInterestNoExpiry: '长期',
+        aiRuntimeInterestExpired: '已过期',
+        aiRuntimeDays: '天',
+        aiRuntimeHours: '小时',
+        aiRuntimeMinutes: '分钟',
         aiRuntimeLastInbound: '最近消息',
         aiRuntimeLastReply: '最近回复',
         aiRuntimeNoReplyYet: '还没有回复记录。',
@@ -5264,6 +5347,18 @@ window.__ModuleLoader__.load({
       .qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .qqbot-runtime-scopes { display: flex; flex-direction: column; gap: 8px; }
       .qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+      .qqbot-runtime-interests { gap: 8px; }
+      .qqbot-interest-list { display: flex; flex-direction: column; gap: 6px; }
+      .qqbot-interest-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+        padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+        background: var(--dsw-alias-bg-base); }
+      .qqbot-interest-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .qqbot-interest-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+      .qqbot-interest-label { font-size: 12.5px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+      .qqbot-interest-summary { font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-tertiary);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 52ch; }
+      .qqbot-interest-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+      .qqbot-interest-ttl { font-size: 10px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
       .qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
         border-top: 0.5px solid var(--dsw-alias-border-l1); }
       .qqbot-attention-final { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px;

@@ -14,7 +14,7 @@ import {
 } from '../../services/ai/settings.js'
 
 /** @param {object} api plugin API */
-export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint, runtimeStatePath = null, lexiconPath = null }) {
+export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint, runtimeStatePath = null, lexiconPath = null, interestsPath = null }) {
   return [
     {
       path: '/qqbot/ai/settings',
@@ -77,12 +77,14 @@ export function routes(api, { ai, aiSettingsPath, profilesPath, ensureEndpoint, 
       handler: (req, res) => only(req, res, ['GET'], async () => {
         const state = await readJsonFile(runtimeStatePath)
         const keywords = await readJsonFile(lexiconPath)
+        const interests = await readJsonFile(interestsPath)
         sendJson(res, 200, {
           ok: true,
           data: {
             state: state ?? { lastInbound: null, lastReply: null, groups: {}, updatedAt: null },
             keywords: keywords ?? { version: 1, sets: [] },
-            paths: { aiChat: runtimeStatePath, lexicon: lexiconPath },
+            interests: interests ?? { version: 1, interests: [] },
+            paths: { aiChat: runtimeStatePath, lexicon: lexiconPath, interests: interestsPath },
           },
         })
       }),

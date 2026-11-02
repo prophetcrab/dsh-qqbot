@@ -144,6 +144,31 @@ function normalizeKeywords(raw) {
   }
 }
 
+/** Curated semantic interests written by the AI host. */
+function normalizeInterests(raw) {
+  const source = asObject(raw) ?? {}
+  const list = Array.isArray(source.interests) ? source.interests : Array.isArray(raw) ? raw : []
+  return list
+    .map((item) => {
+      const entry = asObject(item)
+      if (entry === null) return null
+      const label = asText(entry.label)
+      if (label === '') return null
+      return {
+        groupId: asText(entry.groupId),
+        label,
+        aliases: asList(entry.aliases).filter((alias) => typeof alias === 'string' && alias !== ''),
+        summary: asText(entry.summary),
+        weight: clamp01(asNumber(entry.weight) ?? 0),
+        confidence: clamp01(asNumber(entry.confidence) ?? 0),
+        expiresAt: asNumber(entry.expiresAt) ?? 0,
+        source: asText(entry.source),
+      }
+    })
+    .filter((entry) => entry !== null)
+    .sort((left, right) => right.weight * right.confidence - left.weight * left.confidence)
+}
+
 /**
  * Normalize the Host payload into the exact shape the card renders.
  * Exported for unit tests; never throws.
@@ -161,6 +186,7 @@ export function deriveRuntimeView(payload) {
       updatedAt: asText(state.updatedAt),
     },
     keywords: normalizeKeywords(data && data.keywords),
+    interests: normalizeInterests(data && data.interests),
     paths: {
       aiChat: asText(paths.aiChat),
       lexicon: asText(paths.lexicon),
@@ -230,6 +256,7 @@ export function renderAiRuntimeCard(panel) {
   const failed = aiRuntimePhase === 'error'
   const hasData = view.state.lastInbound !== null
     || view.state.groups.length > 0
+    || view.interests.length > 0
 
   const refreshButton = h('button', {
     type: 'button',
@@ -280,10 +307,13 @@ export function renderAiRuntimeCard(panel) {
     body.push(h('div', { className: 'qqbot-card qqbot-runtime-state qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
       t('aiRuntimeEmpty')))
   } else {
-    body.push(h('div', { className: 'qqbot-runtime-grid' },
-      renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
-      renderReplyBlock({ t, h, reply: view.state.lastReply })))
+    if (view.state.lastInbound !== null) {
+      body.push(h('div', { className: 'qqbot-runtime-grid' },
+        renderInboundBlock({ t, h, row, inbound: view.state.lastInbound }),
+        renderReplyBlock({ t, h, reply: view.state.lastReply })))
+    }
     body.push(renderGroupsBlock({ t, h, groups: view.state.groups }))
+    body.push(renderInterestsBlock({ t, h, interests: view.interests }))
     if (view.paths.aiChat !== '') {
       body.push(renderPathsBlock({ t, h, paths: view.paths }))
     }
@@ -401,6 +431,43 @@ function renderGroupsBlock({ t, h, groups }) {
         className: 'qqbot-runtime-groups',
         'data-testid': 'qqbot-ai-runtime-groups',
       }, ...groups.slice(0, 10).map((group) => renderGroupRow({ t, h, group }))))
+}
+
+function remainingText(t, expiresAt) {
+  if (!Number.isFinite(expiresAt) || expiresAt <= 0) return t('aiRuntimeInterestNoExpiry')
+  const remaining = expiresAt - Date.now()
+  if (remaining <= 0) return t('aiRuntimeInterestExpired')
+  if (remaining >= 24 * 60 * 60 * 1000) return `${Math.ceil(remaining / (24 * 60 * 60 * 1000))} ${t('aiRuntimeDays')}`
+  if (remaining >= 60 * 60 * 1000) return `${Math.ceil(remaining / (60 * 60 * 1000))} ${t('aiRuntimeHours')}`
+  return `${Math.max(1, Math.ceil(remaining / 60000))} ${t('aiRuntimeMinutes')}`
+}
+
+function renderInterestsBlock({ t, h, interests }) {
+  const rows = interests.slice(0, 8).map((interest, index) => h('div', {
+    key: `${interest.groupId}:${interest.label}:${index}`,
+    className: 'qqbot-interest-row',
+    'data-testid': 'qqbot-ai-runtime-interest',
+  },
+  h('div', { className: 'qqbot-interest-main' },
+    h('div', { className: 'qqbot-interest-head' },
+      h('strong', { className: 'qqbot-interest-label' }, interest.label),
+      interest.groupId !== '' ? h('span', { className: 'qqbot-badge' }, interest.groupId) : null),
+    interest.summary !== '' ? h('span', { className: 'qqbot-interest-summary' }, interest.summary) : null),
+  h('div', { className: 'qqbot-interest-meta' },
+    h('span', { className: 'qqbot-chip qqbot-chip-ghost' }, `${Math.round(interest.weight * 100)}%`),
+    h('span', { className: 'qqbot-interest-ttl' }, remainingText(t, interest.expiresAt)))))
+  return h('section', {
+    className: 'qqbot-card qqbot-runtime-card qqbot-runtime-interests',
+    'data-testid': 'qqbot-ai-runtime-interests',
+  },
+  h('div', { className: 'qqbot-runtime-block-head' },
+    h('div', null,
+      h('span', { className: 'qqbot-field-label' }, t('aiRuntimeInterests')),
+      h('span', { className: 'qqbot-hint' }, t('aiRuntimeInterestsHint'))),
+    h('span', { className: 'qqbot-card-sub' }, `${interests.length}`)),
+  interests.length === 0
+    ? h('p', { className: 'qqbot-hint', 'data-testid': 'qqbot-ai-runtime-interests-empty' }, t('aiRuntimeNoInterests'))
+    : h('div', { className: 'qqbot-interest-list' }, ...rows))
 }
 
 function renderPathsBlock({ t, h, paths }) {

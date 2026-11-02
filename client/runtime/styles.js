@@ -350,6 +350,18 @@ export const CSS = `
 .qqbot-runtime-recent-text { color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qqbot-runtime-scopes { display: flex; flex-direction: column; gap: 8px; }
 .qqbot-runtime-scope { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.qqbot-runtime-interests { gap: 8px; }
+.qqbot-interest-list { display: flex; flex-direction: column; gap: 6px; }
+.qqbot-interest-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 10px;
+  background: var(--dsw-alias-bg-base); }
+.qqbot-interest-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qqbot-interest-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.qqbot-interest-label { font-size: 12.5px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.qqbot-interest-summary { font-size: 11px; line-height: 1.45; color: var(--dsw-alias-label-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 52ch; }
+.qqbot-interest-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+.qqbot-interest-ttl { font-size: 10px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
 .qqbot-runtime-paths { display: flex; flex-direction: column; gap: 4px; padding-top: 10px;
   border-top: 0.5px solid var(--dsw-alias-border-l1); }
 .qqbot-attention-final { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px;

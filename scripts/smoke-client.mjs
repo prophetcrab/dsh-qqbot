@@ -341,6 +341,13 @@ const RUNTIME_FIXTURE = {
     },
     updatedAt: '2026-11-02T13:00:02.000Z',
   },
+  interests: {
+    version: 1,
+    interests: [{
+      groupId: '1026855069', label: '龙图', aliases: ['龙图表情包'], summary: '群友喜欢龙图',
+      weight: 0.8, confidence: 0.9, expiresAt: Date.now() + 86400000, source: 'llm',
+    }],
+  },
   keywords: {
     version: 1,
     sets: [
@@ -843,6 +850,10 @@ const runtimeRecent = findAll(tree, (node) => node.props && node.props['data-tes
 if (runtimeRecent.length !== 3) throw new Error(`expected 3 per-group recents, got ${runtimeRecent.length}`)
 const recentAttention = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-group-recent-attention')
 if (recentAttention.length !== 3) throw new Error(`expected 3 per-message attention badges, got ${recentAttention.length}`)
+const interestRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-runtime-interest')
+if (interestRows.length !== 1 || !text(interestRows[0]).includes('龙图')) {
+  throw new Error('semantic interest card missing')
+}
 const keywordNodes = findAll(tree, (node) => String(node.props && node.props['data-testid']).includes('keyword'))
 if (keywordNodes.length !== 0) throw new Error(`keyword dictionary should not render, got ${keywordNodes.length}`)
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('ai-chat-state.json')) {

@@ -122,6 +122,13 @@ const FULL_PAYLOAD = {
       },
     ],
   },
+  interests: {
+    version: 1,
+    interests: [{
+      groupId: '1026855069', label: '龙图', aliases: ['龙图表情包'], summary: '群友喜欢龙图',
+      weight: 0.8, confidence: 0.9, expiresAt: Date.now() + 86400000, source: 'llm',
+    }],
+  },
   paths: {
     aiChat: '~/project/qq-bot/data/state/ai-chat-state.json',
     lexicon: '~/project/qq-bot/data/state/runtime-lexicon.json',
@@ -173,6 +180,8 @@ test('deriveRuntimeView normalizes inbound, reply, groups and keywords', () => {
   assert.equal(view.keywords.scopes[1].terms[0].status, 'pinned')
   assert.equal(view.keywords.version, 1)
   assert.equal(view.paths.lexicon, '~/project/qq-bot/data/state/runtime-lexicon.json')
+  assert.equal(view.interests.length, 1)
+  assert.equal(view.interests[0].label, '龙图')
 })
 
 test('deriveRuntimeView caps group recents at the latest 10', () => {
@@ -218,4 +227,7 @@ test('the card renders latest message metrics, groups and attention badges', () 
   const paths = textOf(byTestId(tree, 'qqbot-ai-runtime-paths')[0])
   assert.ok(paths.includes('ai-chat-state.json'))
   assert.equal(byTestId(tree, 'qqbot-ai-runtime-updated').length, 1)
+  assert.equal(byTestId(tree, 'qqbot-ai-runtime-interest').length, 1)
+  assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interests')[0]).includes('龙图'))
+  assert.ok(textOf(byTestId(tree, 'qqbot-ai-runtime-interests')[0]).includes('群友喜欢龙图'))
 })

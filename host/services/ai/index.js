@@ -4,6 +4,9 @@
  */
 
 import { DEFAULT_PERSONA, buildPersonaPrompt, normalizePersona, readPersonaFile } from '../persona/index.js'
+import { InterestStore } from './interests.js'
+import { maintainInterests } from './interest-extract.js'
+import { toImageParts } from './images.js'
 import {
   buildProfilePrompt,
   buildProfileUpdatePrompt,
@@ -34,6 +37,8 @@ export class AiChatService {
     this.personaPath = typeof source.personaPath === 'string' ? source.personaPath : null
     this.personaLoader = typeof source.personaLoader === 'function' ? source.personaLoader : null
     this.profilesPath = typeof source.profilesPath === 'string' ? source.profilesPath : null
+    this.interestsPath = typeof source.interestsPath === 'string' ? source.interestsPath : null
+    this.interestStore = this.interestsPath === null ? null : new InterestStore(this.interestsPath)
     this.profileStore = null
     this.profileQueues = new Map()
     this.profileSaveQueue = Promise.resolve()
@@ -164,15 +169,15 @@ export class AiChatService {
       temperature: boundedNumber(options.temperature, this.settings.aiTemperature, 0, 2, 0.7),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }
-    const imageParts = await this.#imageParts(options.images)
+    const imageParts = await toImageParts(this.ctx, options.images, this.logger)
     if (imageParts.length > 0) {
       const last = request.messages[request.messages.length - 1]
       if (last !== undefined && last.role === 'user') {
         last.content = [...last.content, ...imageParts]
       }
     }
-    const backgroundImageParts = await this.#imageParts(options.backgroundImages)
-    const quotedImageParts = await this.#imageParts(options.quotedImages)
+    const backgroundImageParts = await toImageParts(this.ctx, options.backgroundImages, this.logger)
+    const quotedImageParts = await toImageParts(this.ctx, options.quotedImages, this.logger)
     const contextMessages = []
     if (backgroundImageParts.length > 0) {
       contextMessages.push({
@@ -254,6 +259,16 @@ export class AiChatService {
         selection,
       })
     }
+    void maintainInterests({
+      llm: this.#llm(),
+      store: this.interestStore,
+      groupId: options.groupId,
+      messages,
+      background: options.background,
+      reply,
+      selection,
+      logger: this.logger,
+    })
     return { ok: true, reply, provider: selection.provider, model: selection.model }
   }
 
@@ -445,36 +460,6 @@ export class AiChatService {
       if (this.profileQueues.get(key) === tracked) this.profileQueues.delete(key)
     })
     this.profileQueues.set(key, tracked)
-  }
-
-  async #imageParts(images) {
-    if (!Array.isArray(images) || images.length === 0) return []
-    const attachments = this.ctx?.get?.('attachments')
-    if (attachments === null || attachments === undefined || typeof attachments.saveImages !== 'function') return []
-    const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-    const inputs = []
-    for (const image of images.slice(0, 4)) {
-      if (image === null || typeof image !== 'object') continue
-      const mediaType = String(image.mediaType ?? '').toLowerCase()
-      if (!accepted.has(mediaType)) continue
-      if (typeof image.data !== 'string' || image.data === '') continue
-      let data
-      try {
-        data = new Uint8Array(Buffer.from(image.data, 'base64'))
-      } catch {
-        continue
-      }
-      if (data.byteLength === 0 || data.byteLength > 8 * 1024 * 1024) continue
-      inputs.push({ data, mediaType })
-    }
-    if (inputs.length === 0) return []
-    try {
-      const refs = await attachments.saveImages(inputs)
-      return refs.map((attachment) => ({ type: 'image', attachment }))
-    } catch (error) {
-      this.logger.warn('读取图片失败（已忽略图片继续回复）：%s', String(error?.message ?? error))
-      return []
-    }
   }
 
   async #persona() {
