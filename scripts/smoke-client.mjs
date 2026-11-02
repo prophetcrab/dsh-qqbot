@@ -786,6 +786,10 @@ tree = await settle()
 expectTestId(tree, 'qqbot-tab-ai')
 expectTestId(tree, 'qqbot-ai-card')
 expectTestId(tree, 'qqbot-persona-card')
+expectTestId(tree, 'qqbot-ai-subtab-config')
+expectTestId(tree, 'qqbot-ai-subtab-runtime')
+let configSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
+if (configSections.length !== 3) throw new Error(`expected 3 config section headings, got ${configSections.length}`)
 console.log('ai tab: ok')
 
 // ---- AI chat card -----------------------------------------------------------
@@ -807,9 +811,15 @@ if (aiBody.messages[0].role !== 'user' || aiBody.messages[0].text !== '请只回
 if (!text(expectTestId(tree, 'qqbot-ai-reply')).includes('AI 面板测试成功')) throw new Error('AI reply missing')
 console.log('ai card: ok')
 
+if (!text(expectTestId(tree, 'qqbot-ai-endpoint')).includes('http://127.0.0.1:3000/qqbot/ai/chat')) {
+  throw new Error('AI endpoint row missing')
+}
+
 // ---- AI runtime diagnostics -------------------------------------------------
+clickTestId(tree, 'qqbot-ai-subtab-runtime')
+tree = await settle()
 if (fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length < 1) {
-  throw new Error('runtime diagnostics were not fetched when the AI tab opened')
+  throw new Error('runtime diagnostics were not fetched when the runtime subtab opened')
 }
 const runtimeCard = expectTestId(tree, 'qqbot-ai-runtime-card')
 const runtimeText = text(runtimeCard)
@@ -844,11 +854,8 @@ if (suppressedChip === undefined || !text(suppressedChip).includes('今天真热
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('runtime-lexicon.json')) {
   throw new Error('runtime paths missing')
 }
-if (!text(expectTestId(tree, 'qqbot-ai-endpoint')).includes('http://127.0.0.1:3000/qqbot/ai/chat')) {
-  throw new Error('AI endpoint row missing')
-}
-const aiSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
-if (aiSections.length !== 3) throw new Error(`expected 3 AI section headings, got ${aiSections.length}`)
+const runtimeSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
+if (runtimeSections.length !== 1) throw new Error(`expected 1 runtime section heading, got ${runtimeSections.length}`)
 const runtimeCallsBefore = fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length
 clickTestId(tree, 'qqbot-ai-runtime-refresh')
 tree = await settle()
@@ -881,6 +888,10 @@ clickTestId(tree, 'qqbot-ai-runtime-refresh')
 tree = await settle()
 expectTestId(tree, 'qqbot-ai-runtime-last-inbound')
 console.log('ai runtime states: ok')
+
+clickTestId(tree, 'qqbot-ai-subtab-config')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-settings-card')
 
 STATUS.ai = { ...STATUS.ai, available: false, ready: false }
 clickTestId(tree, 'qqbot-status-refresh')

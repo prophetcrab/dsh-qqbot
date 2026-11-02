@@ -81,6 +81,7 @@ export function deriveStatus(snapshot, t, loggedInRef) {
  */
 export function useStore(t) {
   const [tab, setTab] = React.useState('overview')
+  const [aiView, setAiView] = React.useState('config')
   const [snapshot, setSnapshot] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState(null)
@@ -240,7 +241,7 @@ export function useStore(t) {
   }
 
   return {
-    tab, setTab, snapshot, setSnapshot, loading, setLoading,
+    tab, setTab, aiView, setAiView, snapshot, setSnapshot, loading, setLoading,
     loadError, setLoadError, banner, setBanner, plugins, setPlugins,
     pluginsPhase, setPluginsPhase, pluginsError, setPluginsError, features, setFeatures,
     featuresPhase, setFeaturesPhase, featuresError, setFeaturesError, logLines, setLogLines,

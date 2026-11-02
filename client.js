@@ -1795,18 +1795,42 @@ window.__ModuleLoader__.load({
       const { renderProfilesCard } = __require("client/plugins/ai/ProfilesCard.js")
       const { renderSectionHead } = __require("client/plugins/ai/SectionHead.js")
 
+      const AI_VIEWS = [
+        { id: 'config', labelKey: 'aiSubnavConfig', hintKey: 'aiSubnavConfigHint' },
+        { id: 'runtime', labelKey: 'aiSubnavRuntime', hintKey: 'aiSubnavRuntimeHint' },
+      ]
+
       function renderAiTab(panel) {
-        const { h } = panel
-        return h('div', { className: 'qqbot-stack qqbot-ai-tab' },
-          renderSectionHead(panel, 'aiSectionStatus', 'aiSectionStatusHint'),
-          renderAiCard(panel),
-          renderAiRuntimeCard(panel),
-          renderSectionHead(panel, 'aiSectionBehavior', 'aiSectionBehaviorHint'),
-          renderAiSettingsCard(panel),
+        const { h, aiView, setAiView } = panel
+        const view = aiView === 'runtime' ? 'runtime' : 'config'
+        const subnav = h('div', { className: 'qqbot-ai-subnav', role: 'tablist', 'aria-label': panel.t('aiSubnavLabel') },
+          ...AI_VIEWS.map((item) => h('button', {
+            key: item.id,
+            type: 'button',
+            role: 'tab',
+            'aria-selected': view === item.id ? 'true' : 'false',
+            'data-testid': `qqbot-ai-subtab-${item.id}`,
+            className: `qqbot-ai-subnav-btn${view === item.id ? ' is-active' : ''}`,
+            onClick: () => { setAiView(item.id) },
+          },
+            h('span', { className: 'qqbot-ai-subnav-label' }, panel.t(item.labelKey)),
+            h('span', { className: 'qqbot-ai-subnav-hint' }, panel.t(item.hintKey)))))
+        const config = h('div', { className: 'qqbot-ai-view qqbot-ai-config' },
+          h('div', { className: 'qqbot-ai-overview-grid' },
+            h('div', { className: 'qqbot-ai-overview-col' },
+              renderSectionHead(panel, 'aiSectionStatus', 'aiSectionStatusHint'),
+              renderAiCard(panel)),
+            h('div', { className: 'qqbot-ai-overview-col' },
+              renderSectionHead(panel, 'aiSectionBehavior', 'aiSectionBehaviorHint'),
+              renderAiSettingsCard(panel))),
           renderSectionHead(panel, 'aiSectionPrompt', 'aiSectionPromptHint'),
           renderFullPromptCard(panel),
           renderPersonaCard(panel),
           renderProfilesCard(panel))
+        const diagnostics = h('div', { className: 'qqbot-ai-view qqbot-ai-diagnostics' },
+          renderSectionHead(panel, 'aiSectionRuntime', 'aiSectionRuntimeHint'),
+          renderAiRuntimeCard(panel))
+        return h('div', { className: 'qqbot-ai-tab' }, subnav, view === 'runtime' ? diagnostics : config)
       }
 
       /**
@@ -1815,17 +1839,21 @@ window.__ModuleLoader__.load({
        */
       function useAi(panel) {
         const {
-          tab, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState, profilesSearch,
+          tab, aiView, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState, profilesSearch,
           loadAiSettings, loadAiRuntime, loadProfiles, loadPersonaPresets, loadLastPrompt, loadPersona
         } = panel
 
         React.useEffect(() => {
-          if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
-          if (tab === 'ai' && aiRuntimePhase === 'idle') loadAiRuntime()
-          if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
-          if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
-          if (tab === 'ai' && lastPromptState.phase === 'idle') loadLastPrompt()
-        }, [tab, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState.phase])
+          if (tab !== 'ai') return
+          if (aiView === 'runtime') {
+            if (aiRuntimePhase === 'idle') loadAiRuntime()
+            return
+          }
+          if (aiSettingsPhase === 'idle') loadAiSettings()
+          if (profilesPhase === 'idle') loadProfiles(profilesSearch)
+          if (personaPresetsPhase === 'idle') loadPersonaPresets()
+          if (lastPromptState.phase === 'idle') loadLastPrompt()
+        }, [tab, aiView, aiSettingsPhase, aiRuntimePhase, profilesPhase, personaPresetsPhase, lastPromptState.phase])
 
         React.useEffect(() => {
           loadPersona()
@@ -4113,6 +4141,13 @@ window.__ModuleLoader__.load({
         aiReadyLabel: 'Endpoint ready',
         aiYes: 'yes',
         aiNo: 'no',
+        aiSubnavLabel: 'AI views',
+        aiSubnavConfig: 'Configure',
+        aiSubnavConfigHint: 'Connection, behavior and memory',
+        aiSubnavRuntime: 'Diagnostics',
+        aiSubnavRuntimeHint: 'Attention, threads and keywords',
+        aiSectionRuntime: 'Diagnostics',
+        aiSectionRuntimeHint: 'Inspect recent messages, gate decisions and learned keywords.',
         aiSectionStatus: 'Runtime status',
         aiSectionStatusHint: 'Connection, gate diagnostics and learned attention.',
         aiSectionBehavior: 'Reply behavior',
@@ -4501,6 +4536,13 @@ window.__ModuleLoader__.load({
         aiReadyLabel: '地址就绪',
         aiYes: '是',
         aiNo: '否',
+        aiSubnavLabel: 'AI 子界面',
+        aiSubnavConfig: '配置',
+        aiSubnavConfigHint: '连接、回复行为与记忆',
+        aiSubnavRuntime: '运行诊断',
+        aiSubnavRuntimeHint: '注意力、线程与关键词',
+        aiSectionRuntime: '运行诊断',
+        aiSectionRuntimeHint: '实时观察最近消息、门控决策和动态关键词。',
         aiSectionStatus: '运行状态',
         aiSectionStatusHint: '连接、门控诊断与注意力学习。',
         aiSectionBehavior: '回复行为',
@@ -4635,6 +4677,7 @@ window.__ModuleLoader__.load({
        */
       function useStore(t) {
         const [tab, setTab] = React.useState('overview')
+        const [aiView, setAiView] = React.useState('config')
         const [snapshot, setSnapshot] = React.useState(null)
         const [loading, setLoading] = React.useState(true)
         const [loadError, setLoadError] = React.useState(null)
@@ -4794,7 +4837,7 @@ window.__ModuleLoader__.load({
         }
 
         return {
-          tab, setTab, snapshot, setSnapshot, loading, setLoading,
+          tab, setTab, aiView, setAiView, snapshot, setSnapshot, loading, setLoading,
           loadError, setLoadError, banner, setBanner, plugins, setPlugins,
           pluginsPhase, setPluginsPhase, pluginsError, setPluginsError, features, setFeatures,
           featuresPhase, setFeaturesPhase, featuresError, setFeaturesError, logLines, setLogLines,
@@ -5223,6 +5266,45 @@ window.__ModuleLoader__.load({
         .qqbot-runtime-grid { grid-template-columns: 1fr; }
         .qqbot-runtime-recent { grid-template-columns: 62px 80px 1fr; }
         .qqbot-ai-status-grid { grid-template-columns: 1fr; }
+      }
+
+      /* ------------------------------------------------------- AI subviews polish -- */
+      .qqbot-ai-tab { display: flex; flex-direction: column; gap: 14px; }
+      .qqbot-ai-subnav { position: sticky; top: 0; z-index: 3; display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 6px;
+        border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 14px;
+        background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 88%, transparent);
+        backdrop-filter: blur(12px); box-shadow: 0 4px 18px color-mix(in srgb, #000 6%, transparent); }
+      .qqbot-ai-subnav-btn { appearance: none; font: inherit; text-align: left; cursor: pointer;
+        display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 9px 11px;
+        border: 0.5px solid transparent; border-radius: 10px; color: var(--dsw-alias-label-secondary);
+        background: transparent; transition: background .16s ease, color .16s ease, border-color .16s ease; }
+      .qqbot-ai-subnav-btn:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 80%, transparent); color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-subnav-btn.is-active { color: var(--dsw-alias-label-primary);
+        background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, var(--dsw-alias-bg-layer-1));
+        border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-subnav-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+      .qqbot-ai-subnav-label { font-size: 12.5px; font-weight: 600; letter-spacing: -0.01em; }
+      .qqbot-ai-subnav-hint { font-size: 10.5px; line-height: 1.35; color: var(--dsw-alias-label-tertiary);
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .qqbot-ai-view { display: flex; flex-direction: column; gap: 14px; }
+      .qqbot-ai-overview-grid { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+        gap: 12px; align-items: start; }
+      .qqbot-ai-overview-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+      .qqbot-ai-overview-col > .qqbot-card { height: 100%; }
+      .qqbot-ai-config > .qqbot-card, .qqbot-ai-view > .qqbot-card { width: 100%; }
+      .qqbot-ai-diagnostics { gap: 12px; }
+      .qqbot-ai-diagnostics .qqbot-ai-runtime-card { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 20%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-diagnostics .qqbot-section-head { margin-top: 2px; }
+      .qqbot-ai-view .qqbot-card { transition: border-color .16s ease, box-shadow .16s ease; }
+      .qqbot-ai-view .qqbot-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+      @media (max-width: 860px) {
+        .qqbot-ai-overview-grid { grid-template-columns: minmax(0, 1fr); }
+        .qqbot-ai-subnav { position: static; }
+      }
+      @media (max-width: 520px) {
+        .qqbot-ai-subnav-hint { display: none; }
+        .qqbot-ai-subnav-btn { padding: 8px 10px; }
       }
 
       `

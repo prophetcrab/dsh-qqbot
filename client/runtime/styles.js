@@ -392,4 +392,44 @@ export const CSS = `
   .qqbot-ai-status-grid { grid-template-columns: 1fr; }
 }
 
+
+/* ------------------------------------------------------- AI subviews polish -- */
+.qqbot-ai-tab { display: flex; flex-direction: column; gap: 14px; }
+.qqbot-ai-subnav { position: sticky; top: 0; z-index: 3; display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 6px;
+  border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 14px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1) 88%, transparent);
+  backdrop-filter: blur(12px); box-shadow: 0 4px 18px color-mix(in srgb, #000 6%, transparent); }
+.qqbot-ai-subnav-btn { appearance: none; font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 9px 11px;
+  border: 0.5px solid transparent; border-radius: 10px; color: var(--dsw-alias-label-secondary);
+  background: transparent; transition: background .16s ease, color .16s ease, border-color .16s ease; }
+.qqbot-ai-subnav-btn:hover { background: color-mix(in srgb, var(--dsw-alias-bg-layer-2) 80%, transparent); color: var(--dsw-alias-label-primary); }
+.qqbot-ai-subnav-btn.is-active { color: var(--dsw-alias-label-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, var(--dsw-alias-bg-layer-1));
+  border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 30%, var(--dsw-alias-border-l1)); }
+.qqbot-ai-subnav-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.qqbot-ai-subnav-label { font-size: 12.5px; font-weight: 600; letter-spacing: -0.01em; }
+.qqbot-ai-subnav-hint { font-size: 10.5px; line-height: 1.35; color: var(--dsw-alias-label-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qqbot-ai-view { display: flex; flex-direction: column; gap: 14px; }
+.qqbot-ai-overview-grid { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: 12px; align-items: start; }
+.qqbot-ai-overview-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.qqbot-ai-overview-col > .qqbot-card { height: 100%; }
+.qqbot-ai-config > .qqbot-card, .qqbot-ai-view > .qqbot-card { width: 100%; }
+.qqbot-ai-diagnostics { gap: 12px; }
+.qqbot-ai-diagnostics .qqbot-ai-runtime-card { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 20%, var(--dsw-alias-border-l1)); }
+.qqbot-ai-diagnostics .qqbot-section-head { margin-top: 2px; }
+.qqbot-ai-view .qqbot-card { transition: border-color .16s ease, box-shadow .16s ease; }
+.qqbot-ai-view .qqbot-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+@media (max-width: 860px) {
+  .qqbot-ai-overview-grid { grid-template-columns: minmax(0, 1fr); }
+  .qqbot-ai-subnav { position: static; }
+}
+@media (max-width: 520px) {
+  .qqbot-ai-subnav-hint { display: none; }
+  .qqbot-ai-subnav-btn { padding: 8px 10px; }
+}
+
 `
