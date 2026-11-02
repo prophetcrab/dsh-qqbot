@@ -5,7 +5,6 @@ import { renderAiSettingsCard } from './AiSettingsCard.js'
 import { renderFullPromptCard } from './PromptCard.js'
 import { renderPersonaCard } from './PersonaCard.js'
 import { renderProfilesCard } from './ProfilesCard.js'
-import { renderSectionHead } from './SectionHead.js'
 
 const AI_VIEWS = [
   { id: 'config', labelKey: 'aiSubnavConfig', hintKey: 'aiSubnavConfigHint' },
@@ -27,20 +26,16 @@ export function renderAiTab(panel) {
     },
       h('span', { className: 'qqbot-ai-subnav-label' }, panel.t(item.labelKey)),
       h('span', { className: 'qqbot-ai-subnav-hint' }, panel.t(item.hintKey)))))
+  // Card-first layout: the two compact cards share a row, the editing cards
+  // below get full width. No extra section headings: each card already has a
+  // title and a short subtitle, which keeps the page calm and scannable.
   const config = h('div', { className: 'qqbot-ai-view qqbot-ai-config' },
-    h('div', { className: 'qqbot-ai-overview-grid' },
-      h('div', { className: 'qqbot-ai-overview-col' },
-        renderSectionHead(panel, 'aiSectionStatus', 'aiSectionStatusHint'),
-        renderAiCard(panel)),
-      h('div', { className: 'qqbot-ai-overview-col' },
-        renderSectionHead(panel, 'aiSectionBehavior', 'aiSectionBehaviorHint'),
-        renderAiSettingsCard(panel))),
-    renderSectionHead(panel, 'aiSectionPrompt', 'aiSectionPromptHint'),
+    renderAiCard(panel),
+    renderAiSettingsCard(panel),
     renderFullPromptCard(panel),
     renderPersonaCard(panel),
     renderProfilesCard(panel))
   const diagnostics = h('div', { className: 'qqbot-ai-view qqbot-ai-diagnostics' },
-    renderSectionHead(panel, 'aiSectionRuntime', 'aiSectionRuntimeHint'),
     renderAiRuntimeCard(panel))
   return h('div', { className: 'qqbot-ai-tab' }, subnav, view === 'runtime' ? diagnostics : config)
 }

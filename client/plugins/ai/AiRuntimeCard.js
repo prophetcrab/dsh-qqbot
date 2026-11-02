@@ -213,7 +213,7 @@ export function renderAiRuntimeCard(panel) {
 
   if (failed) {
     body.push(h('div', {
-      className: 'qqbot-banner qqbot-banner-error',
+      className: 'qqbot-card qqbot-runtime-state qqbot-banner qqbot-banner-error',
       role: 'alert',
       'data-testid': 'qqbot-ai-runtime-error',
     },
@@ -227,12 +227,12 @@ export function renderAiRuntimeCard(panel) {
   }
   if (loading) {
     body.push(h('div', {
-      className: 'qqbot-empty',
+      className: 'qqbot-card qqbot-runtime-state qqbot-empty',
       role: 'status',
       'data-testid': 'qqbot-ai-runtime-loading',
     }, t('aiRuntimeLoading')))
   } else if (!view.available || !hasData) {
-    body.push(h('div', { className: 'qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
+    body.push(h('div', { className: 'qqbot-card qqbot-runtime-state qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
       t('aiRuntimeEmpty')))
   } else {
     body.push(h('div', { className: 'qqbot-runtime-grid' },
@@ -245,10 +245,12 @@ export function renderAiRuntimeCard(panel) {
     }
   }
 
-  return h('section', {
-    className: 'qqbot-card qqbot-ai-runtime-card',
+  return h('div', {
+    className: 'qqbot-ai-runtime-page',
     'data-testid': 'qqbot-ai-runtime-card',
-  }, head, ...body)
+  },
+  h('div', { className: 'qqbot-ai-runtime-head' }, head),
+  ...body)
 }
 
 function renderInboundBlock({ t, h, row, inbound }) {
@@ -257,8 +259,8 @@ function renderInboundBlock({ t, h, row, inbound }) {
       h('span', { className: 'qqbot-row-label' }, t('aiRuntimeReasons')),
       chips(h, inbound.attentionReasons, 'qqbot-chip qqbot-chip-reason'))
     : null
-  return h('div', {
-    className: 'qqbot-runtime-block',
+  return h('section', {
+    className: 'qqbot-card qqbot-runtime-card',
     'data-testid': 'qqbot-ai-runtime-last-inbound',
   },
     h('div', { className: 'qqbot-runtime-block-head' },
@@ -295,8 +297,8 @@ function renderReplyBlock({ t, h, reply }) {
       reply.text !== '' ? h('div', { className: 'qqbot-runtime-text' }, reply.text) : null,
       reply.reason !== '' ? h('p', { className: 'qqbot-hint' }, reply.reason) : null,
       reply.error !== '' ? h('p', { className: 'qqbot-error' }, reply.error) : null)
-  return h('div', {
-    className: 'qqbot-runtime-block',
+  return h('section', {
+    className: 'qqbot-card qqbot-runtime-card',
     'data-testid': 'qqbot-ai-runtime-last-reply',
   },
     h('div', { className: 'qqbot-runtime-block-head' },
@@ -336,7 +338,7 @@ function renderGroupRow({ t, h, group }) {
 }
 
 function renderGroupsBlock({ t, h, groups }) {
-  return h('div', { className: 'qqbot-runtime-section' },
+  return h('section', { className: 'qqbot-card qqbot-runtime-card qqbot-runtime-section' },
     h('div', { className: 'qqbot-runtime-block-head' },
       h('span', { className: 'qqbot-field-label' }, t('aiRuntimeRecentGroups')),
       h('span', { className: 'qqbot-card-sub' }, `${groups.length}`)),
@@ -381,8 +383,8 @@ function renderScopeRow({ t, h, scope }) {
 }
 
 function renderKeywordsBlock({ t, h, keywordView }) {
-  return h('div', {
-    className: 'qqbot-runtime-section',
+  return h('section', {
+    className: 'qqbot-card qqbot-runtime-card qqbot-runtime-section',
     'data-testid': 'qqbot-ai-runtime-keywords',
   },
     h('div', { className: 'qqbot-runtime-block-head' },
@@ -402,7 +404,7 @@ function renderPathsBlock({ t, h, paths }) {
   const pathRow = (label, value) => h('div', { className: 'qqbot-row-item' },
     h('span', { className: 'qqbot-row-label' }, label),
     h('span', { className: 'qqbot-row-value qqbot-mono' }, value))
-  return h('div', { className: 'qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
+  return h('section', { className: 'qqbot-card qqbot-runtime-card qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
     paths.aiChat !== '' ? pathRow(t('aiRuntimePathChat'), paths.aiChat) : null,
     paths.lexicon !== '' ? pathRow(t('aiRuntimePathLexicon'), paths.lexicon) : null)
 }

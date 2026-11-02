@@ -788,8 +788,6 @@ expectTestId(tree, 'qqbot-ai-card')
 expectTestId(tree, 'qqbot-persona-card')
 expectTestId(tree, 'qqbot-ai-subtab-config')
 expectTestId(tree, 'qqbot-ai-subtab-runtime')
-let configSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
-if (configSections.length !== 3) throw new Error(`expected 3 config section headings, got ${configSections.length}`)
 console.log('ai tab: ok')
 
 // ---- AI chat card -----------------------------------------------------------
@@ -854,8 +852,6 @@ if (suppressedChip === undefined || !text(suppressedChip).includes('今天真热
 if (!text(expectTestId(tree, 'qqbot-ai-runtime-paths')).includes('runtime-lexicon.json')) {
   throw new Error('runtime paths missing')
 }
-const runtimeSections = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-section')
-if (runtimeSections.length !== 1) throw new Error(`expected 1 runtime section heading, got ${runtimeSections.length}`)
 const runtimeCallsBefore = fetchLog.filter((entry) => entry.url === '/qqbot/ai/runtime').length
 clickTestId(tree, 'qqbot-ai-runtime-refresh')
 tree = await settle()

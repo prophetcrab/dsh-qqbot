@@ -1443,7 +1443,7 @@ window.__ModuleLoader__.load({
 
         if (failed) {
           body.push(h('div', {
-            className: 'qqbot-banner qqbot-banner-error',
+            className: 'qqbot-card qqbot-runtime-state qqbot-banner qqbot-banner-error',
             role: 'alert',
             'data-testid': 'qqbot-ai-runtime-error',
           },
@@ -1457,12 +1457,12 @@ window.__ModuleLoader__.load({
         }
         if (loading) {
           body.push(h('div', {
-            className: 'qqbot-empty',
+            className: 'qqbot-card qqbot-runtime-state qqbot-empty',
             role: 'status',
             'data-testid': 'qqbot-ai-runtime-loading',
           }, t('aiRuntimeLoading')))
         } else if (!view.available || !hasData) {
-          body.push(h('div', { className: 'qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
+          body.push(h('div', { className: 'qqbot-card qqbot-runtime-state qqbot-empty', 'data-testid': 'qqbot-ai-runtime-empty' },
             t('aiRuntimeEmpty')))
         } else {
           body.push(h('div', { className: 'qqbot-runtime-grid' },
@@ -1475,10 +1475,12 @@ window.__ModuleLoader__.load({
           }
         }
 
-        return h('section', {
-          className: 'qqbot-card qqbot-ai-runtime-card',
+        return h('div', {
+          className: 'qqbot-ai-runtime-page',
           'data-testid': 'qqbot-ai-runtime-card',
-        }, head, ...body)
+        },
+        h('div', { className: 'qqbot-ai-runtime-head' }, head),
+        ...body)
       }
 
       function renderInboundBlock({ t, h, row, inbound }) {
@@ -1487,8 +1489,8 @@ window.__ModuleLoader__.load({
             h('span', { className: 'qqbot-row-label' }, t('aiRuntimeReasons')),
             chips(h, inbound.attentionReasons, 'qqbot-chip qqbot-chip-reason'))
           : null
-        return h('div', {
-          className: 'qqbot-runtime-block',
+        return h('section', {
+          className: 'qqbot-card qqbot-runtime-card',
           'data-testid': 'qqbot-ai-runtime-last-inbound',
         },
           h('div', { className: 'qqbot-runtime-block-head' },
@@ -1525,8 +1527,8 @@ window.__ModuleLoader__.load({
             reply.text !== '' ? h('div', { className: 'qqbot-runtime-text' }, reply.text) : null,
             reply.reason !== '' ? h('p', { className: 'qqbot-hint' }, reply.reason) : null,
             reply.error !== '' ? h('p', { className: 'qqbot-error' }, reply.error) : null)
-        return h('div', {
-          className: 'qqbot-runtime-block',
+        return h('section', {
+          className: 'qqbot-card qqbot-runtime-card',
           'data-testid': 'qqbot-ai-runtime-last-reply',
         },
           h('div', { className: 'qqbot-runtime-block-head' },
@@ -1566,7 +1568,7 @@ window.__ModuleLoader__.load({
       }
 
       function renderGroupsBlock({ t, h, groups }) {
-        return h('div', { className: 'qqbot-runtime-section' },
+        return h('section', { className: 'qqbot-card qqbot-runtime-card qqbot-runtime-section' },
           h('div', { className: 'qqbot-runtime-block-head' },
             h('span', { className: 'qqbot-field-label' }, t('aiRuntimeRecentGroups')),
             h('span', { className: 'qqbot-card-sub' }, `${groups.length}`)),
@@ -1611,8 +1613,8 @@ window.__ModuleLoader__.load({
       }
 
       function renderKeywordsBlock({ t, h, keywordView }) {
-        return h('div', {
-          className: 'qqbot-runtime-section',
+        return h('section', {
+          className: 'qqbot-card qqbot-runtime-card qqbot-runtime-section',
           'data-testid': 'qqbot-ai-runtime-keywords',
         },
           h('div', { className: 'qqbot-runtime-block-head' },
@@ -1632,7 +1634,7 @@ window.__ModuleLoader__.load({
         const pathRow = (label, value) => h('div', { className: 'qqbot-row-item' },
           h('span', { className: 'qqbot-row-label' }, label),
           h('span', { className: 'qqbot-row-value qqbot-mono' }, value))
-        return h('div', { className: 'qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
+        return h('section', { className: 'qqbot-card qqbot-runtime-card qqbot-runtime-paths', 'data-testid': 'qqbot-ai-runtime-paths' },
           paths.aiChat !== '' ? pathRow(t('aiRuntimePathChat'), paths.aiChat) : null,
           paths.lexicon !== '' ? pathRow(t('aiRuntimePathLexicon'), paths.lexicon) : null)
       }
@@ -1793,7 +1795,6 @@ window.__ModuleLoader__.load({
       const { renderFullPromptCard } = __require("client/plugins/ai/PromptCard.js")
       const { renderPersonaCard } = __require("client/plugins/ai/PersonaCard.js")
       const { renderProfilesCard } = __require("client/plugins/ai/ProfilesCard.js")
-      const { renderSectionHead } = __require("client/plugins/ai/SectionHead.js")
 
       const AI_VIEWS = [
         { id: 'config', labelKey: 'aiSubnavConfig', hintKey: 'aiSubnavConfigHint' },
@@ -1815,20 +1816,16 @@ window.__ModuleLoader__.load({
           },
             h('span', { className: 'qqbot-ai-subnav-label' }, panel.t(item.labelKey)),
             h('span', { className: 'qqbot-ai-subnav-hint' }, panel.t(item.hintKey)))))
+        // Card-first layout: the two compact cards share a row, the editing cards
+        // below get full width. No extra section headings: each card already has a
+        // title and a short subtitle, which keeps the page calm and scannable.
         const config = h('div', { className: 'qqbot-ai-view qqbot-ai-config' },
-          h('div', { className: 'qqbot-ai-overview-grid' },
-            h('div', { className: 'qqbot-ai-overview-col' },
-              renderSectionHead(panel, 'aiSectionStatus', 'aiSectionStatusHint'),
-              renderAiCard(panel)),
-            h('div', { className: 'qqbot-ai-overview-col' },
-              renderSectionHead(panel, 'aiSectionBehavior', 'aiSectionBehaviorHint'),
-              renderAiSettingsCard(panel))),
-          renderSectionHead(panel, 'aiSectionPrompt', 'aiSectionPromptHint'),
+          renderAiCard(panel),
+          renderAiSettingsCard(panel),
           renderFullPromptCard(panel),
           renderPersonaCard(panel),
           renderProfilesCard(panel))
         const diagnostics = h('div', { className: 'qqbot-ai-view qqbot-ai-diagnostics' },
-          renderSectionHead(panel, 'aiSectionRuntime', 'aiSectionRuntimeHint'),
           renderAiRuntimeCard(panel))
         return h('div', { className: 'qqbot-ai-tab' }, subnav, view === 'runtime' ? diagnostics : config)
       }
@@ -2315,17 +2312,6 @@ window.__ModuleLoader__.load({
       }
 
       return { renderFullPromptCard }
-    },
-    "client/plugins/ai/SectionHead.js": (__require) => {
-      /** Small section header used to group the AI tab into clear areas. */
-      function renderSectionHead(panel, titleKey, hintKey) {
-        const { h, t } = panel
-        return h('div', { className: 'qqbot-section-head', 'data-testid': 'qqbot-ai-section', 'data-section': titleKey },
-          h('h2', { className: 'qqbot-section-title' }, t(titleKey)),
-          h('p', { className: 'qqbot-section-hint' }, t(hintKey)))
-      }
-
-      return { renderSectionHead }
     },
     "client/plugins/ai/index.js": (__require) => {
       const { registerTab } = __require("client/runtime/tab-registry.js")
@@ -5195,7 +5181,12 @@ window.__ModuleLoader__.load({
       .qqbot-section-hint { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
 
       .qqbot-ai-status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 18px; }
-      .qqbot-ai-runtime-card { gap: 12px; }
+      .qqbot-ai-runtime-page { display: flex; flex-direction: column; gap: 12px; }
+      .qqbot-ai-runtime-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .qqbot-ai-runtime-head .qqbot-card-head { flex: 1; }
+      .qqbot-runtime-card { gap: 8px; }
+      .qqbot-runtime-state { min-height: 96px; justify-content: center; }
+      .qqbot-runtime-paths.qqbot-card { padding-top: 12px; padding-bottom: 12px; }
       .qqbot-runtime-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; }
       .qqbot-runtime-block { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
         border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); }
@@ -5288,18 +5279,26 @@ window.__ModuleLoader__.load({
       .qqbot-ai-subnav-hint { font-size: 10.5px; line-height: 1.35; color: var(--dsw-alias-label-tertiary);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .qqbot-ai-view { display: flex; flex-direction: column; gap: 14px; }
-      .qqbot-ai-overview-grid { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-        gap: 12px; align-items: start; }
-      .qqbot-ai-overview-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-      .qqbot-ai-overview-col > .qqbot-card { height: 100%; }
-      .qqbot-ai-config > .qqbot-card, .qqbot-ai-view > .qqbot-card { width: 100%; }
+      .qqbot-ai-config { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px; align-items: start; }
+      .qqbot-ai-config > .qqbot-card { min-width: 0; grid-column: span 12; }
+      .qqbot-ai-config > .qqbot-ai-card { grid-column: span 5; }
+      .qqbot-ai-config > .qqbot-ai-settings-card { grid-column: span 7; }
+      .qqbot-ai-config > .qqbot-full-prompt-card,
+      .qqbot-ai-config > .qqbot-persona-card,
+      .qqbot-ai-config > .qqbot-profiles-card { grid-column: span 12; }
+      .qqbot-ai-view > .qqbot-card { width: 100%; }
+      .qqbot-ai-diagnostics .qqbot-section-head { display: none; }
       .qqbot-ai-diagnostics { gap: 12px; }
       .qqbot-ai-diagnostics .qqbot-ai-runtime-card { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 20%, var(--dsw-alias-border-l1)); }
-      .qqbot-ai-diagnostics .qqbot-section-head { margin-top: 2px; }
       .qqbot-ai-view .qqbot-card { transition: border-color .16s ease, box-shadow .16s ease; }
       .qqbot-ai-view .qqbot-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+      @media (max-width: 980px) {
+        .qqbot-ai-config { grid-template-columns: minmax(0, 1fr); }
+        .qqbot-ai-config > .qqbot-ai-card,
+        .qqbot-ai-config > .qqbot-ai-settings-card { grid-column: span 1; }
+      }
       @media (max-width: 860px) {
-        .qqbot-ai-overview-grid { grid-template-columns: minmax(0, 1fr); }
         .qqbot-ai-subnav { position: static; }
       }
       @media (max-width: 520px) {
