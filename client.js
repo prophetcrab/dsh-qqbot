@@ -695,1107 +695,229 @@ window.__ModuleLoader__.load({
 
       return {  }
     },
-    "client/plugins/ai/AiActions.js": (__require) => {
-      const { requestJson, messageOf, aiSettingsDraftFrom, aiSettingsBodyFrom, draftFromPersona, personaBody, profileDraftFrom, profileBodyFrom, AI_TEST_PROMPT } = __require("client/runtime/api.js")
-
-      async function loadPersona(panel) {
-        const { setPersonaDraft, setPersonaPreview, setPersonaPath, setPersonaPhase, setPersonaError } = panel
-        setPersonaPhase('loading')
-        try {
-          const payload = await requestJson('/qqbot/persona')
-          const data = payload && payload.data
-          if (data === null || typeof data !== 'object' || data.persona === null || typeof data.persona !== 'object') {
-            throw new Error('unexpected payload')
-          }
-          setPersonaDraft(draftFromPersona(data.persona))
-          setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
-          setPersonaPath(typeof data.path === 'string' ? data.path : null)
-          setPersonaError(null)
-          setPersonaPhase('ready')
-        } catch (error) {
-          setPersonaError(messageOf(error))
-          setPersonaPhase('error')
-        }
-      }
-
-      async function loadAiSettings(panel) {
-        const {
-          setAiSettingsDraft, setAiSettingsDefaults, setAiSettingsPath, setAiSettingsPhase, setAiSettingsError
-        } = panel
-        setAiSettingsPhase('loading')
-        try {
-          const payload = await requestJson('/qqbot/ai/settings')
-          const data = payload && payload.data
-          if (data === null || typeof data !== 'object' || data.settings === null || typeof data.settings !== 'object') {
-            throw new Error('unexpected payload')
-          }
-          setAiSettingsDraft(aiSettingsDraftFrom(data.settings))
-          setAiSettingsDefaults(data.defaults !== null && typeof data.defaults === 'object' ? data.defaults : null)
-          setAiSettingsPath(typeof data.path === 'string' ? data.path : null)
-          setAiSettingsError(null)
-          setAiSettingsPhase('ready')
-        } catch (error) {
-          setAiSettingsError(messageOf(error))
-          setAiSettingsPhase('error')
-        }
-      }
-
-      async function loadProfiles(panel, search) {
-        const { setProfiles, setProfilesPhase, setProfilesError, profilesSearch, setProfilesPath } = panel
-        const query = typeof search === 'string' ? search : profilesSearch
-        setProfilesPhase('loading')
-        try {
-          const payload = await requestJson(`/qqbot/profiles?search=${encodeURIComponent(query)}`)
-          const data = payload && payload.data
-          if (data === null || typeof data !== 'object' || !Array.isArray(data.profiles)) throw new Error('unexpected payload')
-          setProfiles(data.profiles)
-          setProfilesPath(typeof data.path === 'string' ? data.path : null)
-          setProfilesError(null)
-          setProfilesPhase('ready')
-        } catch (error) {
-          setProfilesError(messageOf(error))
-          setProfilesPhase('error')
-        }
-      }
-
-      async function loadPersonaPresets(panel) {
-        const { setPersonaPresets, setPersonaPresetsPhase, setPersonaPresetsError, setPersonaPresetsPath } = panel
-        setPersonaPresetsPhase('loading')
-        try {
-          const payload = await requestJson('/qqbot/persona/presets')
-          const data = payload && payload.data
-          if (data === null || typeof data !== 'object' || !Array.isArray(data.presets)) throw new Error('unexpected payload')
-          setPersonaPresets(data.presets)
-          setPersonaPresetsPath(typeof data.path === 'string' ? data.path : null)
-          setPersonaPresetsError(null)
-          setPersonaPresetsPhase('ready')
-        } catch (error) {
-          setPersonaPresetsError(messageOf(error))
-          setPersonaPresetsPhase('error')
-        }
-      }
-
-      async function loadLastPrompt(panel) {
-        const { setLastPromptState } = panel
-        setLastPromptState((previous) => ({ ...previous, phase: 'loading', error: null }))
-        try {
-          const payload = await requestJson('/qqbot/ai/last-prompt')
-          const data = payload && payload.data
-          setLastPromptState({
-            phase: 'ready',
-            prompt: data !== null && typeof data === 'object' && data.prompt !== undefined ? data.prompt : null,
-            error: null,
-          })
-        } catch (error) {
-          setLastPromptState((previous) => ({ ...previous, phase: 'error', error: messageOf(error) }))
-        }
-      }
-
-      /**
-       * Ask the Host's local AI bridge for a fixed self-test reply. The route
-       * answers 200 with `ok:false` on failure, so it opts out of the global
-       * throw and renders the error inside the card.
-       */
-      async function testAi(panel) {
-        const { t, setBusy, setAiReply, setAiError, busyOf } = panel
-        if (busyOf('ai-test')) return
-        setBusy((previous) => ({ ...previous, 'ai-test': true }))
-        setAiReply(null)
-        setAiError(null)
-        try {
-          const result = await requestJson('/qqbot/ai/chat', {
-            method: 'POST',
-            body: { messages: [{ role: 'user', text: AI_TEST_PROMPT }] },
-            acceptNotOk: true,
-          })
-          if (result !== null && result.ok === true && typeof result.reply === 'string') {
-            setAiReply(result.reply)
-          } else {
-            const reason = result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : result !== null && typeof result.code === 'string' ? result.code : t('aiTestFailed')
-            setAiError(reason)
-          }
-        } catch (error) {
-          setAiError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['ai-test']
-            return next
-          })
-        }
-      }
-
-      function applyPersonaPayload(panel, result) {
-        const { setPersonaDraft, setPersonaPreview, setPersonaPath, setPersonaPhase, setPersonaError } = panel
-        const data = result && result.data
-        if (data === null || typeof data !== 'object' || data.persona === null || typeof data.persona !== 'object') return false
-        setPersonaDraft(draftFromPersona(data.persona))
-        setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
-        setPersonaPath(typeof data.path === 'string' ? data.path : null)
-        setPersonaError(null)
-        setPersonaPhase('ready')
-        return true
-      }
-
-      async function savePersona(panel) {
-        const { t, setBanner, setBusy, personaDraft, setPersonaError, busyOf, applyPersonaPayload } = panel
-        if (personaDraft === null || busyOf('persona-save')) return
-        setBusy((previous) => ({ ...previous, 'persona-save': true }))
-        setPersonaError(null)
-        try {
-          const result = await requestJson('/qqbot/persona/save', {
-            method: 'POST',
-            body: { persona: personaBody(personaDraft) },
-            acceptNotOk: true,
-          })
-          if (result !== null && result.ok === true && applyPersonaPayload(result)) {
-            setBanner({ kind: 'ok', text: t('personaSaved') })
-          } else {
-            setPersonaError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('personaSaveFail'))
-          }
-        } catch (error) {
-          setPersonaError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['persona-save']
-            return next
-          })
-        }
-      }
-
-      async function resetPersona(panel) {
-        const { t, setBanner, setBusy, setPersonaError, busyOf, applyPersonaPayload } = panel
-        if (busyOf('persona-reset')) return
-        setBusy((previous) => ({ ...previous, 'persona-reset': true }))
-        setPersonaError(null)
-        try {
-          const result = await requestJson('/qqbot/persona/save', {
-            method: 'POST',
-            body: { reset: true },
-            acceptNotOk: true,
-          })
-          if (result !== null && result.ok === true && applyPersonaPayload(result)) {
-            setBanner({ kind: 'ok', text: t('personaResetDone') })
-          } else {
-            setPersonaError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('personaSaveFail'))
-          }
-        } catch (error) {
-          setPersonaError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['persona-reset']
-            return next
-          })
-        }
-      }
-
-      function applyAiSettingsPayload(panel, result) {
-        const {
-          setAiSettingsDraft, setAiSettingsDefaults, setAiSettingsPath, setAiSettingsPhase, setAiSettingsError
-        } = panel
-        const data = result && result.data
-        if (data === null || typeof data !== 'object' || data.settings === null || typeof data.settings !== 'object') return false
-        setAiSettingsDraft(aiSettingsDraftFrom(data.settings))
-        if (data.defaults !== null && typeof data.defaults === 'object') setAiSettingsDefaults(data.defaults)
-        if (typeof data.path === 'string') setAiSettingsPath(data.path)
-        setAiSettingsError(null)
-        setAiSettingsPhase('ready')
-        return true
-      }
-
-      async function saveAiSettings(panel) {
-        const { t, setBanner, setBusy, aiSettingsDraft, setAiSettingsError, busyOf, applyAiSettingsPayload } = panel
-        if (aiSettingsDraft === null || busyOf('ai-settings-save')) return
-        setBusy((previous) => ({ ...previous, 'ai-settings-save': true }))
-        setAiSettingsError(null)
-        try {
-          const result = await requestJson('/qqbot/ai/settings', {
-            method: 'POST',
-            body: aiSettingsBodyFrom(aiSettingsDraft),
-            acceptNotOk: true,
-          })
-          if (result !== null && result.ok === true && applyAiSettingsPayload(result)) {
-            setBanner({ kind: 'ok', text: t('aiSettingsSaved') })
-          } else {
-            setAiSettingsError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('aiSettingsError'))
-          }
-        } catch (error) {
-          setAiSettingsError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['ai-settings-save']
-            return next
-          })
-        }
-      }
-
-      function resetAiSettingsDraft(panel) {
-        const { t, setBanner, setAiSettingsDraft, aiSettingsDefaults } = panel
-        if (aiSettingsDefaults === null) return
-        setAiSettingsDraft(aiSettingsDraftFrom(aiSettingsDefaults))
-        setBanner({ kind: 'ok', text: t('aiSettingsResetDone') })
-      }
-
-      function selectProfile(panel, profile) {
-        const { setSelectedProfileKey, setProfileDraft } = panel
-        const draft = profileDraftFrom(profile)
-        setSelectedProfileKey(draft.key)
-        setProfileDraft(draft)
-      }
-
-      async function saveProfile(panel) {
-        const {
-          t, setBanner, setBusy, setProfilesError, profilesSearch, setSelectedProfileKey, profileDraft,
-          setProfileDraft, busyOf, loadProfiles
-        } = panel
-        if (profileDraft === null || busyOf('profile-save')) return
-        setBusy((previous) => ({ ...previous, 'profile-save': true }))
-        try {
-          const result = await requestJson('/qqbot/profiles/save', {
-            method: 'POST',
-            body: { profile: profileBodyFrom(profileDraft) },
-            acceptNotOk: true,
-          })
-          const data = result && result.data
-          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && data.profile !== null && typeof data.profile === 'object') {
-            const saved = profileDraftFrom(data.profile)
-            setSelectedProfileKey(saved.key)
-            setProfileDraft(saved)
-            setBanner({ kind: 'ok', text: t('profilesSaved') })
-            await loadProfiles(profilesSearch)
-          } else {
-            setProfilesError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('profilesSaveFail'))
-          }
-        } catch (error) {
-          setProfilesError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['profile-save']
-            return next
-          })
-        }
-      }
-
-      async function deleteProfile(panel) {
-        const {
-          t, setBanner, setBusy, setProfilesError, profilesSearch, setSelectedProfileKey, profileDraft,
-          setProfileDraft, busyOf, loadProfiles
-        } = panel
-        if (profileDraft === null || busyOf('profile-delete')) return
-        const key = profileDraft.key
-        setBusy((previous) => ({ ...previous, 'profile-delete': true }))
-        try {
-          const result = await requestJson('/qqbot/profiles/delete', {
-            method: 'POST',
-            body: { key },
-            acceptNotOk: true,
-          })
-          if (result !== null && result.ok === true) {
-            setProfileDraft(null)
-            setSelectedProfileKey(null)
-            setBanner({ kind: 'ok', text: t('profilesDeleted') })
-            await loadProfiles(profilesSearch)
-          } else {
-            setProfilesError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('profilesDeleteFail'))
-          }
-        } catch (error) {
-          setProfilesError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['profile-delete']
-            return next
-          })
-        }
-      }
-
-      async function savePersonaPreset(panel) {
-        const {
-          t, setBanner, setBusy, personaDraft, setPersonaPresets, setPersonaPresetsPhase, setPersonaPresetsError,
-          setPersonaPresetsPath, personaPresetName, setPersonaPresetName, busyOf
-        } = panel
-        if (personaDraft === null || busyOf('persona-preset-save')) return
-        const name = personaPresetName.trim() !== '' ? personaPresetName.trim() : personaDraft.name
-        setBusy((previous) => ({ ...previous, 'persona-preset-save': true }))
-        setPersonaPresetsError(null)
-        try {
-          const result = await requestJson('/qqbot/persona/presets/save', {
-            method: 'POST',
-            body: { name, persona: personaBody(personaDraft) },
-            acceptNotOk: true,
-          })
-          const data = result && result.data
-          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && Array.isArray(data.presets)) {
-            setPersonaPresets(data.presets)
-            if (typeof data.path === 'string') setPersonaPresetsPath(data.path)
-            setPersonaPresetName('')
-            setPersonaPresetsError(null)
-            setPersonaPresetsPhase('ready')
-            setBanner({ kind: 'ok', text: t('personaPresetSaved') })
-          } else {
-            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('personaPresetsError'))
-          }
-        } catch (error) {
-          setPersonaPresetsError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['persona-preset-save']
-            return next
-          })
-        }
-      }
-
-      async function loadPersonaPreset(panel, preset) {
-        const {
-          t, setBanner, setBusy, setPersonaDraft, setPersonaPreview, setPersonaPath, setPersonaPhase,
-          setPersonaError, setPersonaPresets, setPersonaPresetsError, busyOf
-        } = panel
-        if (busyOf('persona-preset-load')) return
-        setBusy((previous) => ({ ...previous, 'persona-preset-load': true }))
-        setPersonaPresetsError(null)
-        try {
-          const result = await requestJson('/qqbot/persona/presets/load', {
-            method: 'POST',
-            body: { id: preset.id },
-            acceptNotOk: true,
-          })
-          const data = result && result.data
-          if (result !== null && result.ok === true && data !== null && typeof data === 'object'
-            && data.persona !== null && typeof data.persona === 'object') {
-            setPersonaDraft(draftFromPersona(data.persona))
-            setPersonaPreview(typeof data.promptPreview === 'string' ? data.promptPreview : '')
-            if (typeof data.path === 'string') setPersonaPath(data.path)
-            if (Array.isArray(data.presets)) setPersonaPresets(data.presets)
-            setPersonaError(null)
-            setPersonaPhase('ready')
-            setBanner({ kind: 'ok', text: t('personaPresetLoaded') })
-          } else {
-            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('personaPresetsError'))
-          }
-        } catch (error) {
-          setPersonaPresetsError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['persona-preset-load']
-            return next
-          })
-        }
-      }
-
-      async function deletePersonaPreset(panel, preset) {
-        const {
-          t, setBanner, setBusy, setPersonaPresets, setPersonaPresetsPhase, setPersonaPresetsError, busyOf
-        } = panel
-        if (busyOf('persona-preset-delete')) return
-        setBusy((previous) => ({ ...previous, 'persona-preset-delete': true }))
-        setPersonaPresetsError(null)
-        try {
-          const result = await requestJson('/qqbot/persona/presets/delete', {
-            method: 'POST',
-            body: { id: preset.id },
-            acceptNotOk: true,
-          })
-          const data = result && result.data
-          if (result !== null && result.ok === true && data !== null && typeof data === 'object' && Array.isArray(data.presets)) {
-            setPersonaPresets(data.presets)
-            setPersonaPresetsError(null)
-            setPersonaPresetsPhase('ready')
-            setBanner({ kind: 'ok', text: t('personaPresetDeleted') })
-          } else {
-            setPersonaPresetsError(result !== null && typeof result.error === 'string' && result.error !== ''
-              ? result.error
-              : t('personaPresetsError'))
-          }
-        } catch (error) {
-          setPersonaPresetsError(messageOf(error))
-        } finally {
-          setBusy((previous) => {
-            const next = { ...previous }
-            delete next['persona-preset-delete']
-            return next
-          })
-        }
-      }
-
-      return { loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset }
-    },
-    "client/plugins/ai/AiCard.js": (__require) => {
-
-
-      function renderAiCard(panel) {
-        const { t, snapshot, aiReply, aiError, busyOf, testAi, h } = panel
-        const ai = (snapshot && snapshot.ai) || {}
-        const available = ai.available === true
-        const provider = typeof ai.provider === 'string' ? ai.provider : ''
-        const model = typeof ai.model === 'string' ? ai.model : ''
-        const sourceLabel = ai.source === 'config'
-          ? t('aiSourceConfig')
-          : ai.source === 'harness-default' ? t('aiSourceHarness') : ai.source === 'fallback' ? t('aiSourceFallback') : ''
-        const statusText = available
-          ? `${t('aiConnected')} · ${provider || '—'}/${model || '—'}${sourceLabel !== '' ? ` · ${sourceLabel}` : ''}`
-          : t('aiUnavailable')
-        const working = busyOf('ai-test')
-        return h('section', { className: 'qqbot-card qqbot-ai-card', 'data-testid': 'qqbot-ai-card' },
-          h('div', { className: 'qqbot-card-head' },
-            h('h2', { className: 'qqbot-card-title' }, t('aiTitle')),
-            h('span', { className: available ? 'qqbot-ai-state is-ok' : 'qqbot-ai-state is-bad' }, available ? '✓' : '✕')),
-          h('div', { className: 'qqbot-ai-status', 'data-testid': 'qqbot-ai-status' },
-            h('span', { className: `qqbot-pill qqbot-pill-${available ? 'ok' : 'warn'}` },
-              h('i', { className: 'qqbot-pill-dot' }),
-              h('span', { className: 'qqbot-pill-text' }, statusText))),
-          h('p', { className: 'qqbot-hint' }, t('aiHint')),
-          h('div', { className: 'qqbot-btns' },
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn',
-              'data-testid': 'qqbot-ai-test',
-              'aria-label': t('aiTest'),
-              'aria-busy': working ? 'true' : undefined,
-              disabled: !available || working,
-              onClick: () => { testAi() },
-            }, working ? t('working') : t('aiTest'))),
-          aiReply !== null
-            ? h('div', { className: 'qqbot-ai-reply-wrap' },
-              h('span', { className: 'qqbot-field-label' }, t('aiReply')),
-              h('pre', { className: 'qqbot-pre qqbot-ai-reply', 'data-testid': 'qqbot-ai-reply' }, aiReply))
-            : null,
-          aiError !== null ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-error' }, aiError) : null)
-      }
-
-      return { renderAiCard }
-    },
-    "client/plugins/ai/AiSettingsCard.js": (__require) => {
-
-
-      function renderAiSettingsCard(panel) {
-        const {
-          t, aiSettingsDraft, setAiSettingsDraft, aiSettingsDefaults, aiSettingsPath, aiSettingsPhase,
-          aiSettingsError, busyOf, loadAiSettings, saveAiSettings, resetAiSettingsDraft, h
-        } = panel
-        const draft = aiSettingsDraft
-        const saving = busyOf('ai-settings-save')
-        const updateDraft = (patch) => setAiSettingsDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
-        const head = h('div', { className: 'qqbot-card-head' },
-          h('h2', { className: 'qqbot-card-title' }, t('aiSettingsTitle')),
-          h('span', { className: 'qqbot-card-sub' }, t('aiSettingsSubtitle')))
-        if (draft === null) {
-          return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
-            head,
-            aiSettingsPhase === 'error'
-              ? h('div', { className: 'qqbot-empty' },
-                h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-settings-error' }, `${t('aiSettingsLoadFail')}${aiSettingsError !== null ? `: ${aiSettingsError}` : ''}`),
-                h('button', { type: 'button', className: 'qqbot-btn', 'aria-label': t('retry'), onClick: () => { loadAiSettings() } }, t('retry')))
-              : h('div', { className: 'qqbot-empty', role: 'status' }, t('aiSettingsLoading')))
-        }
-        const field = (testid, label, value, onChange, options) => {
-          const extra = options || {}
-          return h('div', { className: 'qqbot-field' },
-            h('label', { className: 'qqbot-field-label', htmlFor: testid }, label),
-            h('input', {
-              id: testid,
-              className: 'qqbot-input',
-              type: 'number',
-              min: extra.min,
-              max: extra.max,
-              step: extra.step,
-              'data-testid': testid,
-              value,
-              onChange: (event) => { onChange(event.currentTarget.value) },
-            }))
-        }
-        return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-ai-settings-card' },
-          head,
-          h('div', { className: 'qqbot-form' },
-            h('label', { className: 'qqbot-check' },
-              h('input', {
-                type: 'checkbox',
-                'data-testid': 'qqbot-ai-settings-enabled',
-                checked: draft.enabled,
-                onChange: (event) => { updateDraft({ enabled: event.currentTarget.checked }) },
-              }),
-              t('aiSettingsEnabled')),
-            h('div', { className: 'qqbot-ai-settings-grid' },
-              field('qqbot-ai-settings-probability', t('aiSettingsProbability'), draft.replyProbabilityPercent,
-                (value) => { updateDraft({ replyProbabilityPercent: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 100, step: 1 }),
-              field('qqbot-ai-settings-followup', t('aiSettingsFollowUp'), draft.followUpMinutes,
-                (value) => { updateDraft({ followUpMinutes: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 60, step: 1 }),
-              field('qqbot-ai-settings-history', t('aiSettingsHistory'), draft.historyLimit,
-                (value) => { updateDraft({ historyLimit: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 200, step: 1 }),
-              field('qqbot-ai-settings-batch-window', t('aiSettingsBatchWindow'), draft.batchWindowMs,
-                (value) => { updateDraft({ batchWindowMs: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 10000, step: 100 }),
-              field('qqbot-ai-settings-batch-max', t('aiSettingsBatchMax'), draft.batchMaxWaitMs,
-                (value) => { updateDraft({ batchMaxWaitMs: value === '' ? '' : Number(value) }) },
-                { min: 0, max: 30000, step: 100 })),
-            h('p', { className: 'qqbot-hint' }, t('aiSettingsProbabilityHint')),
-            h('p', { className: 'qqbot-hint' }, t('aiSettingsBatchHint'))),
-          h('div', { className: 'qqbot-btns' },
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn qqbot-btn-primary',
-              'data-testid': 'qqbot-ai-settings-save',
-              'aria-label': t('aiSettingsSave'),
-              'aria-busy': saving ? 'true' : undefined,
-              disabled: saving,
-              onClick: () => { saveAiSettings() },
-            }, saving ? t('working') : t('aiSettingsSave')),
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn',
-              'data-testid': 'qqbot-ai-settings-reset',
-              'aria-label': t('aiSettingsReset'),
-              disabled: saving || aiSettingsDefaults === null,
-              onClick: resetAiSettingsDraft,
-            }, t('aiSettingsReset'))),
-          aiSettingsError !== null && aiSettingsPhase === 'ready'
-            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-ai-settings-error' }, aiSettingsError)
-            : null,
-          aiSettingsPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, aiSettingsPath) : null)
-      }
-
-      return { renderAiSettingsCard }
-    },
     "client/plugins/ai/AiTab.js": (__require) => {
       const React = __require("react")
-      const { renderAiCard } = __require("client/plugins/ai/AiCard.js")
-      const { renderAiSettingsCard } = __require("client/plugins/ai/AiSettingsCard.js")
-      const { renderFullPromptCard } = __require("client/plugins/ai/PromptCard.js")
-      const { renderPersonaCard } = __require("client/plugins/ai/PersonaCard.js")
-      const { renderProfilesCard } = __require("client/plugins/ai/ProfilesCard.js")
+      const { requestJson } = __require("client/runtime/api.js")
 
-      function renderAiTab(panel) {
-        const { h } = panel
-        return h('div', { className: 'qqbot-stack' },
-          renderAiCard(panel),
-          renderAiSettingsCard(panel),
-          renderFullPromptCard(panel),
-          renderPersonaCard(panel),
-          renderProfilesCard(panel))
+      const EMPTY = { character: {}, groups: {}, loops: [], memories: [], listener: null }
+      const TRIGGER_LABEL = { mention: '@触发', reply: '回复触发', count: '消息数触发', time: '时间触发' }
+      const STATE_LABELS = ['BUFFER', 'ANALYZE', 'SPEAK', 'SEND', 'STATE_UPDATE']
+
+      function obj(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }
+      function arr(value) { return Array.isArray(value) ? value : [] }
+      function text(value) { return typeof value === 'string' ? value : '' }
+      function num(value) { const n = Number(value); return Number.isFinite(n) ? n : 0 }
+      function time(value) {
+        if (typeof value !== 'string' || value === '') return '—'
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) return value
+        return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
+      }
+      function percent(value) { return Math.round(Math.max(0, Math.min(1, num(value))) * 100) }
+      function ago(ms) {
+        if (!Number.isFinite(ms) || ms <= 0) return '—'
+        const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000))
+        if (seconds < 60) return `${seconds} 秒前`
+        if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟前`
+        return `${Math.round(seconds / 3600)} 小时前`
       }
 
-      /**
-       * AI tab hooks: lazy-load the settings/presets/profiles/prompt cards the
-       * first time the tab is opened, and read the persona card on mount.
-       */
       function useAi(panel) {
-        const {
-          tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, lastPromptState, profilesSearch,
-          loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, loadPersona
-        } = panel
-
-        React.useEffect(() => {
-          if (tab === 'ai' && aiSettingsPhase === 'idle') loadAiSettings()
-          if (tab === 'ai' && profilesPhase === 'idle') loadProfiles(profilesSearch)
-          if (tab === 'ai' && personaPresetsPhase === 'idle') loadPersonaPresets()
-          if (tab === 'ai' && lastPromptState.phase === 'idle') loadLastPrompt()
-        }, [tab, aiSettingsPhase, profilesPhase, personaPresetsPhase, lastPromptState.phase])
-
-        React.useEffect(() => {
-          loadPersona()
-        }, [])
-      }
-
-      return { renderAiTab, useAi }
-    },
-    "client/plugins/ai/PersonaCard.js": (__require) => {
-      const { MAX_PERSONA_EXAMPLES } = __require("client/runtime/api.js")
-
-      function renderPersonaCard(panel) {
-        const {
-          t, personaDraft, setPersonaDraft, personaPreview, personaPath, personaPhase, personaError,
-          personaPreviewOpen, setPersonaPreviewOpen, personaPresets, personaPresetsPhase, personaPresetsError,
-          personaPresetsPath, personaPresetName, setPersonaPresetName, busyOf, loadPersona, savePersona,
-          resetPersona, savePersonaPreset, loadPersonaPreset, deletePersonaPreset, h
-        } = panel
-        const draft = personaDraft
-        const saving = busyOf('persona-save')
-        const resetting = busyOf('persona-reset')
-        const busy = saving || resetting
-        const updateDraft = (patch) => setPersonaDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
-        const updateExample = (index, fieldName, value) => {
-          setPersonaDraft((previous) => {
-            if (previous === null) return previous
-            const examples = previous.examples.map((example, current) => current === index ? { ...example, [fieldName]: value } : example)
-            return { ...previous, examples }
-          })
-        }
-        const addExample = () => {
-          setPersonaDraft((previous) => {
-            if (previous === null || previous.examples.length >= MAX_PERSONA_EXAMPLES) return previous
-            return { ...previous, examples: [...previous.examples, { user: '', assistant: '' }] }
-          })
-        }
-        const removeExample = (index) => {
-          setPersonaDraft((previous) => {
-            if (previous === null) return previous
-            return { ...previous, examples: previous.examples.filter((unused, current) => current !== index) }
-          })
-        }
-        const field = (testid, id, label, value, onChange, multiline) => h('div', { className: 'qqbot-field' },
-          h('label', { className: 'qqbot-field-label', htmlFor: id }, label),
-          multiline
-            ? h('textarea', {
-              id,
-              className: 'qqbot-area qqbot-persona-area',
-              'data-testid': testid,
-              rows: 3,
-              value,
-              onChange: (event) => { onChange(event.currentTarget.value) },
-            })
-            : h('input', {
-              id,
-              className: 'qqbot-input',
-              type: 'text',
-              'data-testid': testid,
-              value,
-              onChange: (event) => { onChange(event.currentTarget.value) },
-            }))
-
-        const head = h('div', { className: 'qqbot-card-head' },
-          h('h2', { className: 'qqbot-card-title' }, t('personaTitle')),
-          h('span', { className: 'qqbot-card-sub' }, t('personaSubtitle')))
-
-        if (draft === null) {
-          return h('section', { className: 'qqbot-card qqbot-persona-card', 'data-testid': 'qqbot-persona-card' },
-            head,
-            personaPhase === 'error'
-              ? h('div', { className: 'qqbot-empty' },
-                h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-error' }, `${t('personaLoadFail')}${personaError !== null ? `: ${personaError}` : ''}`),
-                h('button', { type: 'button', className: 'qqbot-btn', 'aria-label': t('retry'), onClick: () => { loadPersona() } }, t('retry')))
-              : h('div', { className: 'qqbot-empty', role: 'status' }, t('personaLoading')))
-        }
-
-        const examples = draft.examples.map((example, index) => h('div', {
-          key: `persona-example-${index}`,
-          className: 'qqbot-persona-example',
-          'data-testid': 'qqbot-persona-example',
-          'data-index': String(index),
-        },
-          h('div', { className: 'qqbot-persona-example-head' },
-            h('span', { className: 'qqbot-field-label' }, `${t('personaExamples')} ${index + 1}`),
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn',
-              'data-testid': 'qqbot-persona-example-remove',
-              'aria-label': t('personaRemoveExample'),
-              disabled: busy,
-              onClick: () => { removeExample(index) },
-            }, t('personaRemoveExample'))),
-          field('qqbot-persona-example-user', `qqbot-persona-example-user-${index}`, t('personaExampleUser'), example.user,
-            (value) => { updateExample(index, 'user', value) }, true),
-          field('qqbot-persona-example-assistant', `qqbot-persona-example-assistant-${index}`, t('personaExampleAssistant'), example.assistant,
-            (value) => { updateExample(index, 'assistant', value) }, true)))
-
-        const previewBlock = personaPreview === ''
-          ? null
-          : h('div', { className: 'qqbot-persona-preview-wrap' },
-            h('div', { className: 'qqbot-persona-preview-head' },
-              h('span', { className: 'qqbot-field-label' }, t('personaPreview')),
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn',
-                'data-testid': 'qqbot-persona-preview-toggle',
-                'aria-label': personaPreviewOpen ? t('personaPreviewHide') : t('personaPreviewShow'),
-                onClick: () => { setPersonaPreviewOpen((previous) => !previous) },
-              }, personaPreviewOpen ? t('personaPreviewHide') : t('personaPreviewShow'))),
-            personaPreviewOpen
-              ? h('pre', { className: 'qqbot-pre qqbot-persona-preview', 'data-testid': 'qqbot-persona-preview' }, personaPreview)
-              : null)
-
-        const presetSaving = busyOf('persona-preset-save')
-        const presetLoading = busyOf('persona-preset-load')
-        const presetDeleting = busyOf('persona-preset-delete')
-        const presetList = Array.isArray(personaPresets) ? personaPresets : []
-        const presetsBlock = h('div', { className: 'qqbot-persona-presets', 'data-testid': 'qqbot-persona-presets' },
-          h('span', { className: 'qqbot-field-label' }, t('personaPresetsTitle')),
-          h('p', { className: 'qqbot-hint' }, t('personaPresetsHint')),
-          h('div', { className: 'qqbot-persona-presets-bar' },
-            h('input', {
-              className: 'qqbot-input',
-              type: 'text',
-              'data-testid': 'qqbot-persona-preset-name',
-              'aria-label': t('personaPresetName'),
-              placeholder: t('personaPresetName'),
-              value: personaPresetName,
-              onChange: (event) => { setPersonaPresetName(event.currentTarget.value) },
-            }),
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn qqbot-btn-primary',
-              'data-testid': 'qqbot-persona-preset-save',
-              'aria-label': t('personaPresetSave'),
-              'aria-busy': presetSaving ? 'true' : undefined,
-              disabled: presetSaving,
-              onClick: () => { savePersonaPreset() },
-            }, presetSaving ? t('working') : t('personaPresetSave'))),
-          personaPresetsError !== null
-            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-presets-error' }, personaPresetsError)
-            : null,
-          personaPresetsPhase === 'loading' && personaPresets === null
-            ? h('p', { className: 'qqbot-hint' }, t('personaPresetsLoading'))
-            : null,
-          personaPresets !== null && presetList.length === 0
-            ? h('p', { className: 'qqbot-hint' }, t('personaPresetsEmpty'))
-            : null,
-          presetList.length > 0
-            ? h('div', { className: 'qqbot-persona-preset-list' },
-              ...presetList.map((preset) => h('div', {
-                key: String(preset.id),
-                className: 'qqbot-persona-preset-row',
-                'data-testid': 'qqbot-persona-preset-row',
-                'data-preset-id': String(preset.id),
-              },
-                h('div', { className: 'qqbot-persona-preset-main' },
-                  h('span', { className: 'qqbot-persona-preset-name' }, preset.name || String(preset.id)),
-                  h('span', { className: 'qqbot-persona-preset-role' },
-                    preset.persona !== null && typeof preset.persona === 'object' && preset.persona.name ? preset.persona.name : '—')),
-                h('div', { className: 'qqbot-btns' },
-                  h('button', {
-                    type: 'button',
-                    className: 'qqbot-btn',
-                    'data-testid': 'qqbot-persona-preset-load',
-                    'aria-label': `${t('personaPresetLoad')} ${String(preset.name || '')}`,
-                    disabled: presetLoading || presetDeleting,
-                    onClick: () => { loadPersonaPreset(preset) },
-                  }, t('personaPresetLoad')),
-                  h('button', {
-                    type: 'button',
-                    className: 'qqbot-btn qqbot-btn-danger',
-                    'data-testid': 'qqbot-persona-preset-delete',
-                    'aria-label': `${t('personaPresetDelete')} ${String(preset.name || '')}`,
-                    disabled: presetLoading || presetDeleting,
-                    onClick: () => { deletePersonaPreset(preset) },
-                  }, t('personaPresetDelete'))))))
-            : null,
-          personaPresetsPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, personaPresetsPath) : null)
-
-        return h('section', { className: 'qqbot-card qqbot-persona-card', 'data-testid': 'qqbot-persona-card' },
-          head,
-          h('div', { className: 'qqbot-form' },
-            field('qqbot-persona-name', 'qqbot-persona-name', t('personaName'), draft.name, (value) => { updateDraft({ name: value }) }),
-            field('qqbot-persona-role', 'qqbot-persona-role', t('personaRole'), draft.role, (value) => { updateDraft({ role: value }) }),
-            field('qqbot-persona-tone', 'qqbot-persona-tone', t('personaTone'), draft.tone, (value) => { updateDraft({ tone: value }) }),
-            field('qqbot-persona-personality', 'qqbot-persona-personality', t('personaPersonality'), draft.personality, (value) => { updateDraft({ personality: value }) }),
-            field('qqbot-persona-rules', 'qqbot-persona-rules', t('personaRules'), draft.rules, (value) => { updateDraft({ rules: value }) }, true)),
-          h('div', { className: 'qqbot-persona-examples' },
-            h('span', { className: 'qqbot-field-label' }, t('personaExamples')),
-            examples.length === 0 ? h('p', { className: 'qqbot-hint' }, t('personaNoExamples')) : null,
-            ...examples,
-            h('div', { className: 'qqbot-btns' },
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn',
-                'data-testid': 'qqbot-persona-example-add',
-                'aria-label': t('personaAddExample'),
-                disabled: busy || draft.examples.length >= MAX_PERSONA_EXAMPLES,
-                onClick: addExample,
-              }, t('personaAddExample')),
-              h('span', { className: 'qqbot-hint' }, t('personaMaxExamples')))),
-          h('div', { className: 'qqbot-btns' },
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn qqbot-btn-primary',
-              'data-testid': 'qqbot-persona-save',
-              'aria-label': t('personaSave'),
-              'aria-busy': saving ? 'true' : undefined,
-              disabled: busy,
-              onClick: () => { savePersona() },
-            }, saving ? t('personaSaving') : t('personaSave')),
-            h('button', {
-              type: 'button',
-              className: 'qqbot-btn',
-              'data-testid': 'qqbot-persona-reset',
-              'aria-label': t('personaReset'),
-              'aria-busy': resetting ? 'true' : undefined,
-              disabled: busy,
-              onClick: () => { resetPersona() },
-            }, resetting ? t('working') : t('personaReset'))),
-          personaError !== null && personaPhase === 'ready'
-            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-persona-error' }, personaError)
-            : null,
-          previewBlock,
-          presetsBlock,
-          personaPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, personaPath) : null)
-      }
-
-      return { renderPersonaCard }
-    },
-    "client/plugins/ai/ProfilesCard.js": (__require) => {
-
-
-      function renderProfilesCard(panel) {
-        const {
-          t, profiles, profilesPhase, profilesError, profilesSearch, setProfilesSearch, profilesPath,
-          selectedProfileKey, profileDraft, setProfileDraft, busyOf, loadProfiles, selectProfile, saveProfile,
-          deleteProfile, row, h
-        } = panel
-        const list = Array.isArray(profiles) ? profiles : []
-        const saving = busyOf('profile-save')
-        const deleting = busyOf('profile-delete')
-        const busy = saving || deleting
-        const updateDraft = (patch) => setProfileDraft((previous) => (previous === null ? previous : { ...previous, ...patch }))
-        const field = (testid, label, value, onChange, options) => {
-          const extra = options || {}
-          return h('div', { className: 'qqbot-field' },
-            h('label', { className: 'qqbot-field-label', htmlFor: testid }, label),
-            extra.multiline === true
-              ? h('textarea', {
-                id: testid,
-                className: 'qqbot-area',
-                'data-testid': testid,
-                rows: extra.rows || 3,
-                value,
-                onChange: (event) => { onChange(event.currentTarget.value) },
-              })
-              : h('input', {
-                id: testid,
-                className: 'qqbot-input',
-                type: 'text',
-                'data-testid': testid,
-                value,
-                onChange: (event) => { onChange(event.currentTarget.value) },
-              }))
-        }
-        const rows = list.map((profile) => {
-          const key = typeof profile.key === 'string' && profile.key !== ''
-            ? profile.key
-            : `${String(profile.groupId ?? '')}:${String(profile.qq ?? '')}`
-          const active = key === selectedProfileKey
-          return h('button', {
-            key,
-            type: 'button',
-            className: 'qqbot-profile-item',
-            'data-testid': 'qqbot-profile-row',
-            'data-key': key,
-            'data-active': active ? 'true' : 'false',
-            'aria-pressed': active ? 'true' : 'false',
-            onClick: () => { selectProfile(profile) },
-          },
-            h('div', { className: 'qqbot-profile-item-top' },
-              h('span', { className: 'qqbot-profile-name' }, profile.nickname || profile.qq || key),
-              h('span', { className: 'qqbot-profile-meta' }, `${t('profilesQq')} ${profile.qq || '—'}`)),
-            h('div', { className: 'qqbot-profile-meta' },
-              h('span', null, `${t('profilesGroup')} ${profile.groupId || '—'}`),
-              h('span', null, `${Number(profile.interactions) || 0} ${t('profilesInteractions')}`)),
-            typeof profile.summary === 'string' && profile.summary !== ''
-              ? h('span', { className: 'qqbot-profile-summary' }, profile.summary)
-              : null)
-        })
-        const editor = profileDraft === null
-          ? h('div', { className: 'qqbot-empty' }, t('profilesSelect'))
-          : h('div', { className: 'qqbot-profile-editor' },
-            h('div', { className: 'qqbot-rows' },
-              row(t('profilesGroup'), profileDraft.groupId || '—', null, true),
-              row(t('profilesQq'), profileDraft.qq || '—', null, true)),
-            h('div', { className: 'qqbot-form' },
-              field('qqbot-profile-nickname', t('profilesNickname'), profileDraft.nickname, (value) => { updateDraft({ nickname: value }) }),
-              field('qqbot-profile-summary', t('profilesSummary'), profileDraft.summary, (value) => { updateDraft({ summary: value }) }, { multiline: true }),
-              field('qqbot-profile-personality', t('profilesPersonality'), profileDraft.personality, (value) => { updateDraft({ personality: value }) }, { multiline: true }),
-              field('qqbot-profile-style', t('profilesStyle'), profileDraft.style, (value) => { updateDraft({ style: value }) }),
-              field('qqbot-profile-relationship', t('profilesRelationship'), profileDraft.relationship, (value) => { updateDraft({ relationship: value }) }),
-              field('qqbot-profile-interests', t('profilesInterests'), profileDraft.interests, (value) => { updateDraft({ interests: value }) }),
-              field('qqbot-profile-recent', t('profilesRecent'), profileDraft.recent, (value) => { updateDraft({ recent: value }) }, { multiline: true })),
-            h('div', { className: 'qqbot-btns' },
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn qqbot-btn-primary',
-                'data-testid': 'qqbot-profile-save',
-                'aria-label': t('profilesSave'),
-                'aria-busy': saving ? 'true' : undefined,
-                disabled: busy,
-                onClick: () => { saveProfile() },
-              }, saving ? t('working') : t('profilesSave')),
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn qqbot-btn-danger',
-                'data-testid': 'qqbot-profile-delete',
-                'aria-label': t('profilesDelete'),
-                'aria-busy': deleting ? 'true' : undefined,
-                disabled: busy,
-                onClick: () => { deleteProfile() },
-              }, deleting ? t('working') : t('profilesDelete'))))
-        return h('section', { className: 'qqbot-card', 'data-testid': 'qqbot-profiles-card' },
-          h('div', { className: 'qqbot-card-head' },
-            h('h2', { className: 'qqbot-card-title' }, t('profilesTitle')),
-            h('span', { className: 'qqbot-card-sub' }, t('profilesSubtitle'))),
-          h('div', { className: 'qqbot-toolbar' },
-            h('div', { className: 'qqbot-toolbar-left' },
-              h('input', {
-                className: 'qqbot-input',
-                type: 'text',
-                'data-testid': 'qqbot-profiles-search',
-                'aria-label': t('profilesSearch'),
-                placeholder: t('profilesSearch'),
-                value: profilesSearch,
-                onChange: (event) => { setProfilesSearch(event.currentTarget.value) },
-              }),
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn',
-                'data-testid': 'qqbot-profiles-refresh',
-                'aria-label': t('profilesRefresh'),
-                disabled: profilesPhase === 'loading',
-                onClick: () => { loadProfiles(profilesSearch) },
-              }, t('refresh'))),
-            h('div', { className: 'qqbot-toolbar-right' },
-              h('span', { className: 'qqbot-card-sub' }, `${list.length}`))),
-          profilesError !== null
-            ? h('div', { className: 'qqbot-banner qqbot-banner-error', role: 'alert', 'data-testid': 'qqbot-profiles-error' }, profilesError)
-            : null,
-          profilesPhase === 'loading' && profiles === null
-            ? h('div', { className: 'qqbot-empty', role: 'status' }, t('profilesLoading'))
-            : null,
-          profiles !== null && list.length === 0 && profileDraft === null
-            ? h('div', { className: 'qqbot-empty' }, t('profilesEmpty'))
-            : null,
-          profiles !== null && (list.length > 0 || profileDraft !== null)
-            ? h('div', { className: 'qqbot-profiles-layout' },
-              h('div', { className: 'qqbot-profile-list' }, ...rows),
-              editor)
-            : null,
-          profilesPath !== null ? h('p', { className: 'qqbot-hint qqbot-mono' }, profilesPath) : null)
-      }
-
-      return { renderProfilesCard }
-    },
-    "client/plugins/ai/PromptCard.js": (__require) => {
-      const { formatTime } = __require("client/runtime/api.js")
-
-      function renderFullPromptCard(panel) {
-        const { t, lastPromptState, fullPromptOpen, setFullPromptOpen, loadLastPrompt, h } = panel
-        const state = lastPromptState
-        const prompt = state.prompt
-        const loading = state.phase === 'loading'
-        const messages = prompt !== null && prompt !== undefined && Array.isArray(prompt.messages) ? prompt.messages : []
-        const mentionParts = []
-        if (prompt !== null && prompt !== undefined) {
-          if (prompt.mentionSelf === true) mentionParts.push(t('fullPromptMentionSelf'))
-          if (Array.isArray(prompt.mentionOthers) && prompt.mentionOthers.length > 0) {
-            mentionParts.push(`@${prompt.mentionOthers.map((item) => String(item)).join(' @')}`)
+        const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, filter: 'all', expanded: null })
+        const load = React.useCallback(async (manual = false) => {
+          if (manual) setView((prev) => ({ ...prev, phase: prev.data === null ? 'loading' : 'refreshing', error: null }))
+          try {
+            const payload = await requestJson('/qqbot/group/dashboard')
+            const data = obj(payload?.data)
+            setView((prev) => ({ ...prev, phase: 'ready', data: { ...EMPTY, ...data }, error: null, selected: prev.selected !== null && obj(data.groups)[prev.selected] !== undefined ? prev.selected : Object.keys(obj(data.groups))[0] ?? null }))
+          } catch (error) {
+            setView((prev) => ({ ...prev, phase: 'error', error: String(error?.message ?? error) }))
           }
-          if (prompt.mentionAll === true) mentionParts.push(t('fullPromptMentionAll'))
-        }
-        const meta = prompt === null || prompt === undefined ? null : h('div', {
-          className: 'qqbot-full-prompt-meta',
-          'data-testid': 'qqbot-full-prompt-meta',
-        },
-          h('span', null, `${t('fullPromptTime')} ${formatTime(prompt.at) || '—'}`),
-          h('span', null, `${prompt.provider || '—'}/${prompt.model || '—'}`),
-          h('span', null, `${t('fullPromptGroup')} ${prompt.groupId || '—'}`),
-          h('span', null, `${t('fullPromptUser')} ${prompt.userName || prompt.userId || '—'}`),
-          h('span', null, `${t('fullPromptMentions')} ${mentionParts.length > 0 ? mentionParts.join(' · ') : '—'}`),
-          h('span', null, `${t('fullPromptReplyToBot')} ${prompt.replyToBot === true ? t('fullPromptYes') : t('fullPromptNo')}`),
-          h('span', null, `${t('fullPromptImages')} ${Number(prompt.imageCount) || 0}`),
-          prompt.maxTokens !== undefined && prompt.maxTokens !== null ? h('span', null, `maxTokens ${prompt.maxTokens}`) : null,
-          prompt.temperature !== undefined && prompt.temperature !== null ? h('span', null, `temperature ${prompt.temperature}`) : null)
-        const body = prompt === null || prompt === undefined
-          ? null
-          : (fullPromptOpen
-            ? h('div', { className: 'qqbot-stack' },
-              h('span', { className: 'qqbot-field-label' }, t('fullPromptSystem')),
-              h('pre', {
-                className: 'qqbot-pre qqbot-full-prompt-system',
-                'data-testid': 'qqbot-full-prompt-system',
-              }, typeof prompt.system === 'string' ? prompt.system : ''),
-              h('span', { className: 'qqbot-field-label' }, t('fullPromptMessages')),
-              h('div', { className: 'qqbot-full-prompt-messages', 'data-testid': 'qqbot-full-prompt-messages' },
-                messages.length === 0
-                  ? h('p', { className: 'qqbot-hint' }, t('fullPromptNoMessages'))
-                  : null,
-                ...messages.map((message, index) => h('div', {
-                  key: `full-prompt-message-${index}`,
-                  className: 'qqbot-full-prompt-message',
-                  'data-testid': 'qqbot-full-prompt-message',
-                },
-                  h('div', { className: 'qqbot-full-prompt-message-head' },
-                    h('span', { className: 'qqbot-badge' }, message.role || 'user'),
-                    Number(message.imageCount) > 0
-                      ? h('span', { className: 'qqbot-card-sub' }, `${t('fullPromptImages')} ${message.imageCount}`)
-                      : null),
-                  h('div', { className: 'qqbot-full-prompt-message-text' },
-                    typeof message.text === 'string' ? message.text : '')))))
-            : null)
-        return h('section', { className: 'qqbot-card qqbot-full-prompt-card', 'data-testid': 'qqbot-full-prompt-card' },
-          h('div', { className: 'qqbot-card-head' },
-            h('h2', { className: 'qqbot-card-title' }, t('fullPromptTitle')),
-            h('div', { className: 'qqbot-btns' },
-              h('button', {
-                type: 'button',
-                className: 'qqbot-btn',
-                'data-testid': 'qqbot-full-prompt-refresh',
-                'aria-label': t('fullPromptRefresh'),
-                disabled: loading,
-                onClick: () => { loadLastPrompt() },
-              }, loading ? t('working') : t('refresh')),
-              prompt !== null && prompt !== undefined
-                ? h('button', {
-                  type: 'button',
-                  className: 'qqbot-btn',
-                  'data-testid': 'qqbot-full-prompt-toggle',
-                  'aria-label': fullPromptOpen ? t('fullPromptHide') : t('fullPromptShow'),
-                  onClick: () => { setFullPromptOpen((previous) => !previous) },
-                }, fullPromptOpen ? t('fullPromptHide') : t('fullPromptShow'))
-                : null)),
-          state.error !== null
-            ? h('p', { className: 'qqbot-error', 'data-testid': 'qqbot-full-prompt-error' }, `${t('fullPromptError')}: ${state.error}`)
-            : null,
-          state.phase === 'loading' && prompt === null && state.error === null
-            ? h('p', { className: 'qqbot-hint' }, t('fullPromptLoading'))
-            : null,
-          prompt === null && state.error === null && state.phase !== 'loading' && state.phase !== 'idle'
-            ? h('div', { className: 'qqbot-empty' }, t('fullPromptEmpty'))
-            : null,
-          meta,
-          body)
+        }, [])
+        React.useEffect(() => {
+          load()
+          const timer = setInterval(() => { void load() }, 5000)
+          return () => clearInterval(timer)
+        }, [load])
+        return () => renderAiTab(panel, {
+          ...view,
+          refresh: () => { void load(true) },
+          selectGroup: (id) => setView((prev) => ({ ...prev, selected: id })),
+          setFilter: (filter) => setView((prev) => ({ ...prev, filter })),
+          toggleLoop: (id) => setView((prev) => ({ ...prev, expanded: prev.expanded === id ? null : id })),
+        })
       }
 
-      return { renderFullPromptCard }
+      function statusPill(h, label, tone = 'idle') {
+        return h('span', { className: `qqbot-ai-pill qqbot-ai-pill-${tone}` }, h('i', { className: 'qqbot-ai-dot' }), label)
+      }
+
+      function metric(h, label, value, hint, tone) {
+        return h('div', { className: `qqbot-ai-metric qqbot-ai-metric-${tone || 'blue'}` },
+          h('span', { className: 'qqbot-ai-metric-label' }, label),
+          h('strong', { className: 'qqbot-ai-metric-value' }, value),
+          h('span', { className: 'qqbot-ai-metric-hint' }, hint))
+      }
+
+      function emotionBar(h, label, value, tone) {
+        return h('div', { className: 'qqbot-ai-emotion-row' },
+          h('div', { className: 'qqbot-ai-emotion-head' }, h('span', null, label), h('span', null, `${percent(value)}%`)),
+          h('div', { className: 'qqbot-ai-meter' }, h('i', { className: `qqbot-ai-meter-fill is-${tone}`, style: { width: `${percent(value)}%` } })))
+      }
+
+      function stateMachine(h, active) {
+        const index = active?.sendResult?.sent ? 4 : active ? 2 : 0
+        return h('div', { className: 'qqbot-ai-machine', 'data-testid': 'qqbot-ai-state-machine' },
+          ...STATE_LABELS.map((label, i) => h('div', { key: label, className: `qqbot-ai-machine-node${i <= index ? ' is-reached' : ''}${i === index ? ' is-active' : ''}` },
+            h('span', { className: 'qqbot-ai-machine-index' }, String(i + 1).padStart(2, '0')),
+            h('span', null, label))),
+          h('div', { className: 'qqbot-ai-machine-caption' }, active ? '当前群正在处理 loop' : '空闲 · 等待触发'))
+      }
+
+      function groupRow(h, id, group, selected, select) {
+        const queue = obj(group.queue)
+        const running = group.running === true
+        return h('button', {
+          key: id, type: 'button', className: `qqbot-ai-group-row${selected ? ' is-selected' : ''}`,
+          'data-testid': 'qqbot-ai-group-row', 'data-group': id, onClick: () => select(id),
+        },
+        h('div', { className: 'qqbot-ai-group-main' },
+          h('div', { className: 'qqbot-ai-group-title' }, h('span', { className: 'qqbot-ai-group-id' }, id),
+            running ? statusPill(h, '处理中', 'run') : statusPill(h, '监听中', 'ok')),
+          h('div', { className: 'qqbot-ai-group-meta' },
+            h('span', null, `缓冲 ${num(group.bufferSize)}`),
+            h('span', null, `未处理 ${num(group.unprocessed)}`),
+            h('span', null, queue.urgent ? `urgent · ${queue.urgent}` : queue.normal ? `normal · ${queue.normal}` : '队列空'))),
+        h('span', { className: 'qqbot-ai-group-arrow' }, '›'))
+      }
+
+      function loopRow(h, loop, expanded, toggle) {
+        const sent = loop.sendResult?.sent === true
+        const speak = loop.speak?.enabled === true
+        return h('div', { key: loop.loopId, className: 'qqbot-ai-loop' },
+          h('button', { type: 'button', className: 'qqbot-ai-loop-head', 'data-testid': 'qqbot-ai-loop-row', onClick: () => toggle(loop.loopId) },
+            h('span', { className: `qqbot-ai-loop-icon ${sent ? 'is-sent' : 'is-idle'}` }, sent ? '↗' : '·'),
+            h('span', { className: 'qqbot-ai-loop-main' },
+              h('strong', null, TRIGGER_LABEL[loop.trigger] || loop.trigger || 'loop'),
+              h('span', null, `${time(loop.at)} · ${num(loop.materialCount)} 条素材`)),
+            h('span', { className: `qqbot-ai-loop-state ${sent ? 'is-sent' : ''}` }, sent ? '已发言' : speak ? '生成中' : '未发言'),
+            h('span', { className: 'qqbot-ai-loop-arrow' }, expanded ? '−' : '+')),
+          expanded ? h('div', { className: 'qqbot-ai-loop-detail' },
+            h('div', { className: 'qqbot-ai-loop-reply' }, loop.reply || '本轮没有发送内容'),
+            h('div', { className: 'qqbot-ai-loop-meta' },
+              h('span', null, `触发 ${loop.trigger || '—'}`),
+              h('span', null, `素材 ${num(loop.materialCount)}`),
+              h('span', null, `分析 ${num(loop.analysisMs)} ms`),
+              h('span', null, sent ? `发送 ${num(loop.sendResult?.parts)} 条` : '未发送')),
+            h('div', { className: 'qqbot-ai-loop-meta' }, h('span', null, loop.loopId || '—'))) : null)
+      }
+
+      function renderAiTab(panel, view) {
+        const { h } = panel
+        const data = obj(view.data)
+        const character = obj(data.character)
+        const core = obj(character.core)
+        const emotion = obj(character.emotion)
+        const groups = Object.entries(obj(data.groups))
+        const loops = arr(data.loops).filter((loop) => view.filter === 'all' || (view.filter === 'sent' ? loop.sendResult?.sent === true : loop.sendResult?.sent !== true))
+        const selectedId = view.selected ?? groups[0]?.[0] ?? null
+        const selectedGroup = selectedId !== null ? obj(data.groups)[selectedId] : null
+        const activeLoop = selectedGroup?.lastLoop ?? null
+        const queueCount = groups.reduce((sum, [, g]) => sum + (obj(g.queue).urgent ? 1 : 0) + (obj(g.queue).normal ? 1 : 0), 0)
+        const activeCount = groups.filter(([, g]) => g.running === true).length
+        const sentCount = arr(data.loops).filter((loop) => loop.sendResult?.sent === true).length
+        const loading = view.phase === 'loading'
+        if (loading) {
+          return h('div', { className: 'qqbot-ai-dashboard', 'data-testid': 'qqbot-ai-dashboard' }, h('div', { className: 'qqbot-ai-skeleton' }, '正在连接群聊监听器…'))
+        }
+        if (view.phase === 'error') {
+          return h('div', { className: 'qqbot-ai-dashboard', 'data-testid': 'qqbot-ai-dashboard' },
+            h('section', { className: 'qqbot-ai-card qqbot-ai-error-card' },
+              h('span', { className: 'qqbot-ai-eyebrow' }, 'LISTENER OFFLINE'),
+              h('h2', null, '监听器暂时不可用'),
+              h('p', { 'data-testid': 'qqbot-ai-error' }, view.error || '无法读取运行数据'),
+              h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-refresh', onClick: view.refresh }, '重新连接')))
+        }
+        return h('div', { className: 'qqbot-ai-dashboard', 'data-testid': 'qqbot-ai-dashboard' },
+          h('header', { className: 'qqbot-ai-hero' },
+            h('div', null,
+              h('span', { className: 'qqbot-ai-eyebrow' }, 'GROUP LISTENER / LIVE CONTROL'),
+              h('h1', null, '群聊 AI 运行台'),
+              h('p', null, '监听群消息，按队列触发分析、发言与状态更新。')),
+            h('div', { className: 'qqbot-ai-hero-actions' },
+              statusPill(h, activeCount > 0 ? `${activeCount} 个群处理中` : '监听中', activeCount > 0 ? 'run' : 'ok'),
+              h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-refresh', onClick: view.refresh, 'aria-busy': view.phase === 'refreshing' ? 'true' : undefined }, view.phase === 'refreshing' ? '刷新中…' : '刷新数据'))),
+          h('div', { className: 'qqbot-ai-metrics', 'data-testid': 'qqbot-ai-metrics' },
+            metric(h, '活跃群', groups.length, '最近有消息的群', 'blue'),
+            metric(h, '待处理', queueCount, 'urgent + normal', queueCount > 0 ? 'amber' : 'slate'),
+            metric(h, '已发言', sentCount, '最近 30 个 loop', 'green'),
+            metric(h, '情绪电量', `${percent(emotion.socialBattery)}%`, '角色当前社交电量', 'violet')),
+          h('div', { className: 'qqbot-ai-main-grid' },
+            h('section', { className: 'qqbot-ai-card qqbot-ai-flow-card' },
+              h('div', { className: 'qqbot-ai-card-head' },
+                h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'PIPELINE'),
+                  h('h2', null, '状态流转')),
+                h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '暂无群')),
+              stateMachine(h, activeLoop),
+              selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
+                h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, selectedId), h('span', null, `缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}`)),
+                h('div', { className: 'qqbot-ai-active-queue' },
+                  h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
+                  h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
+                  h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲'))) : h('p', { className: 'qqbot-ai-empty-line' }, '还没有群聊监听数据。')),
+            h('section', { className: 'qqbot-ai-card qqbot-ai-character', 'data-testid': 'qqbot-ai-character' },
+              h('div', { className: 'qqbot-ai-card-head' },
+                h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'CHARACTER'),
+                  h('h2', null, text(core.name) || '角色')),
+                statusPill(h, '状态投影', 'violet')),
+              h('p', { className: 'qqbot-ai-identity' }, text(core.identity) || '尚未建立角色核心'),
+              h('div', { className: 'qqbot-ai-emotions', 'data-testid': 'qqbot-ai-emotion' },
+                emotionBar(h, '心情', (num(emotion.valence) + 1) / 2, 'rose'),
+                emotionBar(h, '精力', emotion.energy, 'blue'),
+                emotionBar(h, '社交电量', emotion.socialBattery, 'violet'),
+                emotionBar(h, '压力', emotion.stress, 'amber')),
+              h('p', { className: 'qqbot-ai-voice' }, `语气：${text(core.voice) || '—'}`))),
+          h('div', { className: 'qqbot-ai-lower-grid' },
+            h('section', { className: 'qqbot-ai-card' },
+              h('div', { className: 'qqbot-ai-card-head' },
+                h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'GROUPS'), h('h2', null, '群队列')),
+                h('span', { className: 'qqbot-ai-card-sub' }, `${groups.length} 个群`)),
+              h('div', { className: 'qqbot-ai-groups', 'data-testid': 'qqbot-ai-groups' },
+                groups.length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '还没有监听到群消息') : groups.map(([id, group]) => groupRow(h, id, group, id === selectedId, view.selectGroup)))),
+            h('section', { className: 'qqbot-ai-card' },
+              h('div', { className: 'qqbot-ai-card-head' },
+                h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'RECENT LOOPS'), h('h2', null, '最近闭环')),
+                h('div', { className: 'qqbot-ai-tabs' },
+                  ...['all', 'sent', 'silent'].map((filter) => h('button', { key: filter, type: 'button', className: `qqbot-ai-tab${view.filter === filter ? ' is-active' : ''}`, 'data-testid': `qqbot-ai-loop-filter-${filter}`, onClick: () => view.setFilter(filter) }, filter === 'all' ? '全部' : filter === 'sent' ? '已发言' : '未发言')))),
+              h('div', { className: 'qqbot-ai-loops', 'data-testid': 'qqbot-ai-loops' },
+                loops.length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '还没有分析记录') : loops.slice(0, 12).map((loop) => loopRow(h, loop, view.expanded === loop.loopId, view.toggleLoop))))),
+          h('section', { className: 'qqbot-ai-card qqbot-ai-memory-card' },
+            h('div', { className: 'qqbot-ai-card-head' },
+              h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'MEMORY'), h('h2', null, '最近记忆')),
+              h('span', { className: 'qqbot-ai-card-sub' }, `${arr(data.memories).length} 条`)),
+            h('div', { className: 'qqbot-ai-memories', 'data-testid': 'qqbot-ai-memories' },
+              arr(data.memories).length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '每次分析后这里会出现状态更新记录') : arr(data.memories).slice(-8).reverse().map((memory) => h('div', { key: memory.id || memory.summary, className: 'qqbot-ai-memory' },
+                h('span', { className: `qqbot-ai-memory-dot is-${memory.importance || 'medium'}` }),
+                h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, `${time(memory.at)} · ${text(memory.kind) || 'event'}`)))))),
+          h('footer', { className: 'qqbot-ai-footer' },
+            h('span', null, `监听器 ${data.listener?.updatedAt ? `更新于 ${time(data.listener.updatedAt)}` : '等待数据'}`),
+            h('span', null, '群间并发 · 群内串行 · 每轮 state_update 一次')))
+      }
+
+      return { useAi, renderAiTab }
     },
     "client/plugins/ai/index.js": (__require) => {
       const { registerTab } = __require("client/runtime/tab-registry.js")
       const { useAi, renderAiTab } = __require("client/plugins/ai/AiTab.js")
-      const { loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt, testAi, applyPersonaPayload, savePersona, resetPersona, applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft, selectProfile, saveProfile, deleteProfile, savePersonaPreset, loadPersonaPreset, deletePersonaPreset } = __require("client/plugins/ai/AiActions.js")
 
       registerTab({
         id: 'ai',
         labelKey: 'tabAi',
         order: 1,
         use(panel) {
-          useAi(panel)
-          return () => renderAiTab(panel)
+          return useAi(panel)
         },
-        handlers: {
-          loadPersona, loadAiSettings, loadProfiles, loadPersonaPresets, loadLastPrompt,
-          testAi, applyPersonaPayload, savePersona, resetPersona,
-          applyAiSettingsPayload, saveAiSettings, resetAiSettingsDraft,
-          selectProfile, saveProfile, deleteProfile,
-          savePersonaPreset, loadPersonaPreset, deletePersonaPreset,
-        },
+        handlers: {},
       })
 
       return {  }
@@ -4500,6 +3622,92 @@ window.__ModuleLoader__.load({
         .qqbot-page { padding: 16px 14px 44px; }
         .qqbot-title { font-size: 21px; }
       }
+
+      /* ── Group AI dashboard ───────────────────────────────────────────── */
+      .qqbot-ai-dashboard { display: flex; flex-direction: column; gap: 14px; }
+      .qqbot-ai-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 4px 2px 2px; }
+      .qqbot-ai-eyebrow, .qqbot-ai-card-kicker { color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+      .qqbot-ai-hero h1 { margin: 5px 0 4px; font-size: 27px; line-height: 1.15; letter-spacing: -.03em; color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-hero p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12.5px; }
+      .qqbot-ai-hero-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+      .qqbot-ai-btn { border: .5px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border-radius: 9px; padding: 7px 11px; font-size: 11.5px; cursor: pointer; }
+      .qqbot-ai-btn:hover { border-color: var(--dsw-alias-brand-primary); color: var(--dsw-alias-brand-primary); }
+      .qqbot-ai-btn-primary { background: var(--dsw-alias-brand-primary); color: #fff; border-color: transparent; }
+      .qqbot-ai-btn-primary:hover { color: #fff; opacity: .9; }
+      .qqbot-ai-pill { display: inline-flex; align-items: center; gap: 5px; border: .5px solid var(--dsw-alias-border-l1); border-radius: 999px; padding: 4px 8px; font-size: 10.5px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+      .qqbot-ai-pill-ok { color: var(--dsw-alias-state-success-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-pill-run { color: var(--dsw-alias-brand-primary); border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 40%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-pill-violet { color: #7c3aed; border-color: #c4b5fd; }
+      .qqbot-ai-dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+      .qqbot-ai-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .qqbot-ai-metric { display: flex; flex-direction: column; gap: 3px; padding: 13px 14px; border: .5px solid var(--dsw-alias-border-l1); border-radius: 14px; background: var(--dsw-alias-bg-layer-1); position: relative; overflow: hidden; }
+      .qqbot-ai-metric::after { content: ''; position: absolute; right: -18px; bottom: -22px; width: 62px; height: 62px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); }
+      .qqbot-ai-metric-label { color: var(--dsw-alias-label-tertiary); font-size: 10.5px; }
+      .qqbot-ai-metric-value { color: var(--dsw-alias-label-primary); font-size: 25px; line-height: 1.1; letter-spacing: -.04em; }
+      .qqbot-ai-metric-hint { color: var(--dsw-alias-label-tertiary); font-size: 10px; }
+      .qqbot-ai-card { border: .5px solid var(--dsw-alias-border-l1); border-radius: 16px; background: var(--dsw-alias-bg-layer-1); padding: 15px 16px; box-shadow: 0 8px 24px rgba(15,23,42,.035); }
+      .qqbot-ai-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+      .qqbot-ai-card-head h2 { margin: 3px 0 0; font-size: 14px; color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-card-sub { color: var(--dsw-alias-label-tertiary); font-size: 10.5px; }
+      .qqbot-ai-main-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); gap: 14px; }
+      .qqbot-ai-lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+      .qqbot-ai-machine { display: flex; align-items: flex-start; gap: 5px; flex-wrap: wrap; padding: 9px 0 5px; }
+      .qqbot-ai-machine-node { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 92px; padding: 8px 7px; border-radius: 10px; border: .5px dashed var(--dsw-alias-border-l1); color: var(--dsw-alias-label-tertiary); font-size: 9.5px; letter-spacing: .04em; }
+      .qqbot-ai-machine-node.is-reached { border-style: solid; border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l1)); color: var(--dsw-alias-brand-primary); background: color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, transparent); }
+      .qqbot-ai-machine-node.is-active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsw-alias-brand-primary) 15%, transparent); }
+      .qqbot-ai-machine-index { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; opacity: .65; }
+      .qqbot-ai-machine-caption { color: var(--dsw-alias-label-tertiary); font-size: 10px; margin-left: auto; align-self: center; }
+      .qqbot-ai-active-group { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; padding: 10px 11px; border-radius: 10px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); }
+      .qqbot-ai-active-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .qqbot-ai-active-title strong { font-size: 12px; color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-active-title span { font-size: 10px; color: var(--dsw-alias-label-tertiary); }
+      .qqbot-ai-active-queue { display: flex; gap: 10px; flex-wrap: wrap; color: var(--dsw-alias-label-tertiary); font-size: 9.5px; }
+      .qqbot-ai-identity { margin: 0 0 12px; color: var(--dsw-alias-label-secondary); font-size: 11.5px; line-height: 1.6; }
+      .qqbot-ai-voice { margin: 9px 0 0; color: var(--dsw-alias-label-tertiary); font-size: 10px; }
+      .qqbot-ai-emotions { display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-emotion-row { display: flex; flex-direction: column; gap: 3px; }
+      .qqbot-ai-emotion-head { display: flex; justify-content: space-between; font-size: 10px; color: var(--dsw-alias-label-secondary); }
+      .qqbot-ai-meter { height: 5px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 16%, transparent); }
+      .qqbot-ai-meter-fill { display: block; height: 100%; border-radius: inherit; background: var(--dsw-alias-brand-primary); }
+      .qqbot-ai-meter-fill.is-rose { background: #f43f5e; }.qqbot-ai-meter-fill.is-amber { background: #f59e0b; }.qqbot-ai-meter-fill.is-violet { background: #8b5cf6; }
+      .qqbot-ai-groups { display: flex; flex-direction: column; gap: 6px; }
+      .qqbot-ai-group-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border-radius: 10px; border: .5px solid transparent; background: transparent; color: inherit; cursor: pointer; }
+      .qqbot-ai-group-row:hover, .qqbot-ai-group-row.is-selected { border-color: var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); }
+      .qqbot-ai-group-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .qqbot-ai-group-title { display: flex; align-items: center; gap: 7px; }
+      .qqbot-ai-group-id { color: var(--dsw-alias-label-primary); font-size: 11.5px; font-weight: 600; }
+      .qqbot-ai-group-meta { display: flex; gap: 9px; flex-wrap: wrap; color: var(--dsw-alias-label-tertiary); font-size: 9.5px; }
+      .qqbot-ai-group-arrow, .qqbot-ai-loop-arrow { color: var(--dsw-alias-label-tertiary); font-size: 18px; line-height: 1; }
+      .qqbot-ai-tabs { display: inline-flex; gap: 3px; padding: 2px; border-radius: 7px; background: var(--dsw-alias-bg-base); }
+      .qqbot-ai-tab { border: 0; background: transparent; border-radius: 5px; padding: 4px 7px; font-size: 9.5px; color: var(--dsw-alias-label-tertiary); cursor: pointer; }
+      .qqbot-ai-tab.is-active { background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); box-shadow: 0 1px 3px rgba(15,23,42,.08); }
+      .qqbot-ai-loops { display: flex; flex-direction: column; gap: 6px; }
+      .qqbot-ai-loop { border: .5px solid var(--dsw-alias-border-l1); border-radius: 10px; overflow: hidden; }
+      .qqbot-ai-loop-head { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 9px; color: inherit; cursor: pointer; }
+      .qqbot-ai-loop-head:hover { background: var(--dsw-alias-bg-base); }
+      .qqbot-ai-loop-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 10%, transparent); color: var(--dsw-alias-brand-primary); font-size: 11px; flex: none; }
+      .qqbot-ai-loop-icon.is-idle { color: var(--dsw-alias-label-tertiary); background: color-mix(in srgb, var(--dsw-alias-label-tertiary) 9%, transparent); }
+      .qqbot-ai-loop-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+      .qqbot-ai-loop-main strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; }
+      .qqbot-ai-loop-main span { color: var(--dsw-alias-label-tertiary); font-size: 9px; }
+      .qqbot-ai-loop-state { font-size: 9px; color: var(--dsw-alias-label-tertiary); white-space: nowrap; }
+      .qqbot-ai-loop-state.is-sent { color: var(--dsw-alias-state-success-primary); }
+      .qqbot-ai-loop-detail { padding: 0 10px 10px 38px; display: flex; flex-direction: column; gap: 6px; }
+      .qqbot-ai-loop-reply { font-size: 11px; color: var(--dsw-alias-label-secondary); line-height: 1.5; white-space: pre-wrap; }
+      .qqbot-ai-loop-meta { display: flex; gap: 9px; flex-wrap: wrap; color: var(--dsw-alias-label-tertiary); font-size: 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-ai-memories { display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-memory { display: flex; gap: 8px; align-items: flex-start; }
+      .qqbot-ai-memory-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--dsw-alias-brand-primary); margin-top: 6px; flex: none; }
+      .qqbot-ai-memory-dot.is-high { background: #f59e0b; }.qqbot-ai-memory-dot.is-low { background: var(--dsw-alias-label-tertiary); }
+      .qqbot-ai-memory p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.5; }
+      .qqbot-ai-memory span { color: var(--dsw-alias-label-tertiary); font-size: 9px; }
+      .qqbot-ai-empty-line { color: var(--dsw-alias-label-tertiary); font-size: 11px; margin: 4px 0; }
+      .qqbot-ai-footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--dsw-alias-label-tertiary); font-size: 9.5px; padding: 0 2px; }
+      .qqbot-ai-skeleton, .qqbot-ai-error-card { min-height: 150px; display: flex; align-items: center; justify-content: center; color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+      .qqbot-ai-error-card { flex-direction: column; gap: 8px; }
+      .qqbot-ai-error-card h2 { margin: 0; color: var(--dsw-alias-label-primary); font-size: 16px; }
+      @media (max-width: 900px) { .qqbot-ai-metrics { grid-template-columns: repeat(2, 1fr); } .qqbot-ai-main-grid, .qqbot-ai-lower-grid { grid-template-columns: 1fr; } }
+      @media (max-width: 640px) { .qqbot-ai-hero { flex-direction: column; } .qqbot-ai-hero-actions { justify-content: flex-start; } .qqbot-ai-metrics { grid-template-columns: 1fr 1fr; } .qqbot-ai-machine-node { min-width: 76px; } }
       `
 
       return { CSS }

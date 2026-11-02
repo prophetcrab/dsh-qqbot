@@ -29,7 +29,7 @@ test('host: every legacy route and tool is contributed', async (t) => {
   assert.equal(typeof service?.registerFeature, 'function')
   assert.equal(typeof service?.getStatus, 'function')
   assert.equal(typeof host.kernel.unload, 'function')
-  assert.equal(host.kernel.listPlugins().length, 10)
+  assert.equal(host.kernel.listPlugins().length, 11)
 })
 
 test('host: built-in feature ids and actions are preserved', async (t) => {
