@@ -534,9 +534,8 @@ unknown      未知转发类型
     "kind": "reply",
     "replyType": "quote",
     "target": {
-      "qq": "20000",
-      "nickname": "小明",
-      "messageId": "m105"
+      "messageIds": ["m105"],
+      "userIds": ["20000"]
     }
   },
   "update": {
@@ -554,10 +553,40 @@ unknown      未知转发类型
 | `speak.enabled` | 是否发言；false 时不进入 speaking 状态 |
 | `speak.kind` | `statement` 或 `reply` |
 | `speak.replyType` | kind=reply 时：`normal` / `quote` / `action` / `at` |
-| `speak.target.qq` | 回复/@/戳的对象 QQ |
-| `speak.target.messageId` | 引用回复的目标消息；quote 必填 |
+| `speak.target.messageIds` | 这条回复在语义上针对的消息；normal/quote 使用 |
+| `speak.target.userIds` | 回复/@/戳的对象 QQ；normal/at/action 使用 |
 | `update.*` | 是否更新画像/群状态，独立于发言 |
 | `reason` | 一句话解释，仅用于日志/调试 |
+
+### 10.2.1 target 与 replyType 的区别
+
+```text
+target
+  = 这条回复在语义上针对哪一条或哪几条消息/哪个人
+  = 决定生成时看什么，不决定发送协议
+
+replyType
+  = 发送时是否带引用、@、动作
+```
+
+例如：
+
+```text
+target.messageIds = ["m105", "m106"]
+replyType = "normal"
+```
+
+表示：
+
+```text
+回复内容只针对 m105 和 m106
+但发送时只是普通文本
+不带引用、不带 @、不戳人
+```
+
+`normal` 不是“随便回整段分析素材”，而是：
+
+> **没有额外动作的文本回复，但仍然明确针对特定消息。**
 
 `statement` 不带 target：
 
@@ -632,12 +661,21 @@ at      @回复：带 @
 
 ### 10.5 四种回复的定义
 
-| 类型 | 发送行为 | 必需 target |
+| 类型 | 发送行为 | target |
 | --- | --- | --- |
-| normal | 直接发送文字，不引用、不 @、不戳 | qq/messageId 可选 |
-| quote | 带 reply 元素引用目标消息 | messageId |
-| action | 发送戳一戳动作 | qq |
-| at | 带 at 元素 @ 目标用户 | qq |
+| normal | 直接发送文字，不引用、不 @、不戳；语义上只针对 target 消息 | 1 条或多条 messageIds |
+| quote | 带 reply 元素引用目标消息 | 恰好 1 条 messageId |
+| action | 发送戳一戳动作 | 1 个 userId |
+| at | 带 at 元素 @ 目标用户 | 1 个或多个 userIds |
+
+对 `normal` 的准确理解：
+
+```text
+不加任何协议动作
+只是把文本发到群里
+但生成时只聚焦 target 选中的消息
+不是对整段 100 条素材写总结
+```
 
 `action` 第一版建议只戳，不附带文本；文本回复走 normal/at/quote。
 
@@ -734,7 +772,7 @@ direct 仍可标记 pendingForced
 分析素材（同一份）
 speak.kind
 speak.replyType
-speak.target
+speak.target（messageIds / userIds）
 机器人上一句
 角色核心摘要
 当前情绪
@@ -752,7 +790,8 @@ speak.target
 
 ```text
 statement：发表主观看法，不假装在回复某条消息
-reply：只针对 speak.target 回复，不要总结整个窗口
+reply：只针对 speak.target 中选中的消息回复，不要总结整个窗口
+normal：发送时不加引用/@/动作，但内容仍然只针对 target
 quote：文本不要重复引用全文
 at：文本里不要手写 @，由发送层插入
 action：第一版只传动作，不生成文本
@@ -876,8 +915,8 @@ action 后如果还有文本：
 | --- | --- |
 | 分析调用失败 | direct 触发走简单兜底；普通触发 ignore |
 | 分析输出 JSON 损坏 | speak.enabled=false，记录原始输出片段 |
-| quote 目标消息不存在 | 降级为 normal |
-| at/action 目标不存在 | 降级为 normal，无法降级则 speak.enabled=false |
+| quote 目标消息不存在 | 降级为 normal，并保留其余 target messageIds |
+| at/action 目标不存在 | 降级为 normal，无法确定 target 则 speak.enabled=false |
 | action 发送失败 | 记录失败，不自动重发 |
 | 生成调用失败 | 重试一次；仍失败则不刷屏 |
 | 发送失败 | 记录，不立即重发 |
