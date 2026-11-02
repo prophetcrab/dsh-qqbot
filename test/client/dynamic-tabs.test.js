@@ -294,7 +294,7 @@ test('an active tab the Host hides falls back to the first visible tab', async (
   clickTestId(await settle(), 'qqbot-status-refresh')
   const filtered = await settle()
   assert.deepEqual(tabIds(filtered), ['qqbot-tab-ai'])
-  assert.ok(findTestId(filtered, 'qqbot-ai-card') !== undefined, 'the fallback tab body did not render')
+  assert.ok(findTestId(filtered, 'qqbot-ai-dashboard') !== undefined, 'the fallback tab body did not render')
   assert.equal(findTestId(filtered, 'external-demo-body'), undefined)
 })
 

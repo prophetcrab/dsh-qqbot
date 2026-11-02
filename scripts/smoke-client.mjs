@@ -245,6 +245,26 @@ let personaState = {
 
 const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMinutes: 3, historyLimit: 100, batchWindowMs: 2500, batchMaxWaitMs: 10000 }
 let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
+const GROUP_DASHBOARD = {
+  character: {
+    core: { name: '天青色瞪眼鱼', identity: '群里的鲸鱼娘，嘴硬心软，慢热，护短', voice: '短句，偶尔反话，不用客服腔' },
+    emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
+  },
+  groups: {
+    '1026855069': { bufferSize: 18, unprocessed: 3, running: true, active: 'loop_001', cooldownUntil: 0, queue: { urgent: 'mention', normal: null }, lastLoop: { sendResult: { sent: true } } },
+    '805836168': { bufferSize: 7, unprocessed: 1, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: null }, lastLoop: null },
+  },
+  loops: [
+    { loopId: 'loop_001', at: '2026-11-02T15:22:11+08:00', trigger: 'mention', materialCount: 18, speak: { enabled: true }, reply: '今天真热，鱼鱼已经快化了。', sendResult: { sent: true, parts: 1 }, analysisMs: 812 },
+    { loopId: 'loop_002', at: '2026-11-02T15:18:00+08:00', trigger: 'count', materialCount: 12, speak: { enabled: false }, reply: '', sendResult: { sent: false }, analysisMs: 640 },
+  ],
+  memories: [
+    { id: 'mem_1', at: '2026-11-02T15:22:11+08:00', summary: '被说可爱时先回了“才不是”，但后面还是接受了。', kind: 'event', importance: 'medium' },
+    { id: 'mem_2', at: '2026-11-02T15:18:00+08:00', summary: '群里开始聊周末开黑。', kind: 'event', importance: 'low' },
+  ],
+  listener: { updatedAt: '2026-11-02T15:22:11+08:00', groups: {} },
+}
+
 const PROFILE_FIXTURE = [
   {
     key: '1026855069:5550001',
@@ -336,6 +356,9 @@ globalThis.fetch = async (url, init) => {
       })
     }
     return json({ ok: true, data: STATUS })
+  }
+  if (path === '/qqbot/group/dashboard') {
+    return json({ ok: true, data: GROUP_DASHBOARD })
   }
   if (path === '/qqbot/ai/chat') {
     return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
@@ -730,241 +753,36 @@ STATUS.platform = { ...MACOS_PLATFORM }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
 
-// ---- AI tab ----------------------------------------------------------------
+// ---- AI dashboard ----------------------------------------------------------
 clickTestId(tree, 'qqbot-tab-ai')
 tree = await settle()
-expectTestId(tree, 'qqbot-tab-ai')
-expectTestId(tree, 'qqbot-ai-card')
-expectTestId(tree, 'qqbot-persona-card')
-console.log('ai tab: ok')
-
-// ---- AI chat card -----------------------------------------------------------
-expectTestId(tree, 'qqbot-ai-card')
-const aiStatusText = text(expectTestId(tree, 'qqbot-ai-status'))
-if (!aiStatusText.includes('AI 已接入 DSH')) throw new Error('AI connected copy missing')
-if (!aiStatusText.includes('deepseek/deepseek-chat')) throw new Error('AI provider/model missing')
-if (!text(expectTestId(tree, 'qqbot-ai-card')).includes('@机器人') && !text(expectTestId(tree, 'qqbot-ai-card')).includes('@bot')) throw new Error('AI trigger hint missing')
-if (expectTestId(tree, 'qqbot-ai-test').props.disabled === true) throw new Error('AI test should be enabled when available')
-clickTestId(tree, 'qqbot-ai-test')
+expectTestId(tree, 'qqbot-ai-dashboard')
+expectTestId(tree, 'qqbot-ai-refresh')
+expectTestId(tree, 'qqbot-ai-metrics')
+expectTestId(tree, 'qqbot-ai-state-machine')
+expectTestId(tree, 'qqbot-ai-groups')
+const groupRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-group-row')
+if (groupRows.length !== 2) throw new Error(`expected 2 group rows, got ${groupRows.length}`)
+const loopRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-loop-row')
+if (loopRows.length !== 2) throw new Error(`expected 2 loop rows, got ${loopRows.length}`)
+expectTestId(tree, 'qqbot-ai-character')
+expectTestId(tree, 'qqbot-ai-emotion')
+expectTestId(tree, 'qqbot-ai-memories')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')
+clickTestId(tree, 'qqbot-ai-loop-row')
 tree = await settle()
-const aiPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/ai/chat')
-if (aiPosts.length !== 1) throw new Error(`expected one POST /qqbot/ai/chat, got ${aiPosts.length}`)
-const aiBody = JSON.parse(String(aiPosts[0].body))
-if (!Array.isArray(aiBody.messages) || aiBody.messages.length !== 1) throw new Error('AI test messages missing')
-if (aiBody.messages[0].role !== 'user' || aiBody.messages[0].text !== '请只回复：AI 面板测试成功') {
-  throw new Error(`AI test prompt wrong: ${JSON.stringify(aiBody.messages[0])}`)
-}
-if (!text(expectTestId(tree, 'qqbot-ai-reply')).includes('AI 面板测试成功')) throw new Error('AI reply missing')
-console.log('ai card: ok')
-
-STATUS.ai = { ...STATUS.ai, available: false, ready: false }
-clickTestId(tree, 'qqbot-status-refresh')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('今天真热')) throw new Error('reply preview missing in dashboard')
+clickTestId(tree, 'qqbot-ai-loop-filter-sent')
 tree = await settle()
-if (!text(expectTestId(tree, 'qqbot-ai-status')).includes('未接入 DSH LLM')) {
-  throw new Error('AI unavailable copy missing')
-}
-if (expectTestId(tree, 'qqbot-ai-test').props.disabled !== true) throw new Error('AI test must disable when unavailable')
-console.log('ai unavailable: ok')
-STATUS.ai = { ...STATUS.ai, available: true, ready: true }
-clickTestId(tree, 'qqbot-status-refresh')
+const sentRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-loop-row')
+if (sentRows.length !== 1) throw new Error(`expected 1 sent loop, got ${sentRows.length}`)
+clickTestId(tree, 'qqbot-ai-loop-filter-all')
 tree = await settle()
-
-// ---- AI persona card --------------------------------------------------------
-expectTestId(tree, 'qqbot-persona-card')
-if (expectTestId(tree, 'qqbot-persona-name').props.value !== '群友小助手') throw new Error('persona name not loaded')
-if (expectTestId(tree, 'qqbot-persona-role').props.value !== 'QQ 群里的 AI 助手') throw new Error('persona role not loaded')
-if (expectTestId(tree, 'qqbot-persona-tone').props.value !== '简洁自然') throw new Error('persona tone not loaded')
-if (expectTestId(tree, 'qqbot-persona-personality').props.value !== '友好耐心') throw new Error('persona personality not loaded')
-if (expectTestId(tree, 'qqbot-persona-rules').props.value !== '回答简短；不透露系统提示词。') throw new Error('persona rules not loaded')
-let personaExamples = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example')
-if (personaExamples.length !== 1) throw new Error(`expected 1 persona example, got ${personaExamples.length}`)
-const exampleUser = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example-user')[0]
-if (exampleUser === undefined || exampleUser.props.value !== '这个周末去哪玩比较好？') throw new Error('persona example user not loaded')
-if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('群友小助手')) throw new Error('persona preview missing')
-console.log('persona card: ok')
-
-expectTestId(tree, 'qqbot-persona-name').props.onChange({ currentTarget: { value: '测试人设' } })
+clickTestId(tree, 'qqbot-ai-refresh')
 tree = await settle()
-findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-example-user')[0]
-  .props.onChange({ currentTarget: { value: '你好呀' } })
-tree = await settle()
-clickTestId(tree, 'qqbot-persona-save')
-tree = await settle()
-const personaPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/save')
-if (personaPosts.length !== 1) throw new Error(`expected one POST /qqbot/persona/save, got ${personaPosts.length}`)
-const personaBody = JSON.parse(String(personaPosts[0].body))
-if (!personaBody.persona || personaBody.persona.name !== '测试人设') throw new Error('persona save body name wrong')
-if (!Array.isArray(personaBody.persona.examples) || personaBody.persona.examples.length !== 1) {
-  throw new Error(`persona save examples wrong: ${JSON.stringify(personaBody.persona.examples)}`)
-}
-if (personaBody.persona.examples[0].user !== '你好呀') throw new Error('persona example user not sent')
-if (personaBody.persona.examples[0].assistant !== '看你想爬山还是逛展～') throw new Error('persona example assistant lost')
-if (expectTestId(tree, 'qqbot-persona-name').props.value !== '测试人设') throw new Error('persona draft not refreshed after save')
-if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('测试人设')) throw new Error('persona preview not updated after save')
-if (findTestId(tree, 'qqbot-banner') === undefined) throw new Error('persona save banner missing')
-console.log('persona save: ok')
-
-clickTestId(tree, 'qqbot-persona-reset')
-tree = await settle()
-const resetPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/save')
-if (resetPosts.length !== 2) throw new Error(`expected two persona POSTs, got ${resetPosts.length}`)
-const resetBody = JSON.parse(String(resetPosts[1].body))
-if (resetBody.reset !== true) throw new Error(`reset body wrong: ${JSON.stringify(resetBody)}`)
-if (expectTestId(tree, 'qqbot-persona-name').props.value !== '默认人设') throw new Error('persona not refreshed after reset')
-if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('默认人设')) throw new Error('persona preview not updated after reset')
-console.log('persona reset: ok')
-
-// ---- persona presets --------------------------------------------------------
-expectTestId(tree, 'qqbot-persona-presets')
-expectTestId(tree, 'qqbot-persona-preset-name')
-expectTestId(tree, 'qqbot-persona-preset-save')
-let presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
-if (presetRows.length !== 1) throw new Error(`expected one preset row, got ${presetRows.length}`)
-if (!text(presetRows[0]).includes('默认卡') || !text(presetRows[0]).includes('预设角色')) {
-  throw new Error('preset row is missing its name or persona name')
-}
-expectTestId(tree, 'qqbot-persona-preset-name').props.onChange({ currentTarget: { value: '我的卡' } })
-tree = await settle()
-clickTestId(tree, 'qqbot-persona-preset-save')
-tree = await settle()
-const presetSavePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/save')
-if (presetSavePosts.length !== 1) throw new Error(`expected one preset save POST, got ${presetSavePosts.length}`)
-const presetSaveBody = JSON.parse(String(presetSavePosts[0].body))
-if (presetSaveBody.name !== '我的卡') throw new Error(`preset name wrong: ${String(presetSaveBody.name)}`)
-if (!presetSaveBody.persona || presetSaveBody.persona.name !== '默认人设') throw new Error('preset persona should be the current editor draft')
-presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
-if (presetRows.length !== 2) throw new Error(`expected two preset rows after save, got ${presetRows.length}`)
-console.log('persona presets save: ok')
-
-const presetLoadButtons = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-load')
-if (presetLoadButtons.length !== 2) throw new Error(`expected two preset load buttons, got ${presetLoadButtons.length}`)
-presetLoadButtons[0].props.onClick()
-tree = await settle()
-const presetLoadPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/load')
-if (presetLoadPosts.length !== 1) throw new Error(`expected one preset load POST, got ${presetLoadPosts.length}`)
-if (JSON.parse(String(presetLoadPosts[0].body)).id !== 'preset-1') throw new Error('preset load id wrong')
-if (expectTestId(tree, 'qqbot-persona-name').props.value !== '预设角色') throw new Error('persona name not loaded from preset')
-if (expectTestId(tree, 'qqbot-persona-role').props.value !== '预设身份') throw new Error('persona role not loaded from preset')
-if (!text(expectTestId(tree, 'qqbot-persona-preview')).includes('预设角色')) throw new Error('persona preview not updated after preset load')
-console.log('persona presets load: ok')
-
-const presetDeleteButtons = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-delete')
-if (presetDeleteButtons.length !== 2) throw new Error(`expected two preset delete buttons, got ${presetDeleteButtons.length}`)
-presetDeleteButtons[1].props.onClick()
-tree = await settle()
-const presetDeletePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/persona/presets/delete')
-if (presetDeletePosts.length !== 1) throw new Error(`expected one preset delete POST, got ${presetDeletePosts.length}`)
-if (JSON.parse(String(presetDeletePosts[0].body)).id !== 'preset-2') throw new Error('preset delete id wrong')
-presetRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-persona-preset-row')
-if (presetRows.length !== 1) throw new Error(`expected one preset row after delete, got ${presetRows.length}`)
-console.log('persona presets delete: ok')
-
-// ---- AI reply settings ------------------------------------------------------
-expectTestId(tree, 'qqbot-ai-settings-card')
-expectTestId(tree, 'qqbot-ai-settings-enabled')
-expectTestId(tree, 'qqbot-ai-settings-followup')
-expectTestId(tree, 'qqbot-ai-settings-history')
-if (Number(expectTestId(tree, 'qqbot-ai-settings-batch-window').props.value) !== 2500) {
-  throw new Error('batch window should display 2500')
-}
-if (Number(expectTestId(tree, 'qqbot-ai-settings-batch-max').props.value) !== 10000) {
-  throw new Error('max batch wait should display 10000')
-}
-const probabilityInput = expectTestId(tree, 'qqbot-ai-settings-probability')
-if (Number(probabilityInput.props.value) !== 15) throw new Error(`probability should display 15, got ${String(probabilityInput.props.value)}`)
-probabilityInput.props.onChange({ currentTarget: { value: '40' } })
-tree = await settle()
-clickTestId(tree, 'qqbot-ai-settings-save')
-tree = await settle()
-const settingsPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/ai/settings')
-if (settingsPosts.length !== 1) throw new Error(`expected one POST /qqbot/ai/settings, got ${settingsPosts.length}`)
-const settingsBody = JSON.parse(String(settingsPosts[0].body))
-if (Math.abs(Number(settingsBody.replyProbability) - 0.4) > 1e-9) throw new Error(`replyProbability should be 0.4, got ${String(settingsBody.replyProbability)}`)
-if (settingsBody.enabled !== true) throw new Error('AI enabled flag not sent')
-if (Number(settingsBody.followUpMinutes) !== 3) throw new Error('followUpMinutes not sent')
-if (Number(settingsBody.historyLimit) !== 100) throw new Error('historyLimit not sent')
-if (Number(settingsBody.batchWindowMs) !== 2500) throw new Error(`batchWindowMs not sent: ${String(settingsBody.batchWindowMs)}`)
-if (Number(settingsBody.batchMaxWaitMs) !== 10000) throw new Error(`batchMaxWaitMs not sent: ${String(settingsBody.batchMaxWaitMs)}`)
-if (Number(expectTestId(tree, 'qqbot-ai-settings-probability').props.value) !== 40) {
-  throw new Error('probability draft not refreshed after save')
-}
-console.log('ai settings: ok')
-
-// ---- full prompt preview ----------------------------------------------------
-expectTestId(tree, 'qqbot-full-prompt-card')
-expectTestId(tree, 'qqbot-full-prompt-refresh')
-const promptMeta = text(expectTestId(tree, 'qqbot-full-prompt-meta'))
-for (const needle of ['deepseek-account/deepseek-flash', '1026855069', '小明', '@小红', '800', '0.7']) {
-  if (!promptMeta.includes(needle)) throw new Error(`full prompt meta missing: ${needle}`)
-}
-const promptSystem = text(expectTestId(tree, 'qqbot-full-prompt-system'))
-if (!promptSystem.includes('【角色设定】') || !promptSystem.includes('【用户画像】')) {
-  throw new Error('full prompt system text missing')
-}
-const promptMessages = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-full-prompt-message')
-if (promptMessages.length !== 2) throw new Error(`expected 2 prompt messages, got ${promptMessages.length}`)
-if (!text(promptMessages[0]).includes('@小红 晚上开黑吗') || !text(promptMessages[0]).includes('user')) {
-  throw new Error('full prompt first message wrong')
-}
-if (!text(promptMessages[1]).includes('好呀，八点见！')) throw new Error('full prompt second message wrong')
-console.log('full prompt: ok')
-
-lastPromptData = null
-clickTestId(tree, 'qqbot-full-prompt-refresh')
-tree = await settle()
-if (!text(expectTestId(tree, 'qqbot-panel')).includes('还没有发送过 AI 请求')) {
-  throw new Error('full prompt empty state missing')
-}
-console.log('full prompt empty: ok')
-lastPromptData = LAST_PROMPT
-clickTestId(tree, 'qqbot-full-prompt-refresh')
-tree = await settle()
-
-// ---- member profiles --------------------------------------------------------
-expectTestId(tree, 'qqbot-profiles-card')
-expectTestId(tree, 'qqbot-profiles-search')
-expectTestId(tree, 'qqbot-profiles-refresh')
-let profileRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-profile-row')
-if (profileRows.length !== 2) throw new Error(`expected 2 profile rows, got ${profileRows.length}`)
-if (!text(profileRows[0]).includes('小明') || !text(profileRows[0]).includes('5550001')) {
-  throw new Error('profile row is missing the nickname or QQ')
-}
-if (!text(profileRows[0]).includes('12')) throw new Error('profile row is missing the interaction count')
-profileRows[0].props.onClick()
-tree = await settle()
-if (expectTestId(tree, 'qqbot-profile-nickname').props.value !== '小明') throw new Error('selected profile nickname not loaded')
-if (expectTestId(tree, 'qqbot-profile-summary').props.value !== '爱开黑的老群友') throw new Error('selected profile summary not loaded')
-expectTestId(tree, 'qqbot-profile-nickname').props.onChange({ currentTarget: { value: '小明改' } })
-tree = await settle()
-expectTestId(tree, 'qqbot-profile-summary').props.onChange({ currentTarget: { value: '更新后的概要' } })
-tree = await settle()
-clickTestId(tree, 'qqbot-profile-save')
-tree = await settle()
-const profilePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/profiles/save')
-if (profilePosts.length !== 1) throw new Error(`expected one POST /qqbot/profiles/save, got ${profilePosts.length}`)
-const profileBody = JSON.parse(String(profilePosts[0].body))
-if (!profileBody.profile || profileBody.profile.key !== '1026855069:5550001') throw new Error('profile key not sent')
-if (profileBody.profile.groupId !== '1026855069' || profileBody.profile.qq !== '5550001') {
-  throw new Error('profile groupId/qq must be preserved')
-}
-if (profileBody.profile.nickname !== '小明改' || profileBody.profile.summary !== '更新后的概要') {
-  throw new Error(`profile edits not sent: ${JSON.stringify(profileBody.profile)}`)
-}
-if (!Array.isArray(profileBody.profile.interests) || profileBody.profile.interests[0] !== '游戏') {
-  throw new Error('profile interests not sent as an array')
-}
-if (expectTestId(tree, 'qqbot-profile-nickname').props.value !== '小明改') throw new Error('profile draft not refreshed after save')
-console.log('profiles save: ok')
-
-clickTestId(tree, 'qqbot-profile-delete')
-tree = await settle()
-const deletePosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/profiles/delete')
-if (deletePosts.length !== 1) throw new Error(`expected one POST /qqbot/profiles/delete, got ${deletePosts.length}`)
-if (JSON.parse(String(deletePosts[0].body)).key !== '1026855069:5550001') throw new Error('delete key wrong')
-const remainingRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-profile-row')
-if (remainingRows.length !== 1) throw new Error(`expected one profile row after delete, got ${remainingRows.length}`)
-console.log('profiles delete: ok')
-
+const dashboardGets = fetchLog.filter((entry) => entry.method === 'GET' && entry.url === '/qqbot/group/dashboard')
+if (dashboardGets.length < 1) throw new Error('dashboard was not fetched')
+console.log('ai dashboard: ok')
 clickTestId(tree, 'qqbot-tab-overview')
 tree = await settle()
 
