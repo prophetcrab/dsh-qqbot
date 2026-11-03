@@ -221,6 +221,11 @@ export function renderAiTab(panel, view) {
           emotionBar(h, '社交电量', emotion.socialBattery, 'violet'),
           emotionBar(h, '压力', emotion.stress, 'amber')),
         h('p', { className: 'qqbot-ai-voice' }, `语气：${text(core.voice) || '—'}`),
+        h('div', { className: 'qqbot-ai-keywords', 'data-testid': 'qqbot-ai-keywords' },
+          h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, `${arr(core.keywords).length} 个`)),
+          arr(core.keywords).length === 0
+            ? h('p', { className: 'qqbot-ai-empty-line' }, '人设暂无关键词')
+            : h('div', { className: 'qqbot-ai-keyword-tags' }, ...arr(core.keywords).map((keyword) => h('span', { key: keyword }, keyword)))),
         profilesBlock(h, selectedId, selectedProfiles))),
     h('div', { className: 'qqbot-ai-lower-grid' },
       h('section', { className: 'qqbot-ai-card' },

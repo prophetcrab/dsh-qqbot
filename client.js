@@ -919,6 +919,11 @@ window.__ModuleLoader__.load({
                 emotionBar(h, '社交电量', emotion.socialBattery, 'violet'),
                 emotionBar(h, '压力', emotion.stress, 'amber')),
               h('p', { className: 'qqbot-ai-voice' }, `语气：${text(core.voice) || '—'}`),
+              h('div', { className: 'qqbot-ai-keywords', 'data-testid': 'qqbot-ai-keywords' },
+                h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, `${arr(core.keywords).length} 个`)),
+                arr(core.keywords).length === 0
+                  ? h('p', { className: 'qqbot-ai-empty-line' }, '人设暂无关键词')
+                  : h('div', { className: 'qqbot-ai-keyword-tags' }, ...arr(core.keywords).map((keyword) => h('span', { key: keyword }, keyword)))),
               profilesBlock(h, selectedId, selectedProfiles))),
           h('div', { className: 'qqbot-ai-lower-grid' },
             h('section', { className: 'qqbot-ai-card' },
@@ -3765,6 +3770,9 @@ window.__ModuleLoader__.load({
       .qqbot-ai-profile-tags { display: flex; gap: 4px; flex-wrap: wrap; } .qqbot-ai-profile-tags span { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 8.5px; }
       .qqbot-ai-next-trigger { color: var(--dsw-alias-brand-primary); font-weight: 600; }
       .qqbot-ai-next-trigger-detail { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, transparent); font-size: 9.5px; }
+      .qqbot-ai-keywords { margin-top: 12px; border-top: .5px solid var(--dsw-alias-border-l1); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-keyword-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+      .qqbot-ai-keyword-tags span { padding: 3px 7px; border-radius: 6px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 9px; }
       `
 
       return { CSS }
