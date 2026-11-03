@@ -794,11 +794,17 @@ window.__ModuleLoader__.load({
 
       function stateMachine(h, group) {
         const active = group !== null && group !== undefined && typeof group === 'object' && (group.active !== null && group.active !== undefined || group.running === true)
-        const phase = active ? text(group.phase) : ''
-        const index = active ? (PHASE_INDEX[phase] ?? 1) : 0
-        const caption = active ? `处理中 · ${PHASE_LABEL[phase] ?? '准备'}` : '空闲 · 等待触发'
+        const currentPhase = active ? text(group?.phase) : ''
+        const lastPhase = !active ? text(group?.lastPhase) : ''
+        const phase = active ? currentPhase : lastPhase
+        const index = active ? (PHASE_INDEX[currentPhase] ?? 1) : (PHASE_INDEX[lastPhase] ?? 0)
+        const caption = active
+          ? `处理中 · ${PHASE_LABEL[currentPhase] ?? '准备'}`
+          : lastPhase !== ''
+            ? `上一轮完成 · ${PHASE_LABEL[lastPhase] ?? lastPhase}`
+            : '空闲 · 等待触发'
         return h('div', { className: 'qqbot-ai-machine', 'data-testid': 'qqbot-ai-state-machine' },
-          ...STATE_LABELS.map((label, i) => h('div', { key: label, className: `qqbot-ai-machine-node${i <= index ? ' is-reached' : ''}${i === index ? ' is-active' : ''}` },
+          ...STATE_LABELS.map((label, i) => h('div', { key: label, className: `qqbot-ai-machine-node${i <= index ? ' is-reached' : ''}${active && i === index ? ' is-active' : ''}` },
             h('span', { className: 'qqbot-ai-machine-index' }, String(i + 1).padStart(2, '0')),
             h('span', null, label))),
           h('div', { className: 'qqbot-ai-machine-caption' }, caption))
@@ -832,13 +838,14 @@ window.__ModuleLoader__.load({
         const sent = loop.sendResult?.sent === true
         const failed = sent !== true && (typeof loop.sendResult?.error === 'string' || loop.sendResult?.reason === 'compose_failed' || loop.sendResult?.reason === 'loop_failed')
         const speak = loop.speak?.enabled === true
+        const action = loop.sendResult?.replyType === 'action'
         return h('div', { key: loop.loopId, className: 'qqbot-ai-loop' },
           h('button', { type: 'button', className: 'qqbot-ai-loop-head', 'data-testid': 'qqbot-ai-loop-row', onClick: () => toggle(loop.loopId) },
-            h('span', { className: `qqbot-ai-loop-icon ${sent ? 'is-sent' : 'is-idle'}` }, sent ? '↗' : '·'),
+            h('span', { className: `qqbot-ai-loop-icon ${sent ? 'is-sent' : 'is-idle'}` }, action ? '·' : sent ? '↗' : '·'),
             h('span', { className: 'qqbot-ai-loop-main' },
               h('strong', null, TRIGGER_LABEL[loop.trigger] || loop.trigger || 'loop'),
               h('span', null, `${time(loop.at)} · ${num(loop.materialCount)} 条素材`)),
-            h('span', { className: `qqbot-ai-loop-state ${sent ? 'is-sent' : ''}` }, sent ? '已发言' : failed ? '发送失败' : speak ? '未发送' : '未发言'),
+            h('span', { className: `qqbot-ai-loop-state ${sent ? 'is-sent' : ''}` }, action ? '已戳一戳' : sent ? '已发言' : failed ? '发送失败' : speak ? '未发送' : '未发言'),
             h('span', { className: 'qqbot-ai-loop-arrow' }, expanded ? '−' : '+')),
           expanded ? h('div', { className: 'qqbot-ai-loop-detail' },
             h('div', { className: 'qqbot-ai-loop-reply' }, loop.reply || '本轮没有发送内容'),
@@ -846,7 +853,7 @@ window.__ModuleLoader__.load({
               h('span', null, `触发 ${loop.trigger || '—'}`),
               h('span', null, `素材 ${num(loop.materialCount)}`),
               h('span', null, `耗时 ${num(loop.durationMs)} ms`),
-              h('span', null, sent ? `发送 ${num(loop.sendResult?.parts)} 条` : '未发送')),
+              h('span', null, action ? '戳一戳' : sent ? `发送 ${num(loop.sendResult?.parts)} 条` : '未发送')),
             h('div', { className: 'qqbot-ai-loop-meta' }, h('span', null, loop.loopId || '—'))) : null)
       }
 

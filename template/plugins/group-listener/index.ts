@@ -54,7 +54,7 @@ export function apply(ctx: Context, config: Config): void {
   const recentLoops: any[] = []
   const semaphore = new GroupSemaphore(config.maxConcurrentGroups)
   const names = new GroupNameResolver()
-  const transport = new DshTransport({ endpoint: config.endpoint, discoveryFile: config.discoveryFile })
+  const transport = new DshTransport({ endpoint: config.endpoint, discoveryFile: config.discoveryFile, timeoutMs: config.requestTimeoutMs })
   const keywords = loadKeywords(config.personaFile)
   const global = { get active() { return semaphore.active }, get waiting() { return semaphore.waiting } }
 
@@ -80,6 +80,7 @@ export function apply(ctx: Context, config: Config): void {
         running: group.running,
         active: group.active,
         phase: group.phase,
+        lastPhase: group.lastPhase,
         cooldownUntil: group.cooldownUntil,
         queue: queueView(group),
         lastLoop: group.lastLoop,
@@ -97,6 +98,7 @@ export function apply(ctx: Context, config: Config): void {
   const runLoop = async (key: string, item: QueueItem): Promise<void> => {
     const group = stateOf(key)
     group.active = item.loopId
+    group.lastPhase = null
     group.phase = 'analyze'
     persist()
     const snapshot = materialSnapshot(group, item, Math.min(config.analysisWindow, config.bufferSize))
@@ -187,7 +189,12 @@ export function apply(ctx: Context, config: Config): void {
 
     group.phase = 'state_update'
     persist()
-    const stateMaterial = focusedMaterial(snapshot.entries, speak.target?.messageIds ?? [], 3, 10)
+    const visibleIds = new Set(snapshot.entries.map((entry) => entry.id))
+    const stateIds = [...new Set([
+      ...(Array.isArray(speak.focus?.messageIds) ? speak.focus.messageIds : []).filter((id: string) => visibleIds.has(id)),
+      ...(Array.isArray(speak.target?.messageIds) ? speak.target.messageIds : []).filter((id: string) => visibleIds.has(id)),
+    ])].slice(0, 4)
+    const stateMaterial = focusedMaterial(snapshot.entries, stateIds, 3, 10)
     const stateResult = await transport.post('/qqbot/group/state-update', {
       apiVersion: 1,
       loopId: item.loopId,
@@ -218,6 +225,7 @@ export function apply(ctx: Context, config: Config): void {
     group.cooldownUntil = finishedAt + (sendResult.sent === true ? config.cooldownReplyMs : config.cooldownNoReplyMs)
     group.active = null
     group.phase = null
+    group.lastPhase = 'state_update'
     persist()
     logger.debug?.('group loop %s: %s', item.loopId, sendResult.sent === true ? 'sent' : 'silent')
   }
@@ -248,6 +256,7 @@ export function apply(ctx: Context, config: Config): void {
     } finally {
       group.running = false
       group.active = null
+      if (group.phase !== null) group.lastPhase = group.phase
       group.phase = null
       persist()
     }
