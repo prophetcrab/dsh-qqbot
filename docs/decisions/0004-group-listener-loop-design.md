@@ -1163,6 +1163,34 @@ sanitize
 → group cooldown
 ```
 
+
+### 12.1.1 ReAct 网络检索
+
+第一版只读工具：`web_search`。
+
+```text
+compose
+  → 模型判断是否需要最新外部信息
+  → 需要：输出 tool_call web_search
+  → DSH 检索 Bing HTML
+  → 结果作为 observation 回填
+  → 模型按人设总结
+  → 输出 final parts
+```
+
+限制：
+
+```text
+只发生在 compose
+最多 2 次检索
+单次超时 8 秒
+最多 5 条结果
+结果只作为资料
+最终只发送 1–3 条发言气泡
+```
+
+工具结果不会原样进入群聊。
+
 ### 12.1 消息延迟
 
 只在 `speak.enabled=true` 时计算；不回复不延迟。

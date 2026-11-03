@@ -6,14 +6,15 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { GroupLoopService } from '../../host/services/group-loop/index.js'
 
-async function setup(stream) {
+async function setup(stream, options = {}) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-group-loop-service-'))
   const service = new GroupLoopService({
     ctx: { get: (name) => name === 'agentDefaultModel' ? { currentSelection: () => ({ provider: 'p', model: 'm' }) } : name === 'llm' ? { stream } : null },
-    settings: { projectDir: root },
+    settings: { projectDir: root, ...(options.settings ?? {}) },
     logger: { warn() {} },
     personaPath: join(root, 'persona.json'),
     profilesPath: join(root, 'profiles.json'),
+    ...(options.webSearch ? { webSearch: options.webSearch } : {}),
   })
   return { root, service }
 }
@@ -146,5 +147,31 @@ test('compose splits newline-separated bubble content from one JSON part', async
     groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: ['1'] } },
   })
   assert.deepEqual(result.parts, ['第一句', '第二句'])
+  await rm(root, { recursive: true, force: true })
+})
+
+test('compose runs a ReAct web_search observation before final speech', async () => {
+  let turn = 0
+  let captured = ''
+  const stream = async function* (options) {
+    turn += 1
+    captured = options.messages[0].content[0].text
+    if (turn === 1) yield { type: 'text-delta', text: '{"type":"tool_call","tool":"web_search","args":{"query":"期货 保证金"}}' }
+    else yield { type: 'text-delta', text: '{"type":"final","parts":["查了下","保证金是按合约价值算的"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const webSearch = async (query) => ({ ok: true, query, asOf: '2026-11-03T10:00:00+08:00', results: [{ title: '期货保证金', url: 'https://example.com', snippet: '保证金是履约担保。' }] })
+  const { root, service } = await setup(stream, {
+    settings: { webSearchEnabled: true, webSearchMaxResults: 3, webSearchTimeoutMs: 1000 },
+    webSearch,
+  })
+  const result = await service.compose({
+    groupId: 'g1', material: '期货保证金怎么算', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: ['1'] } },
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['查了下', '保证金是按合约价值算的'])
+  assert.equal(result.toolCalls.length, 1)
+  assert.equal(result.toolCalls[0].tool, 'web_search')
+  assert.match(captured, /web_search 结果/u)
   await rm(root, { recursive: true, force: true })
 })

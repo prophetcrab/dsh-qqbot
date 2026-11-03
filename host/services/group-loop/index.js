@@ -1,7 +1,8 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
 import { buildPersonaPrompt } from '../persona/index.js'
 import { GroupLoopStore } from './store.js'
-import { analyzeSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
+import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
+import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -66,13 +67,14 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
     this.store = new GroupLoopStore({ projectDir: settings.projectDir, personaPath, profilesPath, logger })
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
     this.inFlight = new Map()
+    this.webSearch = webSearch
   }
 
   selection() {
@@ -186,14 +188,54 @@ export class GroupLoopService {
     const profiles = await this.profileContext(input.groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
+    const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId))
+    if (this.settings.webSearchEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images })
     try {
-      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId)), { maxTokens: 500, temperature: 0.7, images })
+      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion)), baseUser, { maxTokens: 500, temperature: 0.7, images })
       const parts = normalizeParts(parseJson(raw), raw)
-      return { ok: true, text: parts.join(''), parts, speak }
+      return { ok: true, text: parts.join(''), parts, speak, toolCalls: [] }
     } catch (error) {
       this.logger.warn?.('group-loop compose failed: %s', String(error?.message ?? error))
       return { ok: false, error: String(error?.message ?? error), text: '' }
     }
+  }
+
+  async composeWithTools({ input, speak, character, baseUser, images }) {
+    const toolCalls = []
+    let observations = ''
+    const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion))
+    for (let step = 0; step < 4; step += 1) {
+      let raw = ''
+      try {
+        raw = await this.stream(system, `${baseUser}${observations ? `\n\n${observations}` : ''}`, { maxTokens: 600, temperature: 0.7, images })
+      } catch (error) {
+        this.logger.warn?.('group-loop react compose failed: %s', String(error?.message ?? error))
+        return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
+      }
+      const parsed = parseJson(raw)
+      const requestedCall = parseWebSearchCall(raw, parsed)
+      if (requestedCall !== null && toolCalls.length < 2) {
+        const query = text(requestedCall.query).slice(0, 160)
+        if (query === '') {
+          observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
+          continue
+        }
+        const started = Date.now()
+        const result = await this.webSearch(query, { maxResults: this.settings.webSearchMaxResults, timeoutMs: this.settings.webSearchTimeoutMs })
+        toolCalls.push({ tool: 'web_search', query, ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
+        observations += `\n\n${renderSearchResult(result).slice(0, 8000)}`
+        if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        continue
+      }
+      if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {
+        observations += '\n\n【工具观察】工具调用格式无法解析，请重新调用 web_search，或直接给 final parts。'
+        continue
+      }
+      const parts = normalizeParts(parsed, raw)
+      if (parts.length > 0) return { ok: true, text: parts.join(''), parts, speak, toolCalls }
+      observations += '\n\n【工具观察】请输出 final parts，或调用 web_search。'
+    }
+    return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }
   }
 
   async stateUpdate(input) {

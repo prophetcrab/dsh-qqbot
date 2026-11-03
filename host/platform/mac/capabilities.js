@@ -38,6 +38,9 @@ export const DEFAULT_SETTINGS = {
   aiTemperature: 0.7,
   /** Let the character decide whether to speak even after a trigger fires. */
   aiSelfCheck: true,
+  webSearchEnabled: true,
+  webSearchMaxResults: 5,
+  webSearchTimeoutMs: 8000,
   autoRestartKoishi: true,
   autoInstallDeps: true,
   /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
@@ -89,6 +92,9 @@ export function resolveSettings(raw = {}) {
     aiMaxTokens: toBoundedInt(source.aiMaxTokens, DEFAULT_SETTINGS.aiMaxTokens, 64, 4096),
     aiTemperature: toBoundedNumber(source.aiTemperature, DEFAULT_SETTINGS.aiTemperature, 0, 2),
     aiSelfCheck: source.aiSelfCheck === undefined ? DEFAULT_SETTINGS.aiSelfCheck : source.aiSelfCheck === true,
+    webSearchEnabled: source.webSearchEnabled === undefined ? DEFAULT_SETTINGS.webSearchEnabled : source.webSearchEnabled === true,
+    webSearchMaxResults: toBoundedInt(source.webSearchMaxResults, DEFAULT_SETTINGS.webSearchMaxResults, 1, 8),
+    webSearchTimeoutMs: toBoundedInt(source.webSearchTimeoutMs, DEFAULT_SETTINGS.webSearchTimeoutMs, 1000, 20000),
     autoRestartKoishi: source.autoRestartKoishi === undefined ? DEFAULT_SETTINGS.autoRestartKoishi : source.autoRestartKoishi === true,
     autoInstallDeps: source.autoInstallDeps === undefined ? DEFAULT_SETTINGS.autoInstallDeps : source.autoInstallDeps === true,
     autoSyncSelfId: source.autoSyncSelfId === undefined ? DEFAULT_SETTINGS.autoSyncSelfId : source.autoSyncSelfId === true,
