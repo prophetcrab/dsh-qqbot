@@ -51,8 +51,8 @@ function normalizeParts(value, fallback = '') {
     .filter(Boolean)
     .slice(0, 3)
   if (parts.length > 0) return parts
-  const text = text(fallback)
-  return text === '' ? [] : [text.slice(0, 300)]
+  const fallbackText = text(fallback)
+  return fallbackText === '' ? [] : [fallbackText.slice(0, 300)]
 }
 
 function knownParticipants(participants) {

@@ -121,3 +121,17 @@ test('group prompts describe behavior without explicit prohibition lists', async
   ]
   for (const prompt of prompts) assert.doesNotMatch(prompt, /不要|禁止/u)
 })
+
+test('compose falls back to plain model text without a TDZ error', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '在的，刚爬完楼' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.compose({
+    groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'at', target: { messageIds: [], userIds: ['1'] } },
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['在的，刚爬完楼'])
+  await rm(root, { recursive: true, force: true })
+})
