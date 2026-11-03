@@ -1,11 +1,12 @@
 /** Deterministic game command service. Commands never enter the LLM loop. */
+import { AccountStore } from './account-store.js'
 import { PlayerStore } from './player-store.js'
 import { GameRegistry } from './registry.js'
 import { playersModule } from './modules/players.js'
 
 const GROUP_ID = /^[0-9A-Za-z_-]{1,64}$/u
 const PLAYER_ID = /^[0-9]{1,20}$/u
-const COMMAND = /^\/(注册|签到)$/u
+const COMMAND = /^\/(注册|签到|账号背包)$/u
 
 export class GameCore {
   constructor({ projectDir, logger, random = Math.random, now = () => new Date() }) {
@@ -13,6 +14,7 @@ export class GameCore {
     this.random = random
     this.now = now
     this.store = new PlayerStore({ projectDir, logger })
+    this.accounts = new AccountStore({ projectDir, logger })
     this.registry = new GameRegistry([playersModule])
   }
 
@@ -29,6 +31,7 @@ export class GameCore {
         userId,
         nickname: String(input?.nickname ?? ''),
         store: this.store,
+        accounts: this.accounts,
         random: this.random,
         now: this.now(),
       })

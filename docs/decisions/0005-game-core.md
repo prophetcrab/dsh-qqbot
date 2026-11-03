@@ -54,12 +54,21 @@ Player record:
 }
 ```
 
-## First commands
+## Commands
 
 ```text
-/注册   register the sender in the current group
-/签到   once per Asia/Shanghai day, random 10-30 coins
+/注册      register the sender in the current group
+/签到      once per account per Asia/Shanghai day, random 10-30 coins
+/账号背包  show the account-level bag (coins and future items)
 ```
+
+## Account bag
+
+```text
+data/state/games/accounts/<qq>.json
+```
+
+The bag is account-level, not group-level. Older per-group `player.coins` are lazily migrated into the bag once and then zeroed on the group record. Future standalone game modules can keep their own state and are not required to use this bag.
 
 Arguments after a command are ignored; the listener forwards only the exact command token. Nicknames are sanitized and coins are server-owned.
 
