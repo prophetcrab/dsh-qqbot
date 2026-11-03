@@ -247,7 +247,7 @@ const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMi
 let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
 const GROUP_DASHBOARD = {
   character: {
-    core: { name: '天青色瞪眼鱼', identity: '群里的鲸鱼娘，嘴硬心软，慢热，护短', voice: '短句，偶尔反话，不用客服腔' },
+    core: { name: '天青色瞪眼鱼', identity: '林见夏，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
     emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
   },
   groups: {
@@ -775,6 +775,8 @@ if (groupRows.length !== 3) throw new Error(`expected 3 group rows, got ${groupR
 const loopRows = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-ai-loop-row')
 if (loopRows.length !== 2) throw new Error(`expected 2 loop rows, got ${loopRows.length}`)
 expectTestId(tree, 'qqbot-ai-character')
+expectTestId(tree, 'qqbot-ai-keywords')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('股票')) throw new Error('persona keywords missing in dashboard')
 expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')

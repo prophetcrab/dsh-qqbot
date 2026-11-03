@@ -100,3 +100,12 @@ test('group loop store reports corrupt state instead of silently resetting it', 
   await assert.rejects(() => store.loadCharacter(), /unreadable/)
   await rm(root, { recursive: true, force: true })
 })
+
+test('character initialization inherits persona interest keywords', async () => {
+  const { root, store } = await workspace()
+  const { writeFile } = await import('node:fs/promises')
+  await writeFile(join(root, 'persona.json'), JSON.stringify({ name: '测试角色', keywords: ['股票', '漫画'] }), 'utf8')
+  const character = await store.loadCharacter()
+  assert.deepEqual(character.core.keywords, ['股票', '漫画'])
+  await rm(root, { recursive: true, force: true })
+})

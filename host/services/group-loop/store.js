@@ -42,6 +42,7 @@ export class GroupLoopStore {
         voice: persona.tone || base.core.voice,
       } : {}),
     }
+    if (!Array.isArray(core.keywords)) core.keywords = Array.isArray(persona?.keywords) ? persona.keywords : []
     const character = { core, emotion: { ...base.emotion, ...(saved?.emotion ?? {}) }, updatedAt: saved?.updatedAt ?? null }
     if (saved === null) await this.saveCharacter(character)
     return character
