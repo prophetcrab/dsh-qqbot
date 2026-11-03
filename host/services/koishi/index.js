@@ -24,6 +24,7 @@ import {
   run,
   sleep as defaultSleep,
 } from '../../platform/mac/index.js'
+import { adoptKoishiProcess } from './adopt.js'
 import {
   DEFAULT_HEALTH_TIMEOUT_MS,
   DEFAULT_INSTALL_TIMEOUT_MS,
@@ -105,24 +106,18 @@ export class KoishiManager {
     this.childExit = null
   }
 
-  npmStartCommand() {
-    return { file: this.npmExecutable(), args: ['start'] }
-  }
-
+  npmStartCommand() { return { file: this.npmExecutable(), args: ['start'] } }
   startCommand(projectDir) {
     const bin = join(projectDir, 'node_modules', 'koishi', 'bin.js')
     if (existsSync(bin)) {
       const env = { ...process.env }
-      // DSH desktop's `process.execPath` is Electron; run it as Node.
       if (process.versions.electron !== undefined) env.ELECTRON_RUN_AS_NODE = '1'
       return { file: process.execPath, args: [bin, 'start', '-r', 'tsx/cjs'], env, local: true }
     }
     return this.npmStartCommand()
   }
 
-  npmInstallCommand() {
-    return { file: this.npmExecutable(), args: ['install', '--no-audit', '--no-fund'] }
-  }
+  npmInstallCommand() { return { file: this.npmExecutable(), args: ['install', '--no-audit', '--no-fund'] } }
 
   async installDeps({ force = false } = {}) {
     const project = detectKoishiProject(this.settings)
@@ -152,29 +147,10 @@ export class KoishiManager {
     return { ok: true, output }
   }
 
-  /**
-   * Adopt a running Koishi only when the port owner's command belongs to this
-   * project. A restart is an explicit user request, so this lets the panel
-   * safely take over a process started before a panel reload.
-   */
-  async adoptExternal() {
-    if (this.managedPid !== null) return true
-    const pid = await this.findPortPid(this.port)
-    if (pid === null) return false
-    const expected = join(this.projectDir, 'node_modules', 'koishi')
-    const found = this.findProcess(expected)
-    if (found === null || typeof found !== 'object' || found.running !== true || found.pid !== pid) return false
-    this.managedPid = pid
-    this.startedAt = new Date().toISOString()
-    this.logger.info('已接管当前项目的 Koishi 进程（pid=%s）', pid)
-    return true
-  }
-
+  async adoptExternal() { return adoptKoishiProcess({ manager: this, findPortPid: (port) => this.findPortPid(port), findProcess: (pattern) => this.findProcess(pattern), projectDir: this.projectDir, logger: this.logger }) }
   async findPortPid(port = this.port) {
     const target = toPort(port, this.port)
-    if (this.hasInjectedPortPid) return findPidByPort(target, { portPid: this.portPid })
-    if (this.hasInjectedExec) return findPidByPort(target, { exec: this.exec })
-    return findPidByPort(target)
+    return this.hasInjectedPortPid ? findPidByPort(target, { portPid: this.portPid }) : this.hasInjectedExec ? findPidByPort(target, { exec: this.exec }) : findPidByPort(target)
   }
 
   async status() {
