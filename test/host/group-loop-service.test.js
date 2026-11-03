@@ -15,6 +15,7 @@ async function setup(stream, options = {}) {
     personaPath: join(root, 'persona.json'),
     profilesPath: join(root, 'profiles.json'),
     ...(options.webSearch ? { webSearch: options.webSearch } : {}),
+    random: options.random ?? (() => 0.9),
   })
   return { root, service }
 }
@@ -174,4 +175,22 @@ test('compose runs a ReAct web_search observation before final speech', async ()
   assert.equal(result.toolCalls[0].tool, 'web_search')
   assert.match(captured, /web_search 结果/u)
   await rm(root, { recursive: true, force: true })
+})
+
+test('bubble budget produces one, two or three parts and caps model output', async () => {
+  let index = 0
+  const stream = async function* () {
+    index += 1
+    yield { type: 'text-delta', text: '{"parts":["一","二","三"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, { random: () => 0 })
+  const one = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(one.parts.length, 1)
+  assert.equal(one.bubbleBudget, 1)
+  const two = await setup(stream, { random: () => 0.6 })
+  const second = await two.service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(second.parts.length, 2)
+  await rm(root, { recursive: true, force: true })
+  await rm(two.root, { recursive: true, force: true })
 })
