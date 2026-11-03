@@ -207,11 +207,16 @@ export class GroupLoopStore {
       emotion.valence += (EMOTION_BASELINE.valence - emotion.valence) * 0.04
       emotion.arousal += (EMOTION_BASELINE.arousal - emotion.arousal) * 0.04
       if (emotionActive === true) {
+        const deltas = {}
         for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
           const rawDelta = Number(patches.emotion[`${key}Delta`])
-          const delta = Number.isFinite(rawDelta) ? Math.max(-EMOTION_DELTA_LIMIT, Math.min(EMOTION_DELTA_LIMIT, rawDelta)) : 0
-          emotion[key] += delta
+          deltas[key] = Number.isFinite(rawDelta) ? Math.max(-EMOTION_DELTA_LIMIT, Math.min(EMOTION_DELTA_LIMIT, rawDelta)) : 0
         }
+        // A social conflict should lower mood even if the model only raised stress.
+        if (deltas.stress > 0.005 && deltas.valence >= 0) {
+          deltas.valence = -Math.min(0.02, deltas.stress * 0.5)
+        }
+        for (const key of Object.keys(deltas)) emotion[key] += deltas[key]
         emotion.energy -= SPEECH_ENERGY_COST
         emotion.socialBattery -= SPEECH_SOCIAL_COST
       }

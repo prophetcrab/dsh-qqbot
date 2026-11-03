@@ -1253,7 +1253,7 @@ socialBattery：按经过时间向 0.55 恢复，半衰 60 分钟
   model delta 上限 ±0.03
 ```
 
-压力额外由 state_update 的 stressDelta 调整，群聊不开心时可由模型增加。
+压力额外由 state_update 的 stressDelta 调整，群聊不开心时可由模型增加；模型只加压力、没有减 valence 时，代码会补一个最多 -0.02 的 valence delta。
 
 当前值不会被强制重置；下一次 state_update 先按 elapsed 时间恢复，再应用本轮发言消耗和 delta。
 

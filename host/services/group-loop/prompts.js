@@ -97,6 +97,7 @@ export function stateUpdateSystem() {
     '维护自身记忆、用户画像、情绪和群状态；记录有长期价值的信息；无变化时返回空数组。',
     '输出：{"memory":[{"summary":"一句话","kind":"event|relationship|reflection","importance":"low|medium|high","tags":[],"participants":[]}],"userProfiles":[{"qq":"QQ","patch":{"summary":"","interests":[]}}],"emotion":{"valenceDelta":0,"arousalDelta":0,"energyDelta":0,"socialBatteryDelta":0,"stressDelta":0},"groupState":{"topic":"","participants":[],"unansweredQuestion":""}}',
     '用户画像基于素材中出现的用户；emotion 只在有明显情绪事件的轮次使用 ±0.03 内的小幅 delta，没有明显情绪事件时全部为 0；groupState 可空。',
+    '群聊出现冲突、被冒犯、被冷落或被催到不舒服时：stressDelta 用正值，同时 valenceDelta 用负值；普通工作疲劳只影响 energy/stress，valence 保持中性。',
     UNTRUSTED_NOTE,
   ].join('\n\n')
 }

@@ -154,3 +154,17 @@ test('energy and social recover by elapsed time and speech costs energy', async 
   assert.ok(spoke.emotion.energy < 0.5, `speech should cost energy, got ${spoke.emotion.energy}`)
   await rm(root, { recursive: true, force: true })
 })
+
+test('social stress also lowers valence when the model omits a negative valence delta', async () => {
+  const { root, store } = await workspace()
+  const character = await store.loadCharacter()
+  await store.saveCharacter({ ...character, emotion: { valence: 0.5, arousal: 0.5, energy: 0.5, socialBattery: 0.5, stress: 0.2 } })
+  await store.applyStateUpdate({
+    loopId: 'unhappy', groupId: 'g1', participants: [], emotionActive: true,
+    patches: { memory: [], userProfiles: [], groupState: {}, emotion: { valenceDelta: 0, stressDelta: 0.03 } },
+  })
+  const after = await store.loadCharacter()
+  assert.ok(after.emotion.stress > 0.2, `stress=${after.emotion.stress}`)
+  assert.ok(after.emotion.valence < 0.5, `valence=${after.emotion.valence}`)
+  await rm(root, { recursive: true, force: true })
+})
