@@ -4,7 +4,7 @@ import { validateAnalyze, validateCompose, validateStateUpdate } from '../../ser
 
 function bodyOf(req, res, validate, run) {
   return only(req, res, ['POST'], async () => {
-    const parsed = validate(await readBody(req, 1024 * 1024))
+    const parsed = validate(await readBody(req, 32 * 1024 * 1024))
     if (parsed.ok !== true) {
       sendJson(res, 400, { ok: false, code: parsed.code ?? 'BAD_REQUEST', error: parsed.error })
       return

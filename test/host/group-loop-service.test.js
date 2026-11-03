@@ -83,3 +83,29 @@ test('compose plans one to three short bubbles from JSON', async () => {
   assert.equal(result.text, '第一句第二句第三句')
   await rm(root, { recursive: true, force: true })
 })
+
+test('compose attaches images as image content parts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-group-loop-image-'))
+  let captured = null
+  const service = new GroupLoopService({
+    ctx: { get: (name) => name === 'agentDefaultModel' ? { currentSelection: () => ({ provider: 'p', model: 'm' }) } : name === 'llm' ? {
+      stream: async function* (options) {
+        captured = options
+        yield { type: 'text-delta', text: '{"parts":["看到了"]}' }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      },
+    } : name === 'attachments' ? { saveImages: async (inputs) => inputs.map((_, index) => ({ attachmentId: `att-${index}` })) } : null },
+    settings: { projectDir: root },
+    logger: { warn() {} },
+    personaPath: join(root, 'persona.json'),
+    profilesPath: join(root, 'profiles.json'),
+  })
+  const result = await service.compose({
+    groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'statement', replyType: null, target: {} },
+    images: [{ mediaType: 'image/png', data: Buffer.from('x').toString('base64') }],
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['看到了'])
+  assert.ok(captured.messages[0].content.some((part) => part.type === 'image'))
+  await rm(root, { recursive: true, force: true })
+})
