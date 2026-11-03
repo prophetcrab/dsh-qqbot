@@ -53,6 +53,25 @@ export function parseBingHtml(html, limit = 5) {
   return results
 }
 
+export function parseWebSearchCall(raw, parsed = null) {
+  const source = String(raw ?? '')
+  const looksLikeToolCall = /tool_call|<\|\|DSML|DSML|"type"\s*:\s*"tool_call"/iu.test(source)
+  if (!looksLikeToolCall) return null
+  if (parsed?.type === 'tool_call' && parsed.tool === 'web_search') {
+    const query = typeof parsed.args?.query === 'string' ? parsed.args.query.trim() : ''
+    return query === '' ? null : { query }
+  }
+  const objectMatch = source.match(/\{[^{}]*"query"[^{}]*\}/u)
+  if (objectMatch !== null) {
+    try {
+      const parsedArgs = JSON.parse(objectMatch[0])
+      if (typeof parsedArgs.query === 'string' && parsedArgs.query.trim() !== '') return { query: parsedArgs.query.trim() }
+    } catch { /* fall through */ }
+  }
+  const queryMatch = source.match(/"query"\s*:\s*"([^"]+)"/u)
+  return queryMatch === null ? null : { query: queryMatch[1] }
+}
+
 export async function searchWeb(query, { maxResults = 5, timeoutMs = 8000, fetchImpl = fetch } = {}) {
   const value = String(query ?? '').trim().slice(0, 160)
   if (value === '') return { ok: false, error: 'empty query', results: [], asOf: new Date().toISOString() }

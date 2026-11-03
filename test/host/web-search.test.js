@@ -32,3 +32,11 @@ test('searchWeb sends the query to the fixed endpoint and returns bounded result
   assert.match(requested, /q=%E6%9C%9F%E8%B4%A7/u)
   assert.match(renderSearchResult(result), /web_search/u)
 })
+
+test('parseWebSearchCall accepts tool_call and DSML-style model output',  async () => {
+  const { parseWebSearchCall } = await import('../../host/services/group-loop/web-search.js')
+  assert.deepEqual(parseWebSearchCall('<tool_call>{"query":"期货保证金"}</tool_call>'), { query: '期货保证金' })
+  const dsml = '<｜｜DSML｜｜ calls><｜｜DSML｜｜ invoke name="tool_call"><｜｜DSML｜｜ parameter name="args" string="false">{"query": "2026 期货 保证金"}</｜｜DSML｜｜ parameter>'
+  assert.deepEqual(parseWebSearchCall(dsml), { query: '2026 期货 保证金' })
+  assert.equal(parseWebSearchCall('普通聊天，没有工具'), null)
+})

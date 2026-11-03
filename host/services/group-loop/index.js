@@ -2,7 +2,7 @@
 import { buildPersonaPrompt } from '../persona/index.js'
 import { GroupLoopStore } from './store.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
-import { renderSearchResult, searchWeb } from './web-search.js'
+import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -213,8 +213,9 @@ export class GroupLoopService {
         return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
       }
       const parsed = parseJson(raw)
-      if (parsed?.type === 'tool_call' && parsed.tool === 'web_search' && toolCalls.length < 2) {
-        const query = text(parsed.args?.query).slice(0, 160)
+      const requestedCall = parseWebSearchCall(raw, parsed)
+      if (requestedCall !== null && toolCalls.length < 2) {
+        const query = text(requestedCall.query).slice(0, 160)
         if (query === '') {
           observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
           continue
@@ -224,6 +225,10 @@ export class GroupLoopService {
         toolCalls.push({ tool: 'web_search', query, ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
         observations += `\n\n${renderSearchResult(result).slice(0, 8000)}`
         if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        continue
+      }
+      if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {
+        observations += '\n\n【工具观察】工具调用格式无法解析，请重新调用 web_search，或直接给 final parts。'
         continue
       }
       const parts = normalizeParts(parsed, raw)
