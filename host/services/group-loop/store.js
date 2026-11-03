@@ -12,7 +12,26 @@ const DEFAULTS = () => ({
 const PROCESSED_LIMIT = 500
 const EMOTION_BASELINE = Object.freeze({ valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 })
 const EMOTION_DELTA_LIMIT = 0.03
-const EMOTION_REGRESSION = 0.04
+const ENERGY_RECOVERY_MINUTES = 90
+const SOCIAL_RECOVERY_MINUTES = 60
+const WORK_STRESS_PER_MINUTE = 0.001
+const OFF_STRESS_PER_MINUTE = 0.004
+const SPEECH_ENERGY_COST = 0.025
+const SPEECH_SOCIAL_COST = 0.02
+
+/** Mon–Sat 10:00–18:00 Asia/Shanghai. Sunday is the off day. */
+function isWorkHours(now = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Shanghai', weekday: 'short', hour: '2-digit', hourCycle: 'h23',
+    }).formatToParts(now)
+    const weekday = parts.find((part) => part.type === 'weekday')?.value ?? ''
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value)
+    return weekday !== 'Sun' && Number.isFinite(hour) && hour >= 10 && hour < 18
+  } catch {
+    return false
+  }
+}
 
 export class GroupLoopStore {
   constructor({ projectDir, personaPath, profilesPath, logger }) {
@@ -175,18 +194,32 @@ export class GroupLoopStore {
       if (cached !== undefined) return { duplicate: true, result: cached }
       const character = await this.loadCharacter()
       const emotion = { ...character.emotion }
+      const previousAt = Date.parse(character.updatedAt ?? '')
+      const elapsedMinutes = Number.isFinite(previousAt)
+        ? Math.min(12 * 60, Math.max(0, (Date.now() - previousAt) / 60_000))
+        : 0
+      const energyRecovery = 1 - Math.exp(-elapsedMinutes / ENERGY_RECOVERY_MINUTES)
+      const socialRecovery = 1 - Math.exp(-elapsedMinutes / SOCIAL_RECOVERY_MINUTES)
+      emotion.energy += (EMOTION_BASELINE.energy - emotion.energy) * energyRecovery
+      emotion.socialBattery += (EMOTION_BASELINE.socialBattery - emotion.socialBattery) * socialRecovery
+      if (isWorkHours()) emotion.stress += WORK_STRESS_PER_MINUTE * elapsedMinutes
+      else emotion.stress -= OFF_STRESS_PER_MINUTE * elapsedMinutes
+      emotion.valence += (EMOTION_BASELINE.valence - emotion.valence) * 0.04
+      emotion.arousal += (EMOTION_BASELINE.arousal - emotion.arousal) * 0.04
       if (emotionActive === true) {
         for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
           const rawDelta = Number(patches.emotion[`${key}Delta`])
           const delta = Number.isFinite(rawDelta) ? Math.max(-EMOTION_DELTA_LIMIT, Math.min(EMOTION_DELTA_LIMIT, rawDelta)) : 0
-          const baseline = EMOTION_BASELINE[key]
-          const bounds = key === 'valence' ? [-1, 1] : [0, 1]
-          const afterDelta = Number(emotion[key]) + delta
-          const afterRegression = afterDelta + (baseline - afterDelta) * EMOTION_REGRESSION
-          emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(afterRegression) ? afterRegression : baseline))
+          emotion[key] += delta
         }
+        emotion.energy -= SPEECH_ENERGY_COST
+        emotion.socialBattery -= SPEECH_SOCIAL_COST
       }
-      const saved = emotionActive === true ? await this.saveCharacter({ ...character, emotion }) : character
+      for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
+        const bounds = key === 'valence' ? [-1, 1] : [0, 1]
+        emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(emotion[key]) ? emotion[key] : EMOTION_BASELINE[key]))
+      }
+      const saved = await this.saveCharacter({ ...character, emotion })
       const members = await this.appendMemory(patches.memory, loopId)
       const profileCount = await this.applyProfilesUnlocked(groupId, patches.userProfiles, participants)
       const groups = await this.loadGroups()
@@ -205,7 +238,7 @@ export class GroupLoopStore {
         ok: true,
         memory: members.length,
         userProfiles: profileCount,
-        emotionUpdated: emotionActive === true,
+        emotionUpdated: emotionActive === true || elapsedMinutes > 0,
         groupStateUpdated: typeof groupState.topic === 'string' || Array.isArray(groupState.participants),
         character: saved,
         memoryIds: members.map((item) => item.id),

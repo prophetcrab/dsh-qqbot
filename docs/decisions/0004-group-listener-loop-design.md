@@ -1235,21 +1235,27 @@ action 目标必须是 target.userIds[0]
 
 ### 11.6 情绪动态
 
-```text
-只有 sent=true 的 loop 更新 emotion
-单次 delta 上限 ±0.03
-每轮向基线回归 4%
-静默 loop 不更新 emotion
-```
-
-基线：
+时间驱动的恢复：
 
 ```text
-valence 0.08 / arousal 0.40 / energy 0.62
-socialBattery 0.55 / stress 0.16
+energy：按经过时间向 0.62 恢复，半衰 90 分钟
+socialBattery：按经过时间向 0.55 恢复，半衰 60 分钟
+工作日（周一至周六 10:00–18:00）：stress 每分钟 +0.001
+下班/周日：stress 每分钟 -0.004
 ```
 
-当前值不会被强制重置，后续发言轮次自然回落到基线附近。
+发言消耗：
+
+```text
+每次 sent=true：
+  energy -0.025
+  socialBattery -0.02
+  model delta 上限 ±0.03
+```
+
+压力额外由 state_update 的 stressDelta 调整，群聊不开心时可由模型增加。
+
+当前值不会被强制重置；下一次 state_update 先按 elapsed 时间恢复，再应用本轮发言消耗和 delta。
 
 ### 12.0 发言提示词组装
 
