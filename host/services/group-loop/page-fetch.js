@@ -36,7 +36,10 @@ export function extractReadableText(html, maxChars = 3000) {
     .replace(/<aside[\s\S]*?<\/aside>/giu, ' ')
     .replace(/<form[\s\S]*?<\/form>/giu, ' ')
   const article = cleaned.match(/<article[\s\S]*?<\/article>/iu)?.[0] ?? cleaned.match(/<main[\s\S]*?<\/main>/iu)?.[0] ?? cleaned
-  const text = stripHtml(article).slice(0, Math.max(200, Math.min(12000, Number(maxChars) || 3000)))
+  const paragraphs = [...article.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/giu)]
+    .map((match) => stripHtml(match[1]))
+    .filter((paragraph) => paragraph.length >= 20)
+  const text = (paragraphs.length >= 2 ? paragraphs.join('\n') : stripHtml(article)).slice(0, Math.max(200, Math.min(12000, Number(maxChars) || 3000)))
   return { title: stripHtml(titleMatch?.[1] ?? '').slice(0, 200), text }
 }
 
