@@ -54,8 +54,8 @@ export function analyzeSystem(characterPrompt, direct, statePrompt = '') {
     '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
     'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
     '需要提醒、叫醒或和熟人打闹且目标明确时，可用 replyType=action：只对 target.userIds[0] 戳一戳，不产生文字。direct 本轮使用文本。',
-    direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 为 true，且至少说一句；可以选择 statement，也可以回答被回复的内容；使用文本形式。' : '',
-    direct ? '如果不想回答引用内容，可以用 statement 发表一句主观反应。' : '',
+    direct ? '本轮是 direct 触发（@ 或回复机器人）。固定 kind=reply：被 @ 时 replyType=at，被回复时 replyType=quote；target 指向当前触发消息和发送者，使用文本形式。' : '',
+
   ].filter(Boolean).join('\n\n')
 }
 
