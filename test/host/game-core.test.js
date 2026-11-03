@@ -32,11 +32,11 @@ test('check-in grants 10-30 once per Shanghai day and persists coins', async () 
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const first = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(first.replies[0], /\+10 金币/u)
-  assert.match(first.replies[0], /当前金币 10/u)
+  assert.match(first.replies[0], /账号金币 10/u)
   const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(again.replies[0], /已经签到/u)
-  const file = JSON.parse(await readFile(join(root, 'data/state/games/players/g1.json'), 'utf8'))
-  assert.equal(file.players['20000'].coins, 10)
+  const account = JSON.parse(await readFile(join(root, 'data/state/games/accounts/20000.json'), 'utf8'))
+  assert.equal(account.bag.coins, 10)
   await rm(root, { recursive: true, force: true })
 })
 
@@ -57,5 +57,23 @@ test('check-in gain includes the 30 coin endpoint', async () => {
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(result.replies[0], /\+30 金币/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('account backpack is account-level and migrates legacy group coins once', async () => {
+  const { root, game } = await workspace()
+  const legacy = {
+    version: 1, groupId: 'g1', updatedAt: null,
+    players: { '20000': { qq: '20000', nickname: '小明', coins: 18, registeredAt: null, checkinCount: 1, lastCheckinDate: '2026-11-03', lastCheckinAt: null } },
+  }
+  await import('node:fs/promises').then(({ mkdir, writeFile }) => mkdir(join(root, 'data/state/games/players'), { recursive: true }).then(() => writeFile(join(root, 'data/state/games/players/g1.json'), JSON.stringify(legacy))))
+  const bag = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/账号背包' })
+  assert.match(bag.replies[0], /金币：18/u)
+  const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/账号背包' })
+  assert.match(again.replies[0], /金币：18/u)
+  const after = JSON.parse(await readFile(join(root, 'data/state/games/players/g1.json'), 'utf8'))
+  assert.equal(after.players['20000'].coins, 0)
+  const checkin = await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/签到' })
+  assert.match(checkin.replies[0], /先发送 \/注册/u, 'account bag is not a substitute for group registration')
   await rm(root, { recursive: true, force: true })
 })
