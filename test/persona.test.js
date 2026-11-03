@@ -51,7 +51,7 @@ test('file roundtrip: write stamps updatedAt and read normalizes', async () => {
   assert.equal(typeof saved.updatedAt, 'string')
   const loaded = await readPersonaFile(file)
   assert.equal(loaded.name, '测试角色')
-  assert.equal(loaded.examples.length, 1)
+  assert.equal(loaded.examples.length, DEFAULT_PERSONA.examples.length)
   const raw = JSON.parse(await readFile(file, 'utf8'))
   assert.equal(raw.updatedAt, saved.updatedAt)
   await rm(dir, { recursive: true, force: true })
