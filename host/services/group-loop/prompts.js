@@ -58,7 +58,7 @@ export function analyzeSystem(characterPrompt, direct, statePrompt = '') {
   ].filter(Boolean).join('\n\n')
 }
 
-export function composeSystem(characterPrompt, speak, statePrompt = '') {
+export function composeSystem(characterPrompt, speak, statePrompt = '', targetBubbles = null) {
   const target = speak.target ?? { messageIds: [], userIds: [] }
   return [
     characterPrompt,
@@ -73,13 +73,14 @@ export function composeSystem(characterPrompt, speak, statePrompt = '') {
     '本轮附带图片时，结合图片内容来写。',
     '真人群聊风格：1-3 条短气泡，每条表达一个意思；允许不完整句、省略主语、口语和省略号；少用句号；直接给出发言内容，保持口语自然。',
     '输出 JSON：{"parts":["第一条","第二条"]}；每个 parts 元素是一条独立气泡；需要多条时放入不同元素；parts 长度 1-3，每条尽量短。',
+    targetBubbles === null ? '' : `本轮计划 ${targetBubbles} 条短气泡；parts 数量按这个计划来，内容不足时可以少一条。`,
     `target.messageIds=${JSON.stringify(target.messageIds ?? [])}，target.userIds=${JSON.stringify(target.userIds ?? [])}`,
   ].filter(Boolean).join('\n\n')
 }
 
-export function composeReActSystem(characterPrompt, speak, statePrompt = '') {
+export function composeReActSystem(characterPrompt, speak, statePrompt = '', targetBubbles = null) {
   return [
-    composeSystem(characterPrompt, speak, statePrompt),
+    composeSystem(characterPrompt, speak, statePrompt, targetBubbles),
     '【可用工具】web_search：查询外部网页信息，输入 {"query":"检索词"}。遇到需要最新行情、新闻、事实核验或你不确定的信息时使用。',
     '【ReAct 输出协议】本轮第一次输出只做一件事：需要工具时输出 {"type":"tool_call","tool":"web_search","args":{"query":"..."}}；信息足够时输出 {"type":"final","parts":["...","..."]}。',
     '搜索结果会作为 observation 回填。拿到结果后继续判断，最终仍然只输出 final parts。',
