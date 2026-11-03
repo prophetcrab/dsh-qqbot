@@ -729,7 +729,7 @@ window.__ModuleLoader__.load({
       }
 
       function useAi(panel) {
-        const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null })
+        const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null, settings: false })
         const selectedRef = React.useRef(null)
         const load = React.useCallback(async (manual = false, groupId = selectedRef.current) => {
           if (manual) setView((prev) => ({ ...prev, phase: prev.data === null ? 'loading' : 'refreshing', error: null }))
@@ -769,6 +769,8 @@ window.__ModuleLoader__.load({
           },
           setFilter: (filter) => setView((prev) => ({ ...prev, filter })),
           toggleLoop: (id) => setView((prev) => ({ ...prev, expanded: prev.expanded === id ? null : id })),
+          openSettings: () => setView((prev) => ({ ...prev, settings: true })),
+          closeSettings: () => setView((prev) => ({ ...prev, settings: false })),
         })
       }
 
@@ -857,6 +859,125 @@ window.__ModuleLoader__.load({
             h('div', { className: 'qqbot-ai-loop-meta' }, h('span', null, loop.loopId || '—'))) : null)
       }
 
+      function infoField(h, label, value, extra = '') {
+        return h('div', { className: `qqbot-ai-info ${extra}` },
+          h('span', { className: 'qqbot-ai-info-label' }, label),
+          h('p', { className: 'qqbot-ai-info-value' }, text(value) || '—'))
+      }
+
+      function exampleBlock(h, example, index) {
+        return h('div', { key: `example-${index}`, className: 'qqbot-ai-example' },
+          h('div', { className: 'qqbot-ai-example-line' }, h('span', null, '用户'), h('p', null, text(example.user) || '—')),
+          h('div', { className: 'qqbot-ai-example-line is-assistant' }, h('span', null, '角色'), h('p', null, text(example.assistant) || '—')))
+      }
+
+      function settingsCardHead(h, kicker, title, sub) {
+        return h('div', { className: 'qqbot-ai-card-head' },
+          h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, kicker), h('h2', null, title)),
+          sub ? h('span', { className: 'qqbot-ai-card-sub' }, sub) : null)
+      }
+
+      function profileDetail(h, profile) {
+        return h('div', { key: `${profile.groupId}:${profile.qq}`, className: 'qqbot-ai-profile qqbot-ai-profile-full' },
+          h('div', { className: 'qqbot-ai-profile-name' }, h('strong', null, text(profile.nickname) || text(profile.qq)), h('span', null, text(profile.qq))),
+          h('div', { className: 'qqbot-ai-profile-facts' },
+            text(profile.personality) ? h('span', null, `性格 ${text(profile.personality)}`) : null,
+            text(profile.style) ? h('span', null, `风格 ${text(profile.style)}`) : null,
+            text(profile.relationship) ? h('span', null, `关系 ${text(profile.relationship)}`) : null),
+          h('p', null, text(profile.summary) || text(profile.recent) || '暂无概要'),
+          arr(profile.interests).length > 0
+            ? h('div', { className: 'qqbot-ai-profile-tags' }, ...arr(profile.interests).slice(0, 6).map((tag) => h('span', { key: tag }, tag)))
+            : null)
+      }
+
+      function groupDetail(h, id, group) {
+        return h('div', { key: id, className: 'qqbot-ai-settings-group' },
+          h('div', { className: 'qqbot-ai-settings-group-head' }, h('strong', null, text(group.name) || id), h('span', null, id)),
+          h('p', null, text(group.topic) || '暂无最近话题'),
+          h('div', { className: 'qqbot-ai-profile-tags' },
+            h('span', null, `${arr(group.participants).length} 位参与者`),
+            h('span', null, group.running ? '处理中' : '监听中'),
+            group.lastPhase ? h('span', null, `上一阶段 ${PHASE_LABEL[group.lastPhase] || group.lastPhase}`) : null))
+      }
+
+      function renderAiSettings(panel, view) {
+        const { h } = panel
+        const data = obj(view.data)
+        const character = obj(data.character)
+        const core = obj(character.core)
+        const emotion = obj(character.emotion)
+        const persona = obj(data.persona)
+        const groupsState = obj(data.groups)
+        const listenerGroups = obj(data.listener?.groups)
+        const groups = Object.keys({ ...listenerGroups, ...groupsState }).map((id) => [id, { ...obj(listenerGroups[id]), ...obj(groupsState[id]) }])
+        const selectedId = view.selected ?? groups[0]?.[0] ?? null
+        const profiles = arr(data.profiles).filter((profile) => selectedId === null || String(profile.groupId) === String(selectedId))
+        const memories = arr(data.memories).slice(-12).reverse()
+        const name = text(persona.name) || text(core.name) || '未命名角色'
+        const role = text(persona.role) || text(core.identity)
+        const tone = text(persona.tone) || text(core.voice)
+        const personality = text(persona.personality)
+        const rules = text(persona.rules)
+        const keywords = arr(persona.keywords).length > 0 ? arr(persona.keywords) : arr(core.keywords)
+        const examples = arr(persona.examples)
+        const updatedAt = persona.updatedAt || character.updatedAt || data.updatedAt
+        const selectedGroup = groups.find(([id]) => id === selectedId)
+        const selectedName = selectedGroup === undefined ? (selectedId || '未选择群') : (text(selectedGroup[1].name) || selectedId)
+        const personaCard = h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
+          settingsCardHead(h, 'PERSONA', '完整人格设定', 'persona.json'),
+          h('div', { className: 'qqbot-ai-info-grid' },
+            infoField(h, '名称', name),
+            infoField(h, '语气', tone),
+            infoField(h, '性格', personality, 'is-wide'),
+            infoField(h, '身份', role, 'is-full')),
+          h('div', { className: 'qqbot-ai-rule-block', 'data-testid': 'qqbot-ai-persona-rules' },
+            h('span', null, '行为准则'),
+            h('p', null, rules || '暂无行为准则')),
+          keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
+            h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, '触发用 · 不进入提示词')),
+            h('div', { className: 'qqbot-ai-keyword-tags' }, ...keywords.map((keyword) => h('span', { key: keyword }, keyword)))) : null,
+          examples.length > 0 ? h('div', { className: 'qqbot-ai-examples', 'data-testid': 'qqbot-ai-persona-examples' },
+            h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '对话示例'), h('span', null, '仅展示 · 不进入提示词')),
+            ...examples.slice(0, 6).map((example, index) => exampleBlock(h, example, index))) : null)
+        const emotionCard = h('section', { className: 'qqbot-ai-card' },
+          settingsCardHead(h, 'EMOTION', '当前状态', '软约束'),
+          h('div', { className: 'qqbot-ai-emotions' },
+            emotionBar(h, '心情', (num(emotion.valence) + 1) / 2, 'rose'),
+            emotionBar(h, '唤醒度', emotion.arousal, 'amber'),
+            emotionBar(h, '精力', emotion.energy, 'blue'),
+            emotionBar(h, '社交电量', emotion.socialBattery, 'violet'),
+            emotionBar(h, '压力', emotion.stress, 'amber')),
+          h('div', { className: 'qqbot-ai-emotion-numbers', 'data-testid': 'qqbot-ai-emotion-numbers' },
+            ...['valence', 'arousal', 'energy', 'socialBattery', 'stress'].map((key) => h('span', { key }, `${key} ${num(emotion[key]).toFixed(2)}`))))
+        const profilesCard = h('section', { className: 'qqbot-ai-card', 'data-testid': 'qqbot-ai-settings-profiles' },
+          settingsCardHead(h, 'PROFILES', `用户画像 · ${selectedName}`, `${profiles.length} 人`),
+          profiles.length === 0
+            ? h('p', { className: 'qqbot-ai-empty-line' }, selectedId === null ? '进入群详情后显示画像' : '这个群还没有用户画像')
+            : h('div', { className: 'qqbot-ai-settings-profiles' }, ...profiles.slice(0, 8).map((profile) => profileDetail(h, profile))))
+        const memoryCard = h('section', { className: 'qqbot-ai-card' },
+          settingsCardHead(h, 'MEMORY', '记忆库', `${memories.length} 条最近记忆`),
+          h('div', { className: 'qqbot-ai-settings-memories', 'data-testid': 'qqbot-ai-settings-memories' },
+            memories.length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '还没有长期记忆') : memories.map((memory) => h('div', { key: memory.id || memory.summary, className: 'qqbot-ai-memory' },
+              h('span', { className: `qqbot-ai-memory-dot is-${memory.importance || 'medium'}` }),
+              h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, `${time(memory.at)} · ${text(memory.kind) || 'event'}`))))))
+        const groupsCard = h('section', { className: 'qqbot-ai-card' },
+          settingsCardHead(h, 'GROUPS', '群聊状态', `${groups.length} 个群`),
+          h('div', { className: 'qqbot-ai-settings-groups', 'data-testid': 'qqbot-ai-settings-groups' },
+            groups.length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '还没有群聊状态') : groups.map(([id, group]) => groupDetail(h, id, group))))
+        return h('div', { className: 'qqbot-ai-dashboard qqbot-ai-settings', 'data-testid': 'qqbot-ai-settings' },
+          h('header', { className: 'qqbot-ai-settings-hero' },
+            h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-back', 'data-testid': 'qqbot-ai-settings-back', onClick: view.closeSettings }, '← 返回运行台'),
+            h('div', { className: 'qqbot-ai-settings-hero-copy' },
+              h('span', { className: 'qqbot-ai-eyebrow' }, 'CHARACTER / SETTINGS'),
+              h('h1', null, name),
+              h('p', null, role || '还没有角色身份')),
+            h('div', { className: 'qqbot-ai-settings-hero-meta' },
+              statusPill(h, '状态投影', 'violet'),
+              h('span', null, updatedAt ? `更新于 ${time(updatedAt)}` : '等待状态数据'))),
+          h('div', { className: 'qqbot-ai-settings-grid' }, personaCard, h('aside', { className: 'qqbot-ai-settings-side' }, emotionCard, profilesCard)),
+          h('div', { className: 'qqbot-ai-settings-bottom' }, memoryCard, groupsCard))
+      }
+
       function renderAiTab(panel, view) {
         const { h } = panel
         const data = obj(view.data)
@@ -887,6 +1008,7 @@ window.__ModuleLoader__.load({
               h('p', { 'data-testid': 'qqbot-ai-error' }, view.error || '无法读取运行数据'),
               h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-refresh', onClick: view.refresh }, '重新连接')))
         }
+        if (view.settings === true) return renderAiSettings(panel, view)
         return h('div', { className: 'qqbot-ai-dashboard', 'data-testid': 'qqbot-ai-dashboard' },
           h('header', { className: 'qqbot-ai-hero' },
             h('div', null,
@@ -919,11 +1041,20 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'qqbot-ai-next-trigger qqbot-ai-next-trigger-detail' },
                   h('span', null, `下次计数触发：${num(selectedGroup.countThreshold) || '?'} 条`),
                   h('span', null, `当前已积累 ${num(selectedGroup.unprocessed)} 条 · 还差 ${Math.max(0, num(selectedGroup.countThreshold) - num(selectedGroup.unprocessed))} 条`))) : h('p', { className: 'qqbot-ai-empty-line' }, groups.length === 0 ? '还没有群聊监听数据。' : '总览模式：点击左侧群队列中的群查看监听状态。')),
-            h('section', { className: 'qqbot-ai-card qqbot-ai-character', 'data-testid': 'qqbot-ai-character' },
+            h('section', {
+              className: 'qqbot-ai-card qqbot-ai-character qqbot-ai-character-clickable',
+              'data-testid': 'qqbot-ai-character',
+              role: 'button',
+              tabIndex: 0,
+              onClick: view.openSettings,
+              onKeyDown: (event) => { if (event.key === 'Enter' || event.key === ' ') view.openSettings() },
+            },
               h('div', { className: 'qqbot-ai-card-head' },
                 h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'CHARACTER'),
                   h('h2', null, text(core.name) || '角色')),
-                statusPill(h, '状态投影', 'violet')),
+                h('div', { className: 'qqbot-ai-card-actions' },
+                  statusPill(h, '状态投影', 'violet'),
+                  h('button', { type: 'button', className: 'qqbot-ai-card-link', 'data-testid': 'qqbot-ai-open-settings', onClick: (event) => { if (event && typeof event.stopPropagation === 'function') event.stopPropagation(); view.openSettings() } }, '进入设定 →'))),
               h('p', { className: 'qqbot-ai-identity' }, text(core.identity) || '尚未建立角色核心'),
               h('div', { className: 'qqbot-ai-emotions', 'data-testid': 'qqbot-ai-emotion' },
                 emotionBar(h, '心情', (num(emotion.valence) + 1) / 2, 'rose'),
@@ -3792,6 +3923,52 @@ window.__ModuleLoader__.load({
       .qqbot-ai-keywords { margin-top: 12px; border-top: .5px solid var(--dsw-alias-border-l1); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
       .qqbot-ai-keyword-tags { display: flex; gap: 5px; flex-wrap: wrap; }
       .qqbot-ai-keyword-tags span { padding: 3px 7px; border-radius: 6px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 9px; }
+
+      .qqbot-ai-character-clickable { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+      .qqbot-ai-character-clickable:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 38%, var(--dsw-alias-border-l1)); box-shadow: 0 12px 30px rgba(15,23,42,.08); transform: translateY(-1px); }
+      .qqbot-ai-character-clickable:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); outline-offset: 2px; }
+      .qqbot-ai-card-link { border: 0; background: transparent; color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 600; cursor: pointer; padding: 3px 0; white-space: nowrap; }
+      .qqbot-ai-card-link:hover { text-decoration: underline; }
+      .qqbot-ai-settings { gap: 16px; }
+      .qqbot-ai-settings-hero { display: flex; align-items: center; gap: 15px; padding: 6px 2px 2px; flex-wrap: wrap; }
+      .qqbot-ai-settings-hero-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+      .qqbot-ai-settings-hero-copy h1 { margin: 0; font-size: 28px; line-height: 1.1; letter-spacing: -.035em; color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-settings-hero-copy p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.5; max-width: 820px; }
+      .qqbot-ai-settings-hero-meta { display: flex; align-items: center; gap: 9px; color: var(--dsw-alias-label-tertiary); font-size: 10px; flex-wrap: wrap; }
+      .qqbot-ai-settings-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); gap: 14px; align-items: start; }
+      .qqbot-ai-settings-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .qqbot-ai-settings-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+      .qqbot-ai-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+      .qqbot-ai-info { display: flex; flex-direction: column; gap: 3px; padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); min-width: 0; }
+      .qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: 1 / -1; }
+      .qqbot-ai-info-label { color: var(--dsw-alias-label-tertiary); font-size: 9px; letter-spacing: .03em; }
+      .qqbot-ai-info-value { margin: 0; color: var(--dsw-alias-label-primary); font-size: 11.5px; line-height: 1.55; word-break: break-word; }
+      .qqbot-ai-rule-block { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-rule-block > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+      .qqbot-ai-rule-block p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+      .qqbot-ai-settings-keywords { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-examples { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-example { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
+      .qqbot-ai-example-line { display: flex; gap: 7px; align-items: flex-start; }
+      .qqbot-ai-example-line > span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; width: 22px; flex: none; padding-top: 2px; }
+      .qqbot-ai-example-line p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }
+      .qqbot-ai-example-line.is-assistant p { color: var(--dsw-alias-label-primary); }
+      .qqbot-ai-emotion-numbers { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 9px; }
+      .qqbot-ai-emotion-numbers span { padding: 2px 5px; border-radius: 4px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-tertiary); font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-ai-settings-profiles { display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-profile-full { padding: 9px 10px; gap: 5px; }
+      .qqbot-ai-profile-full p { -webkit-line-clamp: 4; font-size: 10px; }
+      .qqbot-ai-profile-facts { display: flex; gap: 5px; flex-wrap: wrap; }
+      .qqbot-ai-profile-facts span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; }
+      .qqbot-ai-settings-memories { display: flex; flex-direction: column; gap: 8px; }
+      .qqbot-ai-settings-groups { display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-ai-settings-group { padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 4px; }
+      .qqbot-ai-settings-group-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+      .qqbot-ai-settings-group-head strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; }
+      .qqbot-ai-settings-group-head span { color: var(--dsw-alias-label-tertiary); font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-ai-settings-group p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      @media (max-width: 900px) { .qqbot-ai-settings-grid, .qqbot-ai-settings-bottom { grid-template-columns: 1fr; } }
+      @media (max-width: 640px) { .qqbot-ai-settings-hero { align-items: flex-start; flex-direction: column; } .qqbot-ai-info-grid { grid-template-columns: 1fr; } .qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: auto; } }
       `
 
       return { CSS }

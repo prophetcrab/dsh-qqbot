@@ -261,9 +261,9 @@ export class GroupLoopStore {
   }
 
   async dashboard(listenerPath, groupId = null) {
-    const [character, groups, memories] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40)])
+    const [character, groups, memories, persona] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40), this.loadPersona()])
     const profiles = groupId === null || groupId === '' ? [] : await this.profilesFor(groupId)
     const listener = await this.readJson(listenerPath, null)
-    return { character, groups: groups.groups ?? {}, memories, profiles, listener, updatedAt: new Date().toISOString() }
+    return { character, persona, groups: groups.groups ?? {}, memories, profiles, listener, updatedAt: new Date().toISOString() }
   }
 }

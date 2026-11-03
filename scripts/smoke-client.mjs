@@ -250,6 +250,16 @@ const GROUP_DASHBOARD = {
     core: { name: '天青色瞪眼鱼', identity: '林见夏，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
     emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
   },
+  persona: {
+    name: '天青色瞪眼鱼',
+    role: '林见夏，28 岁，杭州漫画家',
+    tone: '短句、口语、热络',
+    personality: '自来熟、热情、话多但有分寸',
+    rules: '像熟人一样自然接话；句子尽量短',
+    keywords: ['股票', '期货', 'K线', '漫画', '分镜'],
+    examples: [{ user: '你最近在画什么', assistant: '炒股期货题材的《多空之间》' }],
+    updatedAt: '2026-11-03T07:00:00.000Z',
+  },
   groups: {
     '1026855069': { bufferSize: 18, unprocessed: 3, countThreshold: 6, running: true, active: 'loop_001', cooldownUntil: 0, queue: { urgent: 'mention', normal: null }, lastLoop: { sendResult: { sent: true } } },
     '805836168': { bufferSize: 7, unprocessed: 1, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: null }, lastLoop: null },
@@ -776,6 +786,20 @@ const loopRows = findAll(tree, (node) => node.props && node.props['data-testid']
 if (loopRows.length !== 2) throw new Error(`expected 2 loop rows, got ${loopRows.length}`)
 expectTestId(tree, 'qqbot-ai-character')
 expectTestId(tree, 'qqbot-ai-keywords')
+clickTestId(tree, 'qqbot-ai-open-settings')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-settings')
+expectTestId(tree, 'qqbot-ai-persona')
+expectTestId(tree, 'qqbot-ai-persona-rules')
+expectTestId(tree, 'qqbot-ai-emotion-numbers')
+expectTestId(tree, 'qqbot-ai-settings-memories')
+expectTestId(tree, 'qqbot-ai-settings-groups')
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('自来熟')) throw new Error('personality missing in settings')
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('多空之间')) throw new Error('persona example missing in settings')
+clickTestId(tree, 'qqbot-ai-settings-back')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-character')
+
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('股票')) throw new Error('persona keywords missing in dashboard')
 expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
