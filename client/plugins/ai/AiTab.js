@@ -103,6 +103,9 @@ function stateMachine(h, active) {
 function groupRow(h, id, group, selected, select) {
   const queue = obj(group.queue)
   const running = group.running === true
+  const threshold = num(group.countThreshold)
+  const unprocessed = num(group.unprocessed)
+  const remaining = Math.max(0, threshold - unprocessed)
   return h('button', {
     key: id, type: 'button', className: `qqbot-ai-group-row${selected ? ' is-selected' : ''}`,
     'data-testid': 'qqbot-ai-group-row', 'data-group': id, onClick: () => select(id),
@@ -115,7 +118,8 @@ function groupRow(h, id, group, selected, select) {
       running ? statusPill(h, '处理中', 'run') : statusPill(h, '监听中', 'ok')),
     h('div', { className: 'qqbot-ai-group-meta' },
       h('span', null, `缓冲 ${num(group.bufferSize)}`),
-      h('span', null, `未处理 ${num(group.unprocessed)}/${num(group.countThreshold) || '?'}`),
+      h('span', null, `未处理 ${unprocessed}`),
+      h('span', { className: 'qqbot-ai-next-trigger' }, threshold > 0 ? `下次触发 ${threshold} 条 · 还差 ${remaining} 条` : '下次触发阈值未知'),
       h('span', null, queue.urgent ? `urgent · ${queue.urgent}` : queue.normal ? `normal · ${queue.normal}` : '队列空'))),
   h('span', { className: 'qqbot-ai-group-arrow' }, '›'))
 }
@@ -197,11 +201,14 @@ export function renderAiTab(panel, view) {
             h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '总览'))),
         stateMachine(h, activeLoop),
         selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
-          h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}/${num(selectedGroup.countThreshold) || '?'}`)),
+          h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)}`)),
           h('div', { className: 'qqbot-ai-active-queue' },
             h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
             h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
-            h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲'))) : h('p', { className: 'qqbot-ai-empty-line' }, groups.length === 0 ? '还没有群聊监听数据。' : '总览模式：点击左侧群队列中的群查看监听状态。')),
+            h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲')),
+          h('div', { className: 'qqbot-ai-next-trigger qqbot-ai-next-trigger-detail' },
+            h('span', null, `下次计数触发：${num(selectedGroup.countThreshold) || '?'} 条`),
+            h('span', null, `当前已积累 ${num(selectedGroup.unprocessed)} 条 · 还差 ${Math.max(0, num(selectedGroup.countThreshold) - num(selectedGroup.unprocessed))} 条`))) : h('p', { className: 'qqbot-ai-empty-line' }, groups.length === 0 ? '还没有群聊监听数据。' : '总览模式：点击左侧群队列中的群查看监听状态。')),
       h('section', { className: 'qqbot-ai-card qqbot-ai-character', 'data-testid': 'qqbot-ai-character' },
         h('div', { className: 'qqbot-ai-card-head' },
           h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'CHARACTER'),

@@ -407,4 +407,6 @@ export const CSS = `
 .qqbot-ai-profile-name strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; } .qqbot-ai-profile-name span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .qqbot-ai-profile p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .qqbot-ai-profile-tags { display: flex; gap: 4px; flex-wrap: wrap; } .qqbot-ai-profile-tags span { padding: 1px 5px; border-radius: 4px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 8.5px; }
+.qqbot-ai-next-trigger { color: var(--dsw-alias-brand-primary); font-weight: 600; }
+.qqbot-ai-next-trigger-detail { display: flex; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 6%, transparent); font-size: 9.5px; }
 `
