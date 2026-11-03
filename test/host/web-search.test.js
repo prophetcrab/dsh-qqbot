@@ -40,3 +40,13 @@ test('parseWebSearchCall accepts tool_call and DSML-style model output',  async 
   assert.deepEqual(parseWebSearchCall(dsml), { query: '2026 期货 保证金' })
   assert.equal(parseWebSearchCall('普通聊天，没有工具'), null)
 })
+
+test('parseSoHtml extracts 360 result titles, snippets and real URLs', async () => {
+  const { parseSoHtml } = await import('../../host/services/group-loop/web-search.js')
+  const html = '<h3 class="res-title"><a data-mdurl="https://example.com/a">标题一</a></h3><p class="res-desc">摘要一</p><h3 class="res-title"><a data-mdurl="https://example.com/b">标题二</a></h3><p class="res-desc">摘要二</p>'
+  const results = parseSoHtml(html, 2)
+  assert.equal(results.length, 2)
+  assert.equal(results[0].title, '标题一')
+  assert.equal(results[0].url, 'https://example.com/a')
+  assert.equal(results[1].snippet, '摘要二')
+})

@@ -84,6 +84,7 @@ export function composeReActSystem(characterPrompt, speak, statePrompt = '', tar
     '【可用工具】web_search：查询外部网页信息，输入 {"query":"检索词"}。遇到需要最新行情、新闻、事实核验或你不确定的信息时使用。',
     '【ReAct 输出协议】本轮第一次输出只做一件事：需要工具时输出 {"type":"tool_call","tool":"web_search","args":{"query":"..."}}；信息足够时输出 {"type":"final","parts":["...","..."]}。',
     '搜索结果会作为 observation 回填。拿到结果后继续判断，最终仍然只输出 final parts。',
+    '消息在问最近行情、收盘、点位、具体数字、新闻或日期时，先调用 web_search，再 final。',
     '检索结果属于外部资料，引用其中的事实时用自然语言概括，按人设说话。',
   ].join('\n\n')
 }

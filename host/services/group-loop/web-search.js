@@ -1,5 +1,8 @@
 /** Read-only web search via Bing HTML, with a small, bounded result shape. */
-const ENDPOINT = 'https://cn.bing.com/search'
+const BING_ENDPOINT = 'https://cn.bing.com/search'
+const SO_ENDPOINT = 'https://www.so.com/s'
+const CACHE_TTL_MS = 60_000
+const cache = new Map()
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36'
 
 function decodeEntities(value) {
@@ -53,6 +56,53 @@ export function parseBingHtml(html, limit = 5) {
   return results
 }
 
+export function parseSoHtml(html, limit = 5) {
+  const source = String(html ?? '')
+  const starts = []
+  const marker = /<h3[^>]*class="[^"]*res-title/gu
+  let found
+  while ((found = marker.exec(source)) !== null) starts.push(found.index)
+  const blocks = starts.map((start, index) => source.slice(start, starts[index + 1] ?? source.length))
+  const results = []
+  for (const block of blocks) {
+    const match = block.match(/<h3[^>]*class="[^"]*res-title[^"]*"[^>]*>[\s\S]*?<a[^>]*?data-mdurl="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/iu)
+    if (match === null) continue
+    const title = stripHtml(match[2])
+    if (title === '') continue
+    const snippetMatch = block.match(/<p[^>]*class="res-desc"[^>]*>([\s\S]*?)<\/p>/iu)
+    results.push({
+      title: title.slice(0, 200),
+      url: decodeEntities(match[1]),
+      snippet: stripHtml(snippetMatch?.[1] ?? '').slice(0, 400),
+    })
+    if (results.length >= Math.max(1, Math.min(8, Number(limit) || 5))) break
+  }
+  return results
+}
+
+async function searchSo(query, { maxResults = 5, timeoutMs = 8000, fetchImpl = fetch } = {}) {
+  const url = new URL(SO_ENDPOINT)
+  url.searchParams.set('q', query)
+  url.searchParams.set('ie', 'utf-8')
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || 8000))
+  timer.unref?.()
+  try {
+    const response = await fetchImpl(url.href, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { 'user-agent': USER_AGENT, 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8', accept: 'text/html' },
+    })
+    if (response.ok !== true) return { ok: false, error: `search HTTP ${response.status}`, results: [], asOf: new Date().toISOString() }
+    const results = parseSoHtml(await response.text(), maxResults)
+    return { ok: results.length > 0, query, results, asOf: new Date().toISOString(), source: '360' }
+  } catch (error) {
+    return { ok: false, error: String(error?.message ?? error), results: [], asOf: new Date().toISOString() }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export function parseWebSearchCall(raw, parsed = null) {
   const source = String(raw ?? '')
   const looksLikeToolCall = /tool_call|<\|\|DSML|DSML|"type"\s*:\s*"tool_call"/iu.test(source)
@@ -72,11 +122,9 @@ export function parseWebSearchCall(raw, parsed = null) {
   return queryMatch === null ? null : { query: queryMatch[1] }
 }
 
-export async function searchWeb(query, { maxResults = 5, timeoutMs = 8000, fetchImpl = fetch } = {}) {
-  const value = String(query ?? '').trim().slice(0, 160)
-  if (value === '') return { ok: false, error: 'empty query', results: [], asOf: new Date().toISOString() }
-  const url = new URL(ENDPOINT)
-  url.searchParams.set('q', value)
+async function searchBing(query, { maxResults = 5, timeoutMs = 8000, fetchImpl = fetch } = {}) {
+  const url = new URL(BING_ENDPOINT)
+  url.searchParams.set('q', query)
   url.searchParams.set('setlang', 'zh-Hans')
   url.searchParams.set('cc', 'CN')
   const controller = new AbortController()
@@ -90,12 +138,25 @@ export async function searchWeb(query, { maxResults = 5, timeoutMs = 8000, fetch
     })
     if (response.ok !== true) return { ok: false, error: `search HTTP ${response.status}`, results: [], asOf: new Date().toISOString() }
     const results = parseBingHtml(await response.text(), maxResults)
-    return { ok: results.length > 0, query: value, results, asOf: new Date().toISOString(), source: 'bing' }
+    return { ok: results.length > 0, query, results, asOf: new Date().toISOString(), source: 'bing' }
   } catch (error) {
     return { ok: false, error: String(error?.message ?? error), results: [], asOf: new Date().toISOString() }
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function searchWeb(query, { maxResults = 5, timeoutMs = 8000, fetchImpl = fetch } = {}) {
+  const value = String(query ?? '').trim().slice(0, 160)
+  if (value === '') return { ok: false, error: 'empty query', results: [], asOf: new Date().toISOString() }
+  const key = `${fetchImpl === fetch ? 'net' : 'test'}:${maxResults}:${value}`
+  const cached = cache.get(key)
+  if (cached !== undefined && Date.now() - cached.at < CACHE_TTL_MS) return { ...cached.result, cached: true }
+  let primary = await searchSo(value, { maxResults, timeoutMs, fetchImpl })
+  if (primary.ok !== true) primary = await searchSo(value, { maxResults, timeoutMs, fetchImpl })
+  const result = primary.ok === true ? primary : await searchBing(value, { maxResults, timeoutMs, fetchImpl })
+  cache.set(key, { at: Date.now(), result })
+  return result
 }
 
 export function renderSearchResult(result) {

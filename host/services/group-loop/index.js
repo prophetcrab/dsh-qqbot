@@ -8,6 +8,13 @@ const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
 const MATERIAL_LIMITS = { analyze: 16000, compose: 8000, stateUpdate: 10000 }
 
+function needsWebSearch(material) {
+  const source = String(material ?? '')
+  const focus = source.lastIndexOf('【当前触发消息】')
+  const recent = focus >= 0 ? source.slice(focus) : source.slice(-1200)
+  return /(收盘|点位|报价|涨跌|行情|指数|美股|A股|期货|黄金|原油|汇率|财报|新闻|最新|昨天|查一?下|搜一?下|多少)/u.test(recent.slice(-1600))
+}
+
 function bubbleBudget(random) {
   const roll = random()
   return roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3
@@ -217,6 +224,8 @@ export class GroupLoopService {
   async composeWithTools({ input, speak, character, baseUser, images, budget }) {
     const toolCalls = []
     let observations = ''
+    let nudged = false
+    const searchIntent = needsWebSearch(input.material)
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
     for (let step = 0; step < 4; step += 1) {
       let raw = ''
@@ -234,9 +243,13 @@ export class GroupLoopService {
           observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
           continue
         }
+        if (toolCalls.some((call) => call.query === query)) {
+          observations += '\n\n【工具观察】这个 query 已经检索过，请直接基于现有资料给 final parts。'
+          continue
+        }
         const started = Date.now()
         const result = await this.webSearch(query, { maxResults: this.settings.webSearchMaxResults, timeoutMs: this.settings.webSearchTimeoutMs })
-        toolCalls.push({ tool: 'web_search', query, ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
+        toolCalls.push({ tool: 'web_search', query, source: result.source ?? 'unknown', ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
         observations += `\n\n${renderSearchResult(result).slice(0, 8000)}`
         if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
         continue
@@ -246,7 +259,14 @@ export class GroupLoopService {
         continue
       }
       const parts = applyBubbleBudget(normalizeParts(parsed, raw), budget)
-      if (parts.length > 0) return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
+      if (parts.length > 0) {
+        if (searchIntent && toolCalls.length === 0 && !nudged) {
+          nudged = true
+          observations += '\n\n【工具观察】这条消息在问最近行情/点位/新闻/具体数字，请先调用 web_search，再给 final parts。'
+          continue
+        }
+        return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
+      }
       observations += '\n\n【工具观察】请输出 final parts，或调用 web_search。'
     }
     return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }

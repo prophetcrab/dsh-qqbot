@@ -1182,7 +1182,7 @@ sanitize
 compose
   → 模型判断是否需要最新外部信息
   → 需要：输出 tool_call web_search
-  → DSH 检索 Bing HTML
+  → DSH 检索 360，失败时回退 Bing
   → 结果作为 observation 回填
   → 模型按人设总结
   → 输出 final parts
@@ -1197,6 +1197,8 @@ compose
 最多 5 条结果
 结果只作为资料
 最终只发送 1–3 条发言气泡
+360 为主通道，Bing 兜底
+相同 query 缓存 60 秒
 ```
 
 工具结果不会原样进入群聊。
