@@ -91,13 +91,19 @@ function emotionBar(h, label, value, tone) {
     h('div', { className: 'qqbot-ai-meter' }, h('i', { className: `qqbot-ai-meter-fill is-${tone}`, style: { width: `${percent(value)}%` } })))
 }
 
-function stateMachine(h, active) {
-  const index = active?.sendResult?.sent ? 4 : active ? 2 : 0
+const PHASE_INDEX = { buffer: 0, analyze: 1, compose: 2, send: 3, state_update: 4 }
+const PHASE_LABEL = { buffer: '缓冲区', analyze: '分析', compose: '生成发言', send: '发送', state_update: '更新状态' }
+
+function stateMachine(h, group) {
+  const active = group !== null && group !== undefined && typeof group === 'object' && (group.active !== null && group.active !== undefined || group.running === true)
+  const phase = active ? text(group.phase) : ''
+  const index = active ? (PHASE_INDEX[phase] ?? 1) : 0
+  const caption = active ? `处理中 · ${PHASE_LABEL[phase] ?? '准备'}` : '空闲 · 等待触发'
   return h('div', { className: 'qqbot-ai-machine', 'data-testid': 'qqbot-ai-state-machine' },
     ...STATE_LABELS.map((label, i) => h('div', { key: label, className: `qqbot-ai-machine-node${i <= index ? ' is-reached' : ''}${i === index ? ' is-active' : ''}` },
       h('span', { className: 'qqbot-ai-machine-index' }, String(i + 1).padStart(2, '0')),
       h('span', null, label))),
-    h('div', { className: 'qqbot-ai-machine-caption' }, active ? '当前群正在处理 loop' : '空闲 · 等待触发'))
+    h('div', { className: 'qqbot-ai-machine-caption' }, caption))
 }
 
 function groupRow(h, id, group, selected, select) {
@@ -161,7 +167,6 @@ export function renderAiTab(panel, view) {
   const selectedProfiles = selectedId === null ? [] : arr(data.profiles).filter((profile) => String(profile.groupId) === String(selectedId)).slice(0, 4)
   const selectedEntry = selectedId === null ? null : groups.find(([id]) => id === selectedId)
   const selectedGroup = selectedEntry === undefined || selectedEntry === null ? null : selectedEntry[1]
-  const activeLoop = selectedGroup?.lastLoop ?? null
   const queueCount = groups.reduce((sum, [, g]) => sum + (obj(g.queue).urgent ? 1 : 0) + (obj(g.queue).normal ? 1 : 0), 0)
   const activeCount = groups.filter(([, g]) => g.running === true).length
   const sentCount = arr(loopSource).filter((loop) => loop.sendResult?.sent === true).length
@@ -199,7 +204,7 @@ export function renderAiTab(panel, view) {
           h('div', { className: 'qqbot-ai-card-actions' },
             selectedId === null ? null : h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-back', 'data-testid': 'qqbot-ai-back-overview', onClick: () => view.selectGroup(null) }, '← 返回总览'),
             h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '总览'))),
-        stateMachine(h, activeLoop),
+        stateMachine(h, selectedGroup),
         selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
           h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)}`)),
           h('div', { className: 'qqbot-ai-active-queue' },
