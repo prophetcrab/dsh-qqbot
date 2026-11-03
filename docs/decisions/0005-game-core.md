@@ -58,17 +58,32 @@ Player record:
 
 ```text
 /注册      register the sender in the current group
-/签到      once per account per Asia/Shanghai day, random 10-30 coins
-/账号背包  show the account-level bag (coins and future items)
+/签到      once per group per Asia/Shanghai day, random 10-30 coins
+/账号背包  show this group's bag for the sender (coins and future items)
 ```
 
-## Account bag
+## Group bag
+
+The player record and its bag are scoped to the current group:
 
 ```text
-data/state/games/accounts/<qq>.json
+data/state/games/players/<groupId>.json
 ```
 
-The bag is account-level, not group-level. Older per-group `player.coins` are lazily migrated into the bag once and then zeroed on the group record. Future standalone game modules can keep their own state and are not required to use this bag.
+```json
+{
+  "qq": "20000",
+  "nickname": "小明",
+  "coins": 18,
+  "items": {},
+  "checkinCount": 1,
+  "lastCheckinDate": "2026-11-03"
+}
+```
+
+The same QQ account may have independent coins, items and check-in state in
+different groups. Future standalone game modules can keep their own state and
+are not required to use this bag.
 
 Arguments after a command are ignored; the listener forwards only the exact command token. Nicknames are sanitized and coins are server-owned.
 
