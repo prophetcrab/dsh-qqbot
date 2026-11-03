@@ -1082,17 +1082,18 @@ sanitize
 当前实现：
 
 ```text
-每条气泡前：
-  delay = clamp(minDelay + text.length * 15, minDelay, maxDelay)
+首条气泡前：
+  delay = clamp(1200 + text.length * 20, 1200, 3000) ms
 
-默认：
-  minDelay = 300 ms
-  maxDelay = 1200 ms
+后续气泡前：
+  delay = clamp(800 + text.length * 20, 800, 2200) ms
 
 1–3 条，最多 3 条
 quote / at 只挂在第一条
 后续气泡只是普通文本
 ```
+
+首条更慢，体现读消息和打字；后续更像补一句，但仍保留明显间隔。
 
 规则：
 
