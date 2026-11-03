@@ -1206,6 +1206,23 @@ compose
 
 工具结果不会原样进入群聊。
 
+### 11.5 戳一戳 action
+
+`replyType=action` 不生成文字，直接调用 OneBot：
+
+```text
+send_poke { group_id, user_id }
+```
+
+规则：
+
+```text
+direct（@/回复）仍强制文本发言
+普通触发可由 analyze 选择 action
+action 目标必须是 target.userIds[0]
+发送失败只记录错误，不伪造文字
+```
+
 ### 12.0 发言提示词组装
 
 compose 的 system prompt 由三部分组成：
