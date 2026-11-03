@@ -151,49 +151,41 @@ Lv.3    3 把
 Legendary 5 把
 ```
 
-每根鱼竿有两类独立属性：
+### Lv.1–Lv.3
+
+等级鱼竿只有稀有度和抽卡基础概率的区别。
+
+它们没有：
 
 ```text
-fishingEffect     钓鱼效果
-pricePerKgBonus   单价属性，单位：钓鱼币/kg
+钓鱼效果
+单价属性
+特殊效果
 ```
 
-鱼竿的单价属性作用在鱼的单价上：
+效果字段：
 
 ```text
-effectivePricePerKg = fish.pricePerKg + equippedRod.pricePerKgBonus
-value = round(weightKg * effectivePricePerKg)
+fishingEffect: null
+pricePerKgBonus: 0
+specialEffect: null
 ```
 
-特殊物品是固定价格，不受鱼竿单价属性影响。
-
-玩家同一时间只装备一根鱼竿。
-
-### Lv.1
-
-| 名称 | 钓鱼效果 | 单价属性 |
-|---|---|---:|
-| 竹影竿 | 钓鱼冷却 -8% | +2 钓鱼币/kg |
-| 旧木竿 | 鱼获重量 +5% | +3 钓鱼币/kg |
-| 细鳞竿 | 特殊物品权重 +8% | +2 钓鱼币/kg |
-
-### Lv.2
-
-| 名称 | 钓鱼效果 | 单价属性 |
-|---|---|---:|
-| 青锋竿 | 钓鱼冷却 -12% | +5 钓鱼币/kg |
-| 沉水竿 | Lv.3+ 鱼权重 +10% | +6 钓鱼币/kg |
-| 月白竿 | 鱼获重量 +10% | +7 钓鱼币/kg |
-
-### Lv.3
-
-| 名称 | 钓鱼效果 | 单价属性 |
-|---|---|---:|
-| 玄铁竿 | 钓鱼冷却 -18% | +10 钓鱼币/kg |
-| 潮生竿 | Lv.3+ 鱼权重 +15% | +12 钓鱼币/kg |
-| 金丝竿 | 鱼获重量 +15% | +15 钓鱼币/kg |
+| 等级 | 名称 |
+|---|---|
+| Lv.1 | 竹影竿 |
+| Lv.1 | 旧木竿 |
+| Lv.1 | 细鳞竿 |
+| Lv.2 | 青锋竿 |
+| Lv.2 | 沉水竿 |
+| Lv.2 | 月白竿 |
+| Lv.3 | 玄铁竿 |
+| Lv.3 | 潮生竿 |
+| Lv.3 | 金丝竿 |
 
 ### Legendary
+
+只有传奇鱼竿拥有钓鱼效果、特殊效果和单价属性。
 
 | 名称 | 特殊效果 | 单价属性 |
 |---|---|---:|
@@ -202,6 +194,27 @@ value = round(weightKg * effectivePricePerKg)
 | 无钩竿 | 每 5 次钓鱼，本次保底一个特殊物品 | +25 钓鱼币/kg |
 | 潮汐竿 | 每日 20:00–22:00，鱼获重量 +20% | +28 钓鱼币/kg |
 | 太虚竿 | 每 50 次钓鱼，本次保底 Lv.5 鱼 | +30 钓鱼币/kg |
+
+### 计价
+
+只有装备传奇鱼竿时，才应用单价属性：
+
+```text
+effectivePricePerKg =
+  fish.pricePerKg + equippedLegendaryRod.pricePerKgBonus
+
+value = round(weightKg * effectivePricePerKg)
+```
+
+装备 Lv.1–Lv.3 鱼竿时：
+
+```text
+effectivePricePerKg = fish.pricePerKg
+```
+
+特殊物品固定价格，不受鱼竿单价属性影响。
+
+玩家同一时间只装备一根鱼竿。
 
 ### 鱼竿池
 
