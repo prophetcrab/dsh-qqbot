@@ -1,12 +1,15 @@
 /** Durable state for the group-listener loop: character, groups, memory. */
-import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { ensureProfile, loadProfileStore, normalizeProfile, profileKey, saveProfileStore } from '../profiles/index.js'
+import { ensureProfile, loadProfileStore, mergeProfile, saveProfileStore } from '../profiles/index.js'
+import { readJsonFile, SerialQueue, writeJsonAtomic } from './atomic.js'
 
 const DEFAULTS = () => ({
   emotion: { valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 },
   core: { name: '群友', identity: '群里的普通群友', voice: '简洁自然，不用客服腔' },
 })
+
+const PROCESSED_LIMIT = 500
 
 export class GroupLoopStore {
   constructor({ projectDir, personaPath, profilesPath, logger }) {
@@ -18,15 +21,12 @@ export class GroupLoopStore {
     this.characterPath = join(this.root, 'character.json')
     this.groupsPath = join(this.root, 'groups.json')
     this.memoryPath = join(this.root, 'memory.jsonl')
-    this.seen = new Map()
-    this.profileQueue = Promise.resolve()
+    this.processedPath = join(this.root, 'processed-loops.json')
+    this.writeQueue = new SerialQueue()
   }
 
   async ensure() { await mkdir(this.root, { recursive: true }) }
-
-  async readJson(path, fallback) {
-    try { return JSON.parse(await readFile(path, 'utf8')) } catch { return fallback }
-  }
+  async readJson(path, fallback) { return readJsonFile(path, fallback) }
 
   async loadCharacter() {
     await this.ensure()
@@ -50,7 +50,7 @@ export class GroupLoopStore {
   async saveCharacter(character) {
     await this.ensure()
     const next = { ...character, updatedAt: new Date().toISOString() }
-    await writeFile(this.characterPath, `${JSON.stringify(next, null, 2)}\n`, 'utf8')
+    await writeJsonAtomic(this.characterPath, next)
     return next
   }
 
@@ -61,25 +61,58 @@ export class GroupLoopStore {
 
   async saveGroups(groups) {
     await this.ensure()
-    await writeFile(this.groupsPath, `${JSON.stringify({ ...groups, updatedAt: new Date().toISOString() }, null, 2)}\n`, 'utf8')
+    await writeJsonAtomic(this.groupsPath, { ...groups, updatedAt: new Date().toISOString() })
+  }
+
+  async loadProcessed() {
+    const saved = await this.readJson(this.processedPath, { version: 1, loops: {} })
+    return saved !== null && typeof saved === 'object' && saved.loops !== null && typeof saved.loops === 'object'
+      ? saved
+      : { version: 1, loops: {} }
+  }
+
+  async saveProcessed(processed) {
+    const entries = Object.entries(processed.loops ?? {}).slice(-PROCESSED_LIMIT)
+    await writeJsonAtomic(this.processedPath, { version: 1, loops: Object.fromEntries(entries), updatedAt: new Date().toISOString() })
+  }
+
+  async getProcessedLoop(loopId) {
+    if (typeof loopId !== 'string' || loopId === '') return null
+    const processed = await this.loadProcessed()
+    return processed.loops[loopId] ?? null
   }
 
   async memories(limit = 30) {
     try {
       const text = await readFile(this.memoryPath, 'utf8')
-      return text.split('\n').filter(Boolean).slice(-limit).map((line) => { try { return JSON.parse(line) } catch { return null } }).filter(Boolean)
+      return text.split('\n').filter(Boolean).slice(-limit).map((line) => {
+        try { return JSON.parse(line) } catch { return null }
+      }).filter(Boolean)
     } catch { return [] }
   }
 
-  async appendMemory(entries) {
+  async hasMemoryForLoop(loopId) {
+    if (typeof loopId !== 'string' || loopId === '') return false
+    try {
+      const text = await readFile(this.memoryPath, 'utf8')
+      return text.split('\n').some((line) => {
+        if (!line) return false
+        try { return JSON.parse(line).loopId === loopId } catch { return false }
+      })
+    } catch { return false }
+  }
+
+  async appendMemory(entries, loopId = '') {
     if (!Array.isArray(entries) || entries.length === 0) return []
+    if (await this.hasMemoryForLoop(loopId)) return []
     await this.ensure()
     const written = []
     const now = new Date().toISOString()
     for (const entry of entries.slice(0, 8)) {
       if (entry === null || typeof entry !== 'object' || typeof entry.summary !== 'string' || entry.summary.trim() === '') continue
       const memory = {
-        id: `mem_${Date.now()}_${written.length}`,
+        id: `mem_${loopId || Date.now()}_${written.length}`,
+        loopId,
         at: now,
         summary: entry.summary.trim().slice(0, 500),
         kind: entry.kind === 'relationship' || entry.kind === 'reflection' ? entry.kind : 'event',
@@ -98,43 +131,82 @@ export class GroupLoopStore {
     const store = await loadProfileStore(this.profilesPath)
     const group = String(groupId)
     const wanted = Array.isArray(qqs) ? new Set(qqs.map((qq) => String(qq))) : null
-    const result = []
-    for (const profile of Object.values(store.profiles)) {
-      if (profile.groupId !== group) continue
-      if (wanted !== null && !wanted.has(profile.qq)) continue
-      result.push(profile)
-    }
-    return result.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 20)
+    return Object.values(store.profiles)
+      .filter((profile) => profile.groupId === group && (wanted === null || wanted.has(profile.qq)))
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+      .slice(0, 20)
   }
 
-  async applyProfiles(groupId, patches) {
+  async applyProfilesUnlocked(groupId, patches, participants) {
     if (this.profilesPath === null || !Array.isArray(patches) || patches.length === 0) return 0
+    const store = await loadProfileStore(this.profilesPath)
+    const names = new Map((participants ?? []).map((person) => [String(person.qq), String(person.nickname ?? '')]))
     let count = 0
-    const run = async () => {
-      const store = await loadProfileStore(this.profilesPath)
-      for (const entry of patches.slice(0, 8)) {
-        if (entry === null || typeof entry !== 'object' || typeof entry.qq !== 'string' || entry.qq.trim() === '') continue
-        const qq = entry.qq.trim()
-        const ensured = ensureProfile(store, { groupId, userId: qq })
-        const profile = ensured.profile
-        const patch = entry.patch !== null && typeof entry.patch === 'object' ? entry.patch : {}
-        for (const field of ['summary', 'personality', 'style', 'relationship', 'recent']) {
-          if (typeof patch[field] === 'string' && patch[field].trim() !== '') profile[field] = patch[field].trim().slice(0, 500)
-        }
-        if (Array.isArray(patch.interests)) profile.interests = patch.interests.filter((v) => typeof v === 'string').slice(0, 12)
-        profile.updatedAt = new Date().toISOString()
-        count += 1
-      }
-      await saveProfileStore(this.profilesPath, store)
+    for (const entry of patches.slice(0, 8)) {
+      if (entry === null || typeof entry !== 'object' || typeof entry.qq !== 'string' || entry.qq.trim() === '') continue
+      const qq = entry.qq.trim()
+      const ensured = ensureProfile(store, { groupId, userId: qq, userName: names.get(qq) })
+      const patch = entry.patch !== null && typeof entry.patch === 'object' ? entry.patch : {}
+      store.profiles[ensured.key] = mergeProfile(ensured.profile, patch)
+      count += 1
     }
-    this.profileQueue = this.profileQueue.then(run, run)
-    await this.profileQueue
+    await saveProfileStore(this.profilesPath, store)
     return count
   }
 
-  async dashboard(listenerPath) {
-    const [character, groups, memories, profileStore] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40), this.profilesPath === null ? Promise.resolve({ profiles: {} }) : loadProfileStore(this.profilesPath)])
+  async applyProfiles(groupId, patches, participants) {
+    return this.writeQueue.run(() => this.applyProfilesUnlocked(groupId, patches, participants))
+  }
+
+  /** Apply a full state patch under one lock so concurrent groups cannot lose updates. */
+  async applyStateUpdate({ loopId, groupId, patches, participants }) {
+    return this.writeQueue.run(async () => {
+      const processed = await this.loadProcessed()
+      const cached = processed.loops[loopId]
+      if (cached !== undefined) return { duplicate: true, result: cached }
+      const character = await this.loadCharacter()
+      const emotion = { ...character.emotion }
+      for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
+        const delta = Number(patches.emotion[`${key}Delta`])
+        if (!Number.isFinite(delta)) continue
+        const bounds = key === 'valence' ? [-1, 1] : [0, 1]
+        const value = Number(emotion[key]) + delta
+        emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(value) ? value : 0))
+      }
+      const saved = await this.saveCharacter({ ...character, emotion })
+      const members = await this.appendMemory(patches.memory, loopId)
+      const profileCount = await this.applyProfilesUnlocked(groupId, patches.userProfiles, participants)
+      const groups = await this.loadGroups()
+      const previous = groups.groups[groupId] !== null && typeof groups.groups[groupId] === 'object' ? groups.groups[groupId] : {}
+      const groupState = patches.groupState
+      groups.groups[groupId] = {
+        ...previous,
+        ...(typeof groupState.topic === 'string' && groupState.topic.trim() !== '' ? { topic: groupState.topic.trim().slice(0, 200) } : {}),
+        ...(Array.isArray(groupState.participants) ? { participants: groupState.participants.filter((id) => typeof id === 'string').slice(0, 20) } : {}),
+        ...(typeof groupState.unansweredQuestion === 'string' ? { unansweredQuestion: groupState.unansweredQuestion.trim().slice(0, 300) } : {}),
+        lastLoop: loopId,
+        updatedAt: new Date().toISOString(),
+      }
+      await this.saveGroups(groups)
+      const result = {
+        ok: true,
+        memory: members.length,
+        userProfiles: profileCount,
+        emotionUpdated: true,
+        groupStateUpdated: typeof groupState.topic === 'string' || Array.isArray(groupState.participants),
+        character: saved,
+        memoryIds: members.map((item) => item.id),
+      }
+      processed.loops[loopId] = result
+      await this.saveProcessed(processed)
+      return { duplicate: false, result }
+    })
+  }
+
+  async dashboard(listenerPath, groupId = null) {
+    const [character, groups, memories] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40)])
+    const profiles = groupId === null || groupId === '' ? [] : await this.profilesFor(groupId)
     const listener = await this.readJson(listenerPath, null)
-    return { character, groups: groups.groups ?? {}, memories, profiles: Object.values(profileStore.profiles ?? {}).slice(0, 300), listener, updatedAt: new Date().toISOString() }
+    return { character, groups: groups.groups ?? {}, memories, profiles, listener, updatedAt: new Date().toISOString() }
   }
 }

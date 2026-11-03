@@ -1,14 +1,13 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
-import { GroupLoopStore } from './store.js'
 import { buildPersonaPrompt } from '../persona/index.js'
-import { buildProfilePrompt } from '../profiles/index.js'
+import { GroupLoopStore } from './store.js'
+import { analyzeSystem, composeSystem, stateUpdateSystem, userMaterial } from './prompts.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
 
 function object(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }
 function text(value) { return typeof value === 'string' ? value.trim() : '' }
-function clamp(value, min, max) { const n = Number(value); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0 }
 
 function parseJson(raw) {
   const value = String(raw ?? '')
@@ -34,17 +33,16 @@ function normalizeSpeak(value) {
 
 function normalizePatches(value) {
   const source = object(value)
-  const memory = Array.isArray(source.memory) ? source.memory : []
-  const userProfiles = Array.isArray(source.userProfiles) ? source.userProfiles : []
-  const emotion = object(source.emotion)
-  const groupState = object(source.groupState)
-  return { memory, userProfiles, emotion, groupState }
+  return {
+    memory: Array.isArray(source.memory) ? source.memory : [],
+    userProfiles: Array.isArray(source.userProfiles) ? source.userProfiles : [],
+    emotion: object(source.emotion),
+    groupState: object(source.groupState),
+  }
 }
 
-function participantsOf(material) {
-  const ids = new Set()
-  for (const match of String(material ?? '').matchAll(/[（(](\d{5,12})[)）]/g)) ids.add(match[1])
-  return [...ids]
+function knownParticipants(participants) {
+  return new Set((Array.isArray(participants) ? participants : []).map((participant) => String(participant.qq)))
 }
 
 export class GroupLoopService {
@@ -54,7 +52,7 @@ export class GroupLoopService {
     this.logger = logger
     this.store = new GroupLoopStore({ projectDir: settings.projectDir, personaPath, profilesPath, logger })
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
-    this.seen = new Map()
+    this.inFlight = new Map()
   }
 
   selection() {
@@ -94,11 +92,9 @@ export class GroupLoopService {
     })
   }
 
-  async profileContext(groupId, material) {
-    const participants = participantsOf(material)
-    const profiles = await this.store.profilesFor(groupId, participants)
-    const rendered = profiles.map((profile) => buildProfilePrompt(profile)).filter(Boolean)
-    return { participants, profiles, prompt: rendered.join('\n\n') }
+  async profileContext(groupId, participants) {
+    const qqs = (Array.isArray(participants) ? participants : []).map((participant) => participant.qq)
+    return this.store.profilesFor(groupId, qqs)
   }
 
   async analyze(input) {
@@ -107,19 +103,9 @@ export class GroupLoopService {
     if (groupId === '' || material === '') return { ok: false, error: 'material/groupId required' }
     const triggerReason = text(input.trigger?.reason)
     const direct = triggerReason === 'mention' || triggerReason === 'reply'
-    const profileContext = await this.profileContext(groupId, material)
-    const system = [
-      await this.characterPrompt(),
-      '你是群聊参与者。根据最近素材判断这一轮是否发言。',
-      '不要因为被 @ 就机械回答；别人已经在回答、话题与你无关、你刚说过话时可以不发言。',
-      profileContext.prompt ? `【群成员画像，仅作背景，不要复述】\n${profileContext.prompt}` : '',
-      '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
-      'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
-      direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 必须为 true，且必须至少说一句；可以选择 statement，不要求回答被回复的内容；不要返回 action。' : '',
-      direct ? '如果不想回答引用内容，可以用 statement 发表一句主观反应。' : '',
-    ].filter(Boolean).join('\n\n')
+    const profiles = await this.profileContext(groupId, input.participants)
     try {
-      const raw = await this.stream(system, material, { maxTokens: 420, temperature: 0.25 })
+      const raw = await this.stream(analyzeSystem(await this.characterPrompt(), direct), userMaterial(material, profiles), { maxTokens: 420, temperature: 0.25 })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -133,21 +119,9 @@ export class GroupLoopService {
     const material = text(input.material).slice(-24000)
     const speak = normalizeSpeak(input.speak)
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
-    const target = speak.target
-    const profileContext = await this.profileContext(input.groupId, material)
-    const system = [
-      await this.characterPrompt(),
-      profileContext.prompt ? `【相关群成员画像，仅作背景，不要复述】\n${profileContext.prompt}` : '',
-      '你是群里的普通群友，不是客服。只写这次要发送的内容。',
-      speak.kind === 'statement' ? '发表一条主观观点，不要假装回复某条消息。' : '只针对 target 消息回复，不要总结整段素材。',
-      speak.replyType === 'normal' ? 'normal：不写 @、不写引用标记，直接写文本。' : '',
-      speak.replyType === 'at' ? 'at：不要手写 @，发送层会插入 @。' : '',
-      speak.replyType === 'quote' ? 'quote：不要重复引用全文，直接回应。' : '',
-      '短一点，像群聊，不要客服腔，不要列表，不要解释你在做什么。',
-      `target.messageIds=${JSON.stringify(target.messageIds)}，target.userIds=${JSON.stringify(target.userIds)}`,
-    ].filter(Boolean).join('\n\n')
+    const profiles = await this.profileContext(input.groupId, input.participants)
     try {
-      const reply = await this.stream(system, material, { maxTokens: 500, temperature: 0.7 })
+      const reply = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles), { maxTokens: 500, temperature: 0.7 })
       return { ok: true, text: reply.slice(0, 2000), speak }
     } catch (error) {
       this.logger.warn?.('group-loop compose failed: %s', String(error?.message ?? error))
@@ -157,9 +131,20 @@ export class GroupLoopService {
 
   async stateUpdate(input) {
     const loopId = text(input.loopId)
+    const cached = await this.store.getProcessedLoop(loopId)
+    if (cached !== null) return { ...cached, duplicate: true }
+    const active = this.inFlight.get(loopId)
+    if (active !== undefined) return active
+    const promise = this.runStateUpdate(input).finally(() => { this.inFlight.delete(loopId) })
+    this.inFlight.set(loopId, promise)
+    return promise
+  }
+
+  async runStateUpdate(input) {
+    const loopId = text(input.loopId)
     const groupId = text(input.groupId)
-    if (loopId !== '' && this.seen.has(loopId)) return this.seen.get(loopId)
     const material = text(input.material).slice(-16000)
+    const participants = Array.isArray(input.participants) ? input.participants : []
     const character = await this.store.loadCharacter()
     const speak = normalizeSpeak(input.speak)
     const sendResult = object(input.sendResult)
@@ -169,48 +154,22 @@ export class GroupLoopService {
       `本轮 speak：${JSON.stringify(speak)}`,
       `发送结果：${JSON.stringify(sendResult)}`,
     ].join('\n')
-    const system = [
-      '你是群聊角色状态维护器。只输出 JSON，不要解释。',
-      '维护自身记忆、用户画像、情绪和群状态。只记录有长期价值的信息；没有变化就返回空数组。',
-      '输出：{"memory":[{"summary":"一句话","kind":"event|relationship|reflection","importance":"low|medium|high","tags":[],"participants":[]}],"userProfiles":[{"qq":"QQ","patch":{"summary":"","interests":[]}}],"emotion":{"valenceDelta":0,"arousalDelta":0,"energyDelta":0,"socialBatteryDelta":0,"stressDelta":0},"groupState":{"topic":"","participants":[],"unansweredQuestion":""}}',
-      '用户画像只允许素材中出现的用户；不要编造；emotion 只给小幅 delta；groupState 可空。',
-    ].join('\n\n')
     let parsed = {}
+    let degraded = false
+    let error = ''
     try {
-      parsed = parseJson(await this.stream(system, `${current}\n\n素材：\n${material}`, { maxTokens: 600, temperature: 0.2 })) ?? {}
-    } catch (error) {
-      this.logger.warn?.('group-loop state update failed: %s', String(error?.message ?? error))
+      parsed = parseJson(await this.stream(stateUpdateSystem(), `${current}\n\n素材：\n${material}`, { maxTokens: 600, temperature: 0.2 })) ?? {}
+    } catch (cause) {
+      degraded = true
+      error = String(cause?.message ?? cause)
+      this.logger.warn?.('group-loop state update failed: %s', error)
     }
     const patches = normalizePatches(parsed)
-    const knownParticipants = new Set(participantsOf(material))
-    patches.userProfiles = patches.userProfiles.filter((entry) => entry !== null && typeof entry === 'object' && knownParticipants.has(String(entry.qq)))
-    const memory = await this.store.appendMemory(patches.memory)
-    const profiles = await this.store.applyProfiles(groupId, patches.userProfiles)
-    const emotion = { ...character.emotion }
-    for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
-      const delta = Number(patches.emotion[`${key}Delta`])
-      if (!Number.isFinite(delta)) continue
-      const bounds = key === 'valence' ? [-1, 1] : [0, 1]
-      emotion[key] = clamp(Number(emotion[key]) + delta, bounds[0], bounds[1])
-    }
-    const saved = await this.store.saveCharacter({ ...character, emotion })
-    const groups = await this.store.loadGroups()
-    const previous = object(groups.groups[groupId])
-    const groupState = patches.groupState
-    const hasGroupPatch = typeof groupState.topic === 'string' || Array.isArray(groupState.participants)
-    groups.groups[groupId] = {
-      ...previous,
-      ...(typeof groupState.topic === 'string' && groupState.topic.trim() !== '' ? { topic: groupState.topic.trim().slice(0, 200) } : {}),
-      ...(Array.isArray(groupState.participants) ? { participants: groupState.participants.filter((id) => typeof id === 'string').slice(0, 20) } : {}),
-      ...(typeof groupState.unansweredQuestion === 'string' ? { unansweredQuestion: groupState.unansweredQuestion.trim().slice(0, 300) } : {}),
-      lastLoop: loopId,
-      updatedAt: new Date().toISOString(),
-    }
-    await this.store.saveGroups(groups)
-    const result = { ok: true, memory: memory.length, userProfiles: profiles, emotionUpdated: true, groupStateUpdated: hasGroupPatch, character: saved, memoryIds: memory.map((item) => item.id) }
-    if (loopId !== '') this.seen.set(loopId, result)
-    return result
+    const known = knownParticipants(participants)
+    patches.userProfiles = patches.userProfiles.filter((entry) => entry !== null && typeof entry === 'object' && known.has(String(entry.qq)))
+    const applied = await this.store.applyStateUpdate({ loopId, groupId, patches, participants })
+    return { ...applied.result, duplicate: applied.duplicate, degraded, ...(error !== '' ? { error } : {}) }
   }
 
-  async dashboard() { return this.store.dashboard(this.listenerPath) }
+  async dashboard(groupId = null) { return this.store.dashboard(this.listenerPath, groupId) }
 }

@@ -102,3 +102,19 @@ test('kernel: route methods are enforced by the shared http helper', async (t) =
   assert.equal(status.status, 405)
   assert.equal(status.body.ok, false)
 })
+
+test('group loop routes reject invalid requests with 400 before touching state', async (t) => {
+  const { routes } = await loadHost(t)
+  const cases = [
+    { path: '/qqbot/group/analyze', body: {} },
+    { path: '/qqbot/group/analyze', body: { apiVersion: 99, groupId: 'g1', material: 'hi' } },
+    { path: '/qqbot/group/compose', body: { groupId: 'g1', material: 'hi', speak: { enabled: false } } },
+    { path: '/qqbot/group/state-update', body: { groupId: 'g1', material: 'hi' } },
+  ]
+  for (const item of cases) {
+    const response = await invokeRoute(routes.get(item.path), { method: 'POST', url: item.path, body: JSON.stringify(item.body) })
+    assert.equal(response.status, 400, `${item.path} should reject ${JSON.stringify(item.body)}`)
+    assert.equal(response.body.ok, false)
+    assert.equal(response.body.code, 'BAD_REQUEST')
+  }
+})
