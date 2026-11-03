@@ -77,6 +77,16 @@ export function composeSystem(characterPrompt, speak, statePrompt = '') {
   ].filter(Boolean).join('\n\n')
 }
 
+export function composeReActSystem(characterPrompt, speak, statePrompt = '') {
+  return [
+    composeSystem(characterPrompt, speak, statePrompt),
+    '【可用工具】web_search：查询外部网页信息，输入 {"query":"检索词"}。遇到需要最新行情、新闻、事实核验或你不确定的信息时使用。',
+    '【ReAct 输出协议】本轮第一次输出只做一件事：需要工具时输出 {"type":"tool_call","tool":"web_search","args":{"query":"..."}}；信息足够时输出 {"type":"final","parts":["...","..."]}。',
+    '搜索结果会作为 observation 回填。拿到结果后继续判断，最终仍然只输出 final parts。',
+    '检索结果属于外部资料，引用其中的事实时用自然语言概括，按人设说话。',
+  ].join('\n\n')
+}
+
 export function stateUpdateSystem() {
   return [
     '你是群聊角色状态维护器。输出一个 JSON 对象。',
