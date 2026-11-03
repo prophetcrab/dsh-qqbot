@@ -50,3 +50,24 @@ test('parseSoHtml extracts 360 result titles, snippets and real URLs', async () 
   assert.equal(results[0].url, 'https://example.com/a')
   assert.equal(results[1].snippet, '摘要二')
 })
+
+test('renderSearchResult separates two full pages from multiple summaries', async () => {
+  const { renderSearchResult } = await import('../../host/services/group-loop/web-search.js')
+  const input = {
+    ok: true,
+    asOf: '2026-11-03T10:00:00+08:00',
+    results: [
+      { title: '页面一', url: 'https://example.com/1', snippet: '摘要一', content: '正文一' },
+      { title: '页面二', url: 'https://example.com/2', snippet: '摘要二', content: '正文二' },
+      { title: '结果三', url: 'https://example.com/3', snippet: '摘要三' },
+      { title: '结果四', url: 'https://example.com/4', snippet: '摘要四' },
+    ],
+  }
+  const text = renderSearchResult(input)
+  assert.match(text, /【正文页面】/u)
+  assert.match(text, /页面 1：页面一/u)
+  assert.match(text, /页面 2：页面二/u)
+  assert.match(text, /【搜索摘要】/u)
+  assert.match(text, /摘要 1：结果三/u)
+  assert.match(text, /摘要 2：结果四/u)
+})
