@@ -47,15 +47,17 @@ export function analyzeSystem(characterPrompt, direct, statePrompt = '') {
     characterPrompt,
     statePrompt,
     '你是群聊参与者。根据最近素材判断这一轮是否发言。',
-    '素材中每一行是一条独立群消息，格式为 [时间] 昵称(QQ)：内容；先看【当前触发消息】和【回复目标消息】里的发送者与内容。',
+    '素材中每一行是一条独立群消息，格式为 [时间] 昵称(QQ) [id:消息ID]：内容；先看【当前触发消息】和【回复目标消息】里的发送者与内容。',
+    'focus.messageIds 和 quote.messageIds 使用素材行里的 [id:...] 值。',
     '【当前触发消息】标出本轮是谁触发了分析；【回复目标消息】标出应该回应谁、回应哪条。',
     direct ? '' : '普通触发可以在话题无关、别人已经回应、刚说过话时保持安静。',
     '本轮附带图片时，图片也是聊天内容的一部分。',
-    '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
+    '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]},"focus":{"messageIds":[],"userIds":[]},"quote":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
     'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
+    'target 是发送锚点；focus 是语义焦点；用户说“上一条/刚才/前面/引用那条”时，从素材中选对应消息 ID 放入 focus.messageIds，需要发送引用时再放入 quote.messageIds。',
     '需要提醒、叫醒或和熟人打闹且目标明确时，可用 replyType=action：只对 target.userIds[0] 戳一戳，不产生文字。direct 本轮使用文本。',
-    direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 为 true，且至少说一句；可以选择 statement，也可以回答被回复的内容；使用文本形式。' : '',
-    direct ? '如果不想回答引用内容，可以用 statement 发表一句主观反应。' : '',
+    direct ? '本轮是 direct 触发（@ 或回复机器人）。固定 kind=reply：被 @ 时 replyType=at，被回复时 replyType=quote；target 指向当前触发消息和发送者，使用文本形式。focus/quote 可以指向素材中更早的消息。' : '',
+
   ].filter(Boolean).join('\n\n')
 }
 

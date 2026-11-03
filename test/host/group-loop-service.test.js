@@ -225,3 +225,15 @@ test('compose reads personality and rules from persona.json without few-shot/key
   assert.doesNotMatch(captured.system, /兴趣关键词|对话示例|股票/u)
   await rm(root, { recursive: true, force: true })
 })
+
+test('analyze preserves focus and quote references', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '{"speak":{"enabled":true,"kind":"reply","replyType":"at","target":{"messageIds":["m1"],"userIds":["20000"]},"focus":{"messageIds":["m0"],"userIds":[]},"quote":{"messageIds":["m0"],"userIds":[]}},"reason":"回答上一条"}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.analyze({ groupId: 'g1', material: '素材', trigger: { reason: 'mention', messageId: 'm1' }, participants: [] })
+  assert.deepEqual(result.speak.focus, { messageIds: ['m0'], userIds: [] })
+  assert.deepEqual(result.speak.quote, { messageIds: ['m0'], userIds: [] })
+  await rm(root, { recursive: true, force: true })
+})
