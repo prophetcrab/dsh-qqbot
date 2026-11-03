@@ -5,7 +5,7 @@ import { playersModule } from './modules/players.js'
 
 const GROUP_ID = /^[0-9A-Za-z_-]{1,64}$/u
 const PLAYER_ID = /^[0-9]{1,20}$/u
-const COMMAND = /^\/(注册|签到|账号背包)$/u
+const COMMAND = /^\/(注册|签到|账号背包|help|帮助)$/u
 
 export class GameCore {
   constructor({ projectDir, logger, random = Math.random, now = () => new Date() }) {
@@ -24,6 +24,9 @@ export class GameCore {
       return { ok: false, error: 'invalid command' }
     }
     try {
+      if (rawCommand === '/help' || rawCommand === '/帮助') {
+        return { ok: true, replies: [this.registry.helpText()] }
+      }
       return await this.registry.dispatch(rawCommand, {
         groupId,
         userId,
