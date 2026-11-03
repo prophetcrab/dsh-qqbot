@@ -700,7 +700,7 @@ window.__ModuleLoader__.load({
       const { requestJson } = __require("client/runtime/api.js")
 
       const EMPTY = { character: {}, groups: {}, loops: [], memories: [], listener: null }
-      const TRIGGER_LABEL = { mention: '@触发', reply: '回复触发', count: '消息数触发', time: '时间触发' }
+      const TRIGGER_LABEL = { mention: '@触发', reply: '回复触发', count: '消息数触发', time: '时间触发', watch: '发言后监控' }
       const STATE_LABELS = ['BUFFER', 'ANALYZE', 'SPEAK', 'SEND', 'STATE_UPDATE']
 
       function obj(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }
@@ -818,7 +818,7 @@ window.__ModuleLoader__.load({
             h('span', null, `缓冲 ${num(group.bufferSize)}`),
             h('span', null, `未处理 ${unprocessed}`),
             h('span', { className: 'qqbot-ai-next-trigger' }, threshold > 0 ? `下次触发 ${threshold} 条 · 还差 ${remaining} 条` : '下次触发阈值未知'),
-            h('span', null, queue.urgent ? `urgent · ${queue.urgent}` : queue.normal ? `normal · ${queue.normal}` : '队列空'))),
+            h('span', null, queue.urgent ? `urgent · ${queue.urgent}` : queue.watch > 0 ? `watch · ${queue.watch}` : queue.normal ? `normal · ${queue.normal}` : '队列空'))),
         h('span', { className: 'qqbot-ai-group-arrow' }, '›'))
       }
 
@@ -903,7 +903,9 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'qqbot-ai-active-queue' },
                   h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
                   h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
-                  h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲')),
+                  h('span', null, `watch ${num(obj(selectedGroup.queue).watch)}`),
+                  h('span', null, selectedGroup.running ? 'worker 运行中' : 'worker 空闲'),
+                  h('span', null, num(selectedGroup.watchUntil) > Date.now() ? `发言后监控中 · 剩 ${Math.max(0, Math.ceil((num(selectedGroup.watchUntil) - Date.now()) / 1000))}s` : '监控窗口未开启')),
                 h('div', { className: 'qqbot-ai-next-trigger qqbot-ai-next-trigger-detail' },
                   h('span', null, `下次计数触发：${num(selectedGroup.countThreshold) || '?'} 条`),
                   h('span', null, `当前已积累 ${num(selectedGroup.unprocessed)} 条 · 还差 ${Math.max(0, num(selectedGroup.countThreshold) - num(selectedGroup.unprocessed))} 条`))) : h('p', { className: 'qqbot-ai-empty-line' }, groups.length === 0 ? '还没有群聊监听数据。' : '总览模式：点击左侧群队列中的群查看监听状态。')),

@@ -1016,6 +1016,32 @@ normal 请求不运行
 direct 可以入队，并在队列 worker 中优先处理
 ```
 
+### 11.8 发言后监控窗口
+
+机器人成功发言后，为该群开启一个 30 秒 watch 窗口：
+
+```text
+sendResult.sent = true
+  → watchUntil = now + 30s
+
+窗口内每一条新消息
+  → 入队一个独立 watch 请求
+  → analyze 判断是否发言
+  → 需要则走完整 compose / send / state_update
+```
+
+规则：
+
+```text
+direct > watch > normal
+watch 请求不合并，每条消息一个请求
+watch 请求绕过普通冷却
+watch 队列上限 20
+机器人再次成功发言 → 从最新发言重新计时 30 秒
+```
+
+watch 只负责“持续判断”，不保证每条新消息都回复。
+
 ## 12. 回复生成
 
 `speak.enabled = true` 时进入第二阶段。
