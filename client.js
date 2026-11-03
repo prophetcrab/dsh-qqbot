@@ -813,7 +813,7 @@ window.__ModuleLoader__.load({
             running ? statusPill(h, '处理中', 'run') : statusPill(h, '监听中', 'ok')),
           h('div', { className: 'qqbot-ai-group-meta' },
             h('span', null, `缓冲 ${num(group.bufferSize)}`),
-            h('span', null, `未处理 ${num(group.unprocessed)}`),
+            h('span', null, `未处理 ${num(group.unprocessed)}/${num(group.countThreshold) || '?'}`),
             h('span', null, queue.urgent ? `urgent · ${queue.urgent}` : queue.normal ? `normal · ${queue.normal}` : '队列空'))),
         h('span', { className: 'qqbot-ai-group-arrow' }, '›'))
       }
@@ -895,7 +895,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'qqbot-ai-card-sub' }, selectedId ?? '总览'))),
               stateMachine(h, activeLoop),
               selectedGroup !== null ? h('div', { className: 'qqbot-ai-active-group' },
-                h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}`)),
+                h('div', { className: 'qqbot-ai-active-title' }, h('strong', null, text(selectedGroup.name) || selectedId), h('span', null, `${selectedId} · 缓冲 ${num(selectedGroup.bufferSize)} · 未处理 ${num(selectedGroup.unprocessed)}/${num(selectedGroup.countThreshold) || '?'}`)),
                 h('div', { className: 'qqbot-ai-active-queue' },
                   h('span', null, `urgent ${obj(selectedGroup.queue).urgent ? '有请求' : '空'}`),
                   h('span', null, `normal ${obj(selectedGroup.queue).normal ? '有请求' : '空'}`),
