@@ -164,10 +164,13 @@ export function useStore(t) {
   const loginPollRef = React.useRef({ busy: false, loggedIn: false })
   const contactsBusyRef = React.useRef(false)
   const messagesPollRef = React.useRef(false)
+  const busyRef = React.useRef({})
   const setupActionRef = React.useRef(false)
   tabRef.current = tab
 
   const busyOf = (key) => busy[key] === true
+  const isLifecycleKey = (key) => key.startsWith('feature:lifecycle:') || /^(all|koishi|napcat)-(start|stop|restart)$/u.test(key)
+  const lifecycleBusy = Object.keys(busy).some(isLifecycleKey)
 
   const loadStatus = async () => {
     try {
@@ -212,7 +215,9 @@ export function useStore(t) {
   }
 
   const runPost = async (key, path, body, after, successText, extraOptions) => {
-    if (busyOf(key)) return null
+    if (busyRef.current[key] === true) return null
+    if (isLifecycleKey(key) && Object.keys(busyRef.current).some(isLifecycleKey)) return null
+    busyRef.current[key] = true
     setBusy((previous) => ({ ...previous, [key]: true }))
     setBanner(null)
     let result = null
@@ -227,6 +232,7 @@ export function useStore(t) {
     } catch (error) {
       setBanner({ kind: 'error', text: `${t('actionFailed')}: ${messageOf(error)}` })
     } finally {
+      delete busyRef.current[key]
       setBusy((previous) => {
         const next = { ...previous }
         delete next[key]
@@ -263,6 +269,7 @@ export function useStore(t) {
     personaPresetName, setPersonaPresetName, lastPromptState, setLastPromptState, fullPromptOpen, setFullPromptOpen,
     tabRef, loggedInRef, loginPollRef, contactsBusyRef, messagesPollRef, setupActionRef,
     busyOf,
+    lifecycleBusy,
     loadStatus,
     loadContacts,
     runPost,
