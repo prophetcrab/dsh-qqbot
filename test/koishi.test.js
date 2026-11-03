@@ -577,3 +577,19 @@ test('adoptExternal: takes over only a Koishi process owned by this project', as
   assert.equal(await wrong.adoptExternal(), false)
   assert.equal(wrong.isManaged(), false)
 })
+
+test('stop adopts a matching project worker before stopping it', async (t) => {
+  const dir = await makeProject(t)
+  const kill = fakeKiller()
+  const manager = makeManager(dir, {
+    fetch: unreachable,
+    portPid: async () => 777,
+    findProcess: (pattern) => ({ running: pattern.includes('node_modules/koishi'), pid: 777 }),
+    processKill: kill,
+  })
+  const result = await manager.stop()
+  assert.equal(result.ok, true)
+  assert.match(result.message, /777/u)
+  assert.deepEqual(kill.state.calls[0], { pid: 777, signal: 'SIGTERM' })
+  assert.equal(manager.isManaged(), false)
+})

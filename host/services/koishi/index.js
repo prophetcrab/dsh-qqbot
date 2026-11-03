@@ -322,19 +322,19 @@ export class KoishiManager {
 
   async stop({ gracefulTimeoutMs = this.stopTimeoutMs, killTimeoutMs = this.killTimeoutMs } = {}) {
     let pid = this.managedPid
-    const wasManaged = pid !== null
     if (pid === null) {
       const externalPid = await this.findPortPid(this.port)
-      if (externalPid !== null) return { ok: false, error: `端口 ${this.port} 上的 Koishi 不是由当前面板启动的（pid=${externalPid}）；为防止误杀其他进程，面板不会自动停止它，请手动处理` }
+      if (externalPid !== null) {
+        if (!await this.adoptExternal()) {
+          return { ok: false, error: `端口 ${this.port} 上的 Koishi 不是由当前面板启动的（pid=${externalPid}）；为防止误杀其他进程，面板不会自动停止它，请手动处理` }
+        }
+        pid = this.managedPid
+      }
     }
+    const wasManaged = pid !== null
     if (pid === null) {
       const health = await this.health()
-      if (health.reachable) {
-        return {
-          ok: false,
-          error: `Koishi 正在端口 ${this.port} 上响应，但无法确定其 PID，无法安全停止`,
-        }
-      }
+      if (health.reachable) return { ok: false, error: `Koishi 正在端口 ${this.port} 上响应，但无法确定其 PID，无法安全停止` }
       this.clearManaged()
       return { ok: true, message: 'Koishi 未在运行' }
     }
