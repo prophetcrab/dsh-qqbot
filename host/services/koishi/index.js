@@ -16,6 +16,7 @@ import {
   detectKoishiProject,
   expandHome,
   hostPlatform as platformHostPlatform,
+  findProcess as platformFindProcess,
   httpJson,
   killPid as platformKillPid,
   npmExecutable as platformNpmExecutable,
@@ -23,6 +24,7 @@ import {
   run,
   sleep as defaultSleep,
 } from '../../platform/mac/index.js'
+import { adoptKoishiProcess } from './adopt.js'
 import {
   DEFAULT_HEALTH_TIMEOUT_MS,
   DEFAULT_INSTALL_TIMEOUT_MS,
@@ -75,6 +77,7 @@ export class KoishiManager {
     this.hostPlatform = injectedHostPlatform ?? platformHostPlatform
     this.portPid = injectedPortPid ?? platformPortPid
     this.hasInjectedPortPid = injectedPortPid !== null
+    this.findProcess = typeof options.findProcess === 'function' ? options.findProcess : platformFindProcess
     this.killPid = injectedKillPid ?? platformKillPid
     this.hasInjectedKillPid = injectedKillPid !== null
     this.npmExecutable = injectedNpmExecutable ?? platformNpmExecutable
@@ -103,24 +106,18 @@ export class KoishiManager {
     this.childExit = null
   }
 
-  npmStartCommand() {
-    return { file: this.npmExecutable(), args: ['start'] }
-  }
-
+  npmStartCommand() { return { file: this.npmExecutable(), args: ['start'] } }
   startCommand(projectDir) {
     const bin = join(projectDir, 'node_modules', 'koishi', 'bin.js')
     if (existsSync(bin)) {
       const env = { ...process.env }
-      // DSH desktop's `process.execPath` is Electron; run it as Node.
       if (process.versions.electron !== undefined) env.ELECTRON_RUN_AS_NODE = '1'
       return { file: process.execPath, args: [bin, 'start', '-r', 'tsx/cjs'], env, local: true }
     }
     return this.npmStartCommand()
   }
 
-  npmInstallCommand() {
-    return { file: this.npmExecutable(), args: ['install', '--no-audit', '--no-fund'] }
-  }
+  npmInstallCommand() { return { file: this.npmExecutable(), args: ['install', '--no-audit', '--no-fund'] } }
 
   async installDeps({ force = false } = {}) {
     const project = detectKoishiProject(this.settings)
@@ -150,11 +147,10 @@ export class KoishiManager {
     return { ok: true, output }
   }
 
+  async adoptExternal() { return adoptKoishiProcess({ manager: this, findPortPid: (port) => this.findPortPid(port), findProcess: (pattern) => this.findProcess(pattern), projectDir: this.projectDir, logger: this.logger }) }
   async findPortPid(port = this.port) {
     const target = toPort(port, this.port)
-    if (this.hasInjectedPortPid) return findPidByPort(target, { portPid: this.portPid })
-    if (this.hasInjectedExec) return findPidByPort(target, { exec: this.exec })
-    return findPidByPort(target)
+    return this.hasInjectedPortPid ? findPidByPort(target, { portPid: this.portPid }) : this.hasInjectedExec ? findPidByPort(target, { exec: this.exec }) : findPidByPort(target)
   }
 
   async status() {
@@ -363,7 +359,12 @@ export class KoishiManager {
   }
 
   async restart(options = {}) {
-    const stopped = await this.stop(options)
+    let stopped = await this.stop(options)
+    if (stopped.ok === false) {
+      // A panel reload loses managedChild state. Adopt only a PID whose command
+      // is the Koishi CLI under this exact project directory, then retry.
+      if (await this.adoptExternal()) stopped = await this.stop(options)
+    }
     if (stopped.ok === false) {
       return { ok: false, message: stopped.error, error: stopped.error }
     }
