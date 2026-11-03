@@ -173,7 +173,7 @@ test('compose runs a ReAct web_search observation before final speech', async ()
   assert.deepEqual(result.parts, ['查了下', '保证金是按合约价值算的'])
   assert.equal(result.toolCalls.length, 1)
   assert.equal(result.toolCalls[0].tool, 'web_search')
-  assert.match(captured, /web_search 结果/u)
+  assert.match(captured, /web_search 参考材料/u)
   await rm(root, { recursive: true, force: true })
 })
 
