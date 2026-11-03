@@ -243,6 +243,10 @@ export class GroupLoopService {
           observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
           continue
         }
+        if (toolCalls.some((call) => call.query === query)) {
+          observations += '\n\n【工具观察】这个 query 已经检索过，请直接基于现有资料给 final parts。'
+          continue
+        }
         const started = Date.now()
         const result = await this.webSearch(query, { maxResults: this.settings.webSearchMaxResults, timeoutMs: this.settings.webSearchTimeoutMs })
         toolCalls.push({ tool: 'web_search', query, source: result.source ?? 'unknown', ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
