@@ -25,6 +25,7 @@ test('group loop contracts reject malformed direct requests', () => {
   assert.equal(validateAnalyze({ groupId: '', material: 'hi' }).ok, false)
   assert.equal(validateAnalyze({ groupId: 'g1', material: '' }).ok, false)
   assert.equal(validateAnalyze({ apiVersion: 99, groupId: 'g1', material: 'hi' }).ok, false)
+  assert.equal(validateAnalyze({ groupId: 'g1', material: 'hi', trigger: { reason: 'keyword' } }).ok, true)
   assert.equal(validateCompose({ groupId: 'g1', material: 'hi', speak: { enabled: false } }).ok, false)
   assert.equal(validateStateUpdate({ groupId: 'g1', material: 'hi' }).ok, false, 'loopId is required')
   const clean = validateAnalyze({ groupId: 'g1', material: 'hi', participants: [{ qq: '20000', nickname: '小明' }, { qq: '' }] })

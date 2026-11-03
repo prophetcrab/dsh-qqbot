@@ -2,7 +2,7 @@ import React from 'react'
 import { requestJson } from '../../runtime/api.js'
 
 const EMPTY = { character: {}, groups: {}, loops: [], memories: [], listener: null }
-const TRIGGER_LABEL = { mention: '@触发', reply: '回复触发', count: '消息数触发', time: '时间触发' }
+const TRIGGER_LABEL = { mention: '@触发', reply: '回复触发', count: '消息数触发', time: '时间触发', keyword: '兴趣关键词' }
 const STATE_LABELS = ['BUFFER', 'ANALYZE', 'SPEAK', 'SEND', 'STATE_UPDATE']
 
 function obj(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }

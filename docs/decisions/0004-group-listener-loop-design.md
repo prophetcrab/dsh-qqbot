@@ -178,6 +178,35 @@ trigger.reason = "count"
 不会固定每 5 条机械触发
 ```
 
+### e. 兴趣关键词
+
+人设文件维护一组兴趣关键词：
+
+```json
+{
+  "keywords": ["股票", "期货", "K线", "漫画", "分镜", "旧货市场"]
+}
+```
+
+群消息文本命中任一关键词：
+
+```text
+trigger.reason = "keyword"
+→ 入队一次分析
+→ 进入正常 analyze / compose / send / state_update
+```
+
+规则：
+
+```text
+direct 仍然优先
+同一条消息只产生一次 keyword 触发
+关键词请求使用 normal 队列，当前有 normal 时合并
+关键词请求绕过普通发言冷却
+```
+
+关键词只负责触发“要不要接话”，不强制发言。
+
 ### d. 时间 y
 
 默认：
