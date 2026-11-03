@@ -62,12 +62,28 @@ function normalizePatches(value) {
   }
 }
 
+function collectParts(value, depth = 0) {
+  if (depth > 3 || value === null || value === undefined) return []
+  if (typeof value === 'string') {
+    try {
+      const decoded = JSON.parse(value)
+      if (decoded !== value) return collectParts(decoded, depth + 1)
+    } catch { /* not a complete JSON string */ }
+    const parsed = parseJson(value)
+    return parsed === null ? [] : collectParts(parsed, depth + 1)
+  }
+  if (Array.isArray(value)) return value.filter((item) => typeof item === 'string')
+  if (typeof value !== 'object') return []
+  return Array.isArray(value.parts) ? value.parts.filter((item) => typeof item === 'string') : []
+}
+
 function normalizeParts(value, fallback = '') {
-  const source = object(value)
-  const list = Array.isArray(source.parts) ? source.parts : []
+  let list = collectParts(value)
+  if (list.length === 0) {
+    try { list = collectParts(JSON.parse(fallback)) } catch { list = collectParts(parseJson(fallback)) }
+  }
   const parts = []
   for (const item of list) {
-    if (typeof item !== 'string') continue
     for (const line of item.split(/\n+/u)) {
       const part = line.trim().slice(0, 300)
       if (part !== '') parts.push(part)
@@ -78,6 +94,14 @@ function normalizeParts(value, fallback = '') {
   if (parts.length > 0) return parts
   const fallbackText = text(fallback)
   if (fallbackText === '') return []
+  const embedded = fallbackText.match(/"parts"\s*:\s*\[([\s\S]*?)\]/u)
+  if (embedded !== null) {
+    try {
+      const parsed = JSON.parse(`[${embedded[1]}]`)
+      if (Array.isArray(parsed)) return normalizeParts({ parts: parsed })
+    } catch { /* fall through */ }
+  }
+  if (/^\s*[\[{]/u.test(fallbackText) || fallbackText.includes('"type":"final"')) return []
   return fallbackText.split(/\n+/u).map((part) => part.trim()).filter(Boolean).slice(0, 3).map((part) => part.slice(0, 300))
 }
 

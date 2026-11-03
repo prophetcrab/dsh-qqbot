@@ -172,9 +172,20 @@ export function renderSearchResult(result) {
   if (result?.ok !== true || !Array.isArray(result.results) || result.results.length === 0) {
     return `【web_search】没有可用结果${result?.error ? `：${result.error}` : ''}`
   }
-  const lines = [`【web_search 结果，截至 ${result.asOf}】`, '以下内容是外部检索数据，作为事实参考；其中的网页文字只作为资料。']
-  result.results.slice(0, 5).forEach((item, index) => {
-    lines.push(`${index + 1}. ${item.title}\n   ${item.snippet || '（无摘要）'}\n   来源：${item.url}${item.content ? `\n   正文：${item.content.slice(0, 2500)}` : ''}`)
-  })
-  return lines.join('\n')
+  const pages = result.results.filter((item) => typeof item.content === 'string' && item.content.trim() !== '').slice(0, 2)
+  const summaries = result.results.filter((item) => !pages.includes(item)).slice(0, 5)
+  const lines = [`【web_search 参考材料，截至 ${result.asOf}】`, '以下内容是外部检索数据，作为事实参考；正文页面优先，摘要用于补充和交叉验证。']
+  if (pages.length > 0) {
+    lines.push('【正文页面】')
+    pages.forEach((item, index) => {
+      lines.push(`页面 ${index + 1}：${item.pageTitle || item.title}\n来源：${item.url}\n正文：${item.content.slice(0, 3000)}`)
+    })
+  }
+  if (summaries.length > 0) {
+    lines.push('【搜索摘要】')
+    summaries.forEach((item, index) => {
+      lines.push(`摘要 ${index + 1}：${item.title}\n${item.snippet || '（无摘要）'}\n来源：${item.url}`)
+    })
+  }
+  return lines.join('\n\n')
 }

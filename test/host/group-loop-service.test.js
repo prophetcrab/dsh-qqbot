@@ -173,7 +173,7 @@ test('compose runs a ReAct web_search observation before final speech', async ()
   assert.deepEqual(result.parts, ['查了下', '保证金是按合约价值算的'])
   assert.equal(result.toolCalls.length, 1)
   assert.equal(result.toolCalls[0].tool, 'web_search')
-  assert.match(captured, /web_search 结果/u)
+  assert.match(captured, /web_search 参考材料/u)
   await rm(root, { recursive: true, force: true })
 })
 
@@ -193,4 +193,15 @@ test('bubble budget produces one, two or three parts and caps model output', asy
   assert.equal(second.parts.length, 2)
   await rm(root, { recursive: true, force: true })
   await rm(two.root, { recursive: true, force: true })
+})
+
+test('structured JSON fallback is never emitted as a speech bubble', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '"{\\"parts\\":[\\"一\\",\\"二\\"]}"' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.deepEqual(result.parts, ['一', '二'])
+  await rm(root, { recursive: true, force: true })
 })
