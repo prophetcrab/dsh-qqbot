@@ -8,6 +8,7 @@
 import access from './access/index.js'
 import ai from './ai/index.js'
 import features from './features/index.js'
+import gameCore from './game-core/index.js'
 import groupLoop from './group-loop/index.js'
 import install from './install/index.js'
 import koishi from './koishi/index.js'
@@ -22,6 +23,7 @@ export const BUILTIN_PLUGINS = [
   access,
   ai,
   features,
+  gameCore,
   groupLoop,
   install,
   koishi,

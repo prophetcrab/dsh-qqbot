@@ -1,0 +1,71 @@
+# 0005 - Deterministic Game Core
+
+## Decision
+
+Gameplay commands are handled by a standalone `game-core` service, never by the group LLM loop.
+
+```text
+group message
+  → known slash command
+  → listener POST /qqbot/game/command
+  → GameCore / GameRegistry
+  → per-group player store
+  → deterministic replies
+  → listener sends replies
+  → return before buffer / analyze / compose
+```
+
+## Module contract
+
+Each module is a deterministic executor registered by slash command:
+
+```js
+{
+  id,
+  version,
+  commands: ['/command'],
+  async execute({ command, groupId, userId, nickname, store, random, now }) {
+    return { ok: true, replies: ['...'] }
+  }
+}
+```
+
+Modules never call the LLM, send QQ messages or read arbitrary files. They receive the shared server-side store and validated context.
+
+## State
+
+```text
+data/state/games/players/<groupId>.json
+```
+
+Each group has an independent player library. Group ids are validated as filename-safe values. Writes are per-group serialized and atomic.
+
+Player record:
+
+```json
+{
+  "qq": "20000",
+  "nickname": "小明",
+  "coins": 0,
+  "registeredAt": "...",
+  "checkinCount": 0,
+  "lastCheckinDate": "2026-11-03",
+  "lastCheckinAt": "..."
+}
+```
+
+## First commands
+
+```text
+/注册   register the sender in the current group
+/签到   once per Asia/Shanghai day, random 10-30 coins
+```
+
+Arguments after a command are ignored; the listener forwards only the exact command token. Nicknames are sanitized and coins are server-owned.
+
+## Prompt injection boundary
+
+- Command text never enters group material or any LLM prompt.
+- No model output can mint coins or change player state.
+- The route validates group/user/command server-side.
+- Unknown slash commands continue through normal middleware handling.
