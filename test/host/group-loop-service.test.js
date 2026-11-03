@@ -65,3 +65,21 @@ test('state update is idempotent and reports degraded LLM failures', async () =>
   assert.match(degraded.error, /model down/)
   await rm(fallback.root, { recursive: true, force: true })
 })
+
+test('compose plans one to three short bubbles from JSON', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '{"parts":["第一句","第二句","第三句"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.compose({
+    groupId: 'g1',
+    material: '素材',
+    participants: [],
+    speak: { enabled: true, kind: 'statement', replyType: null, target: { messageIds: [], userIds: [] } },
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['第一句', '第二句', '第三句'])
+  assert.equal(result.text, '第一句第二句第三句')
+  await rm(root, { recursive: true, force: true })
+})

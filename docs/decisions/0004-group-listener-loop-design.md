@@ -1036,9 +1036,17 @@ speak.target（messageIds / userIds）
 ### 输出
 
 ```text
-一段回复文本
+1–3 条短气泡
 （action 回复可以是零文本）
 ```
+
+模型输出：
+
+```json
+{ "parts": ["第一句", "第二句"] }
+```
+
+发送层最多接受 3 条。模型认为一句就够时只返回一条，不为分段而分段。
 
 ### 生成原则
 
@@ -1051,8 +1059,10 @@ at：文本里不要手写 @，由发送层插入
 action：第一版只传动作，不生成文本
 不要复述背景
 保持人设
-允许短句/反问/吐槽
+允许短句、省略主语、口语、反问、吐槽
 不写客服腔
+每条只表达一个意思
+像真人连续补两句话，而不是把一段长文硬切开
 ```
 
 ### 发送
@@ -1069,20 +1079,19 @@ sanitize
 
 只在 `speak.enabled=true` 时计算；不回复不延迟。
 
-第一版建议：
+当前实现：
 
 ```text
-首条消息前：
-  delay = clamp(350 + text.length * 18, 350, 2200) ms
+每条气泡前：
+  delay = clamp(minDelay + text.length * 15, minDelay, maxDelay)
 
-分条之间：
-  gap = clamp(300 + part.length * 15, 300, 1200) ms
+默认：
+  minDelay = 300 ms
+  maxDelay = 1200 ms
 
-action 戳一戳：
-  200–500 ms 后执行
-
-action 后如果还有文本：
-  再等 300–600 ms
+1–3 条，最多 3 条
+quote / at 只挂在第一条
+后续气泡只是普通文本
 ```
 
 规则：
