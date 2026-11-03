@@ -22,6 +22,7 @@ export function analyzeSystem(characterPrompt, direct) {
     characterPrompt,
     '你是群聊参与者。根据最近素材判断这一轮是否发言。',
     direct ? '' : '不要因为被 @ 就机械回答；别人已经在回答、话题与你无关、你刚说过话时可以不发言。',
+    '如果本轮附带图片，先理解图片内容，不要把图片当成纯文字背景。',
     '只输出 JSON：{"speak":{"enabled":true|false,"kind":"statement|reply","replyType":"normal|quote|action|at|null","target":{"messageIds":[],"userIds":[]}},"reason":"不超过50字"}',
     'statement 不针对具体消息；reply 必须给 target；normal 不加引用/@，quote 必须给 messageId，at/action 必须给 userId。',
     direct ? '本轮是 direct 触发（@ 或回复机器人）。speak.enabled 必须为 true，且必须至少说一句；可以选择 statement，不要求回答被回复的内容；不要返回 action。' : '',
@@ -38,6 +39,7 @@ export function composeSystem(characterPrompt, speak) {
     speak.replyType === 'normal' ? 'normal：不写 @、不写引用标记，直接写文本。' : '',
     speak.replyType === 'at' ? 'at：不要手写 @，发送层会插入 @。' : '',
     speak.replyType === 'quote' ? 'quote：不要重复引用全文，直接回应。' : '',
+    '如果本轮附带图片，先看图再写；不要假装没看到图片。',
     '真人群聊风格：1-3 条短气泡，每条只表达一个意思；允许不完整句、省略主语、口语和省略号；少用句号；不要每条都解释，不要客服腔，不要列表，不要总结整段素材。',
     '输出严格 JSON：{"parts":["第一条","第二条"]}；parts 长度 1-3，每条尽量短；不需要多条时只给一条。不要输出 Markdown 或解释。',
     `target.messageIds=${JSON.stringify(target.messageIds ?? [])}，target.userIds=${JSON.stringify(target.userIds ?? [])}`,
@@ -54,7 +56,7 @@ export function stateUpdateSystem() {
   ].join('\n\n')
 }
 
-export function userMaterial(material, profiles) {
+export function userMaterial(material, profiles, imageNote = '') {
   const data = profileData(profiles)
-  return `${data ? `${data}\n\n` : ''}【本轮群聊素材】\n${material}`
+  return `${data ? `${data}\n\n` : ''}${imageNote ? `${imageNote}\n\n` : ''}【本轮群聊素材】\n${material}`
 }

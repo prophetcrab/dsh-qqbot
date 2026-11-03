@@ -74,16 +74,18 @@ export class GroupLoopService {
     return { provider: 'deepseek-account', model: 'deepseek-flash' }
   }
 
-  async stream(system, user, { maxTokens = 500, temperature = 0.4 } = {}) {
+  async stream(system, user, { maxTokens = 500, temperature = 0.4, images = [] } = {}) {
     const llm = this.ctx?.get?.('llm')
     if (llm === null || typeof llm?.stream !== 'function') throw new Error('LLM 服务不可用')
     const selection = this.selection()
+    const imageParts = await this.imageParts(images)
+    const content = [{ type: 'text', text: user }, ...imageParts]
     let output = ''
     for await (const chunk of llm.stream({
       provider: selection.provider,
       model: selection.model,
       system,
-      messages: [{ role: 'user', content: [{ type: 'text', text: user }] }],
+      messages: [{ role: 'user', content }],
       maxTokens,
       temperature,
     })) {
@@ -91,6 +93,36 @@ export class GroupLoopService {
       if (chunk?.type === 'finish' && chunk.reason?.kind === 'error') throw new Error('模型返回错误')
     }
     return output.trim()
+  }
+
+  async imageParts(images) {
+    const attachments = this.ctx?.get?.('attachments')
+    if (!Array.isArray(images) || images.length === 0 || attachments === null || attachments === undefined || typeof attachments.saveImages !== 'function') return []
+    const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+    const inputs = []
+    for (const image of images.slice(0, 4)) {
+      if (image === null || typeof image !== 'object') continue
+      const mediaType = String(image.mediaType ?? '').toLowerCase()
+      if (!accepted.has(mediaType) || typeof image.data !== 'string' || image.data === '') continue
+      let data
+      try { data = new Uint8Array(Buffer.from(image.data, 'base64')) } catch { continue }
+      if (data.byteLength === 0 || data.byteLength > 6 * 1024 * 1024) continue
+      inputs.push({ data, mediaType })
+    }
+    if (inputs.length === 0) return []
+    try {
+      const refs = await attachments.saveImages(inputs)
+      return refs.map((attachment) => ({ type: 'image', attachment }))
+    } catch (error) {
+      this.logger.warn?.('group-loop image save failed: %s', String(error?.message ?? error))
+      return []
+    }
+  }
+
+  imageNote(input) {
+    const counts = [input.images?.length ?? 0, input.quotedImages?.length ?? 0, input.backgroundImages?.length ?? 0]
+    if (counts.every((count) => count === 0)) return ''
+    return `【本轮附带图片】当前消息 ${counts[0]} 张；引用消息 ${counts[1]} 张；最近背景 ${counts[2]} 张。图片按这个顺序附带，请先看图片再回复。`
   }
 
   async characterPrompt() {
@@ -117,8 +149,9 @@ export class GroupLoopService {
     const triggerReason = text(input.trigger?.reason)
     const direct = triggerReason === 'mention' || triggerReason === 'reply'
     const profiles = await this.profileContext(groupId, input.participants)
+    const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     try {
-      const raw = await this.stream(analyzeSystem(await this.characterPrompt(), direct), userMaterial(material, profiles), { maxTokens: 420, temperature: 0.25 })
+      const raw = await this.stream(analyzeSystem(await this.characterPrompt(), direct), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 420, temperature: 0.25, images })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -133,8 +166,9 @@ export class GroupLoopService {
     const speak = normalizeSpeak(input.speak)
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
     const profiles = await this.profileContext(input.groupId, input.participants)
+    const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     try {
-      const raw = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles), { maxTokens: 500, temperature: 0.7 })
+      const raw = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 500, temperature: 0.7, images })
       const parts = normalizeParts(parseJson(raw), raw)
       return { ok: true, text: parts.join(''), parts, speak }
     } catch (error) {

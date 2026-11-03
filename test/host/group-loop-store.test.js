@@ -29,6 +29,14 @@ test('group loop contracts reject malformed direct requests', () => {
   assert.equal(validateStateUpdate({ groupId: 'g1', material: 'hi' }).ok, false, 'loopId is required')
   const clean = validateAnalyze({ groupId: 'g1', material: 'hi', participants: [{ qq: '20000', nickname: '小明' }, { qq: '' }] })
   assert.deepEqual(clean.value.participants, [{ qq: '20000', nickname: '小明' }])
+  const withImages = validateAnalyze({
+    groupId: 'g1',
+    material: 'hi',
+    images: [{ mediaType: 'image/png', data: 'abc' }, { mediaType: 'text/plain', data: 'bad' }],
+    quotedImages: [{ mediaType: 'image/jpeg', data: 'xyz' }],
+  })
+  assert.deepEqual(withImages.value.images, [{ mediaType: 'image/png', data: 'abc' }])
+  assert.deepEqual(withImages.value.quotedImages, [{ mediaType: 'image/jpeg', data: 'xyz' }])
 })
 
 test('group loop store serializes concurrent state updates without losing emotion', async () => {
