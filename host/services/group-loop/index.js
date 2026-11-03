@@ -248,9 +248,16 @@ export class GroupLoopService {
           continue
         }
         const started = Date.now()
-        const result = await this.webSearch(query, { maxResults: this.settings.webSearchMaxResults, timeoutMs: this.settings.webSearchTimeoutMs })
+        const result = await this.webSearch(query, {
+          maxResults: this.settings.webSearchMaxResults,
+          timeoutMs: this.settings.webSearchTimeoutMs,
+          enrich: this.settings.webFetchEnabled !== false,
+          pageLimit: this.settings.webFetchPages,
+          pageTimeoutMs: this.settings.webFetchTimeoutMs,
+          pageMaxChars: this.settings.webFetchMaxChars,
+        })
         toolCalls.push({ tool: 'web_search', query, source: result.source ?? 'unknown', ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
-        observations += `\n\n${renderSearchResult(result).slice(0, 8000)}`
+        observations += `\n\n${renderSearchResult(result).slice(0, 14000)}`
         if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
         continue
       }
