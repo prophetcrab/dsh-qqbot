@@ -140,6 +140,39 @@ wallet.fishingCoins
 
 所有兑换、卖鱼、签到、商店扣款都通过 Wallet 统一入账，不直接修改玩家字段。
 
+## 鱼竿
+
+鱼竿稀有度：
+
+```text
+Lv.1
+Lv.2
+Lv.3
+Legendary
+```
+
+每根鱼竿有两类独立属性：
+
+```text
+fishingEffect     钓鱼效果
+pricePerKgBonus   单价属性，单位：钓鱼币/kg
+```
+
+鱼竿的单价属性作用在鱼的单价上：
+
+```text
+effectivePricePerKg = fish.pricePerKg + equippedRod.pricePerKgBonus
+value = round(weightKg * effectivePricePerKg)
+```
+
+特殊物品是固定价格，不受鱼竿单价属性影响。
+
+玩家同一时间只装备一根鱼竿。
+
+传奇鱼竿额外带有一个特殊效果；具体效果待定。
+
+鱼竿名称、钓鱼效果数值、单价属性数值、获取方式和购买价格待定。
+
 ## 特殊品类
 
 独立于五个鱼类等级。
