@@ -412,4 +412,50 @@ export const CSS = `
 .qqbot-ai-keywords { margin-top: 12px; border-top: .5px solid var(--dsw-alias-border-l1); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
 .qqbot-ai-keyword-tags { display: flex; gap: 5px; flex-wrap: wrap; }
 .qqbot-ai-keyword-tags span { padding: 3px 7px; border-radius: 6px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent); color: var(--dsw-alias-brand-primary); font-size: 9px; }
+
+.qqbot-ai-character-clickable { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.qqbot-ai-character-clickable:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 38%, var(--dsw-alias-border-l1)); box-shadow: 0 12px 30px rgba(15,23,42,.08); transform: translateY(-1px); }
+.qqbot-ai-character-clickable:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); outline-offset: 2px; }
+.qqbot-ai-card-link { border: 0; background: transparent; color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 600; cursor: pointer; padding: 3px 0; white-space: nowrap; }
+.qqbot-ai-card-link:hover { text-decoration: underline; }
+.qqbot-ai-settings { gap: 16px; }
+.qqbot-ai-settings-hero { display: flex; align-items: center; gap: 15px; padding: 6px 2px 2px; flex-wrap: wrap; }
+.qqbot-ai-settings-hero-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.qqbot-ai-settings-hero-copy h1 { margin: 0; font-size: 28px; line-height: 1.1; letter-spacing: -.035em; color: var(--dsw-alias-label-primary); }
+.qqbot-ai-settings-hero-copy p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.5; max-width: 820px; }
+.qqbot-ai-settings-hero-meta { display: flex; align-items: center; gap: 9px; color: var(--dsw-alias-label-tertiary); font-size: 10px; flex-wrap: wrap; }
+.qqbot-ai-settings-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr); gap: 14px; align-items: start; }
+.qqbot-ai-settings-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.qqbot-ai-settings-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.qqbot-ai-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.qqbot-ai-info { display: flex; flex-direction: column; gap: 3px; padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); min-width: 0; }
+.qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: 1 / -1; }
+.qqbot-ai-info-label { color: var(--dsw-alias-label-tertiary); font-size: 9px; letter-spacing: .03em; }
+.qqbot-ai-info-value { margin: 0; color: var(--dsw-alias-label-primary); font-size: 11.5px; line-height: 1.55; word-break: break-word; }
+.qqbot-ai-rule-block { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+.qqbot-ai-rule-block > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+.qqbot-ai-rule-block p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+.qqbot-ai-settings-keywords { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
+.qqbot-ai-examples { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
+.qqbot-ai-example { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
+.qqbot-ai-example-line { display: flex; gap: 7px; align-items: flex-start; }
+.qqbot-ai-example-line > span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; width: 22px; flex: none; padding-top: 2px; }
+.qqbot-ai-example-line p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }
+.qqbot-ai-example-line.is-assistant p { color: var(--dsw-alias-label-primary); }
+.qqbot-ai-emotion-numbers { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 9px; }
+.qqbot-ai-emotion-numbers span { padding: 2px 5px; border-radius: 4px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-tertiary); font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.qqbot-ai-settings-profiles { display: flex; flex-direction: column; gap: 7px; }
+.qqbot-ai-profile-full { padding: 9px 10px; gap: 5px; }
+.qqbot-ai-profile-full p { -webkit-line-clamp: 4; font-size: 10px; }
+.qqbot-ai-profile-facts { display: flex; gap: 5px; flex-wrap: wrap; }
+.qqbot-ai-profile-facts span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; }
+.qqbot-ai-settings-memories { display: flex; flex-direction: column; gap: 8px; }
+.qqbot-ai-settings-groups { display: flex; flex-direction: column; gap: 7px; }
+.qqbot-ai-settings-group { padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 4px; }
+.qqbot-ai-settings-group-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.qqbot-ai-settings-group-head strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; }
+.qqbot-ai-settings-group-head span { color: var(--dsw-alias-label-tertiary); font-size: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.qqbot-ai-settings-group p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 900px) { .qqbot-ai-settings-grid, .qqbot-ai-settings-bottom { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .qqbot-ai-settings-hero { align-items: flex-start; flex-direction: column; } .qqbot-ai-info-grid { grid-template-columns: 1fr; } .qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: auto; } }
 `
