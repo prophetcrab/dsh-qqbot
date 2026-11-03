@@ -49,7 +49,7 @@ test('group loop store serializes concurrent state updates without losing emotio
     store.applyStateUpdate({ loopId: 'loop-b', groupId: 'g2', patches: { ...base, emotion: { valenceDelta: 0.2 } }, participants: [] }),
   ])
   const character = await store.loadCharacter()
-  assert.ok(Math.abs(character.emotion.valence - 0.136448) < 1e-9, `valence=${character.emotion.valence}`)
+  assert.ok(Math.abs(character.emotion.valence - 0.1388) < 1e-9, `valence=${character.emotion.valence}`)
   const groups = await store.loadGroups()
   assert.equal(groups.groups.g1.lastLoop, 'loop-a')
   assert.equal(groups.groups.g2.lastLoop, 'loop-b')
@@ -110,7 +110,7 @@ test('character initialization inherits persona interest keywords', async () => 
   await rm(root, { recursive: true, force: true })
 })
 
-test('emotion deltas are capped, regress toward baseline, and skip silent loops', async () => {
+test('emotion deltas are capped and silent loops ignore model deltas', async () => {
   const { root, store } = await workspace()
   const character = await store.loadCharacter()
   await store.saveCharacter({ ...character, emotion: { valence: 0.99, arousal: 0.9, energy: 0.04, socialBattery: 0.1, stress: 0.6 } })
@@ -123,6 +123,34 @@ test('emotion deltas are capped, regress toward baseline, and skip silent loops'
   assert.ok(active.emotion.valence - 0.99 < 0.04, 'delta is capped')
   await store.applyStateUpdate({ loopId: 'silent', groupId: 'g1', patches: { ...patches, emotion: { valenceDelta: -1 } }, participants: [], emotionActive: false })
   const silent = await store.loadCharacter()
-  assert.equal(silent.emotion.valence, active.emotion.valence)
+  assert.ok(silent.emotion.valence < active.emotion.valence, 'time regression still applies')
+  assert.ok(silent.emotion.valence > 0.9, 'silent model delta must not be applied')
+  await rm(root, { recursive: true, force: true })
+})
+
+test('energy and social recover by elapsed time and speech costs energy', async () => {
+  const { root, store } = await workspace()
+  const character = await store.loadCharacter()
+  const stale = {
+    ...character,
+    updatedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    emotion: { valence: 0.5, arousal: 0.5, energy: 0.1, socialBattery: 0.1, stress: 0.4 },
+  }
+  await writeFile(store.characterPath, JSON.stringify(stale), 'utf8')
+  await store.applyStateUpdate({
+    loopId: 'recover', groupId: 'g1', participants: [], emotionActive: false,
+    patches: { memory: [], userProfiles: [], groupState: {}, emotion: {} },
+  })
+  const recovered = await store.loadCharacter()
+  assert.ok(recovered.emotion.energy > 0.1, `energy=${recovered.emotion.energy}`)
+  assert.ok(recovered.emotion.socialBattery > 0.1, `social=${recovered.emotion.socialBattery}`)
+  assert.notEqual(recovered.emotion.stress, 0.4, 'work/off-hours stress schedule should move stress')
+  await store.saveCharacter({ ...recovered, emotion: { ...recovered.emotion, energy: 0.5 } })
+  await store.applyStateUpdate({
+    loopId: 'speak', groupId: 'g1', participants: [], emotionActive: true,
+    patches: { memory: [], userProfiles: [], groupState: {}, emotion: {} },
+  })
+  const spoke = await store.loadCharacter()
+  assert.ok(spoke.emotion.energy < 0.5, `speech should cost energy, got ${spoke.emotion.energy}`)
   await rm(root, { recursive: true, force: true })
 })
