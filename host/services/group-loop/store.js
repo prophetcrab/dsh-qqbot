@@ -38,7 +38,7 @@ export class GroupLoopStore {
       ...(saved?.core ?? {}),
       ...(saved === null && persona !== null ? {
         name: persona.name || base.core.name,
-        identity: [persona.role, persona.personality].filter(Boolean).join('；') || base.core.identity,
+        identity: persona.role || base.core.identity,
         voice: persona.tone || base.core.voice,
       } : {}),
     }
@@ -46,6 +46,11 @@ export class GroupLoopStore {
     const character = { core, emotion: { ...base.emotion, ...(saved?.emotion ?? {}) }, updatedAt: saved?.updatedAt ?? null }
     if (saved === null) await this.saveCharacter(character)
     return character
+  }
+
+  async loadPersona() {
+    if (typeof this.personaPath !== 'string' || this.personaPath === '') return null
+    return this.readJson(this.personaPath, null)
   }
 
   async saveCharacter(character) {

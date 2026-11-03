@@ -84,6 +84,12 @@ export function buildPersonaPrompt(persona) {
   return sections.join('\n\n')
 }
 
+/** Character prompt for the group loop: personality and rules only, no few-shot or keywords. */
+export function buildCharacterPrompt(persona) {
+  const card = normalizePersona(persona)
+  return buildPersonaPrompt({ ...card, keywords: [], examples: [] })
+}
+
 /** Read and normalize a persona file; returns null when missing/unreadable. */
 export async function readPersonaFile(path) {
   try {

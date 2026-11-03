@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { DEFAULT_PERSONA, buildPersonaPrompt, normalizePersona, readPersonaFile, writePersonaFile } from '../host/services/persona/index.js'
+import { DEFAULT_PERSONA, buildCharacterPrompt, buildPersonaPrompt, normalizePersona, readPersonaFile, writePersonaFile } from '../host/services/persona/index.js'
 
 test('normalizePersona: trims fields, drops empty examples, caps lengths', () => {
   const card = normalizePersona({
@@ -59,4 +59,19 @@ test('file roundtrip: write stamps updatedAt and read normalizes', async () => {
 
 test('readPersonaFile: missing or invalid file returns null', async () => {
   assert.equal(await readPersonaFile('/definitely/missing/persona.json'), null)
+})
+
+test('buildCharacterPrompt: includes personality/rules but not keywords/examples', () => {
+  const prompt = buildCharacterPrompt({
+    name: '猫娘',
+    role: '群里的猫娘助手',
+    tone: '软萌',
+    personality: '好奇、爱撒娇',
+    rules: '句尾带喵；遇到不懂的先问',
+    keywords: ['猫', '鱼'],
+    examples: [{ user: '你好', assistant: '你好喵' }],
+  })
+  assert.match(prompt, /性格：好奇、爱撒娇/u)
+  assert.match(prompt, /行为准则：句尾带喵/u)
+  assert.doesNotMatch(prompt, /兴趣关键词|猫、鱼|对话示例|你好喵/u)
 })
