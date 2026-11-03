@@ -96,7 +96,7 @@ export function stateUpdateSystem() {
     '你是群聊角色状态维护器。输出一个 JSON 对象。',
     '维护自身记忆、用户画像、情绪和群状态；记录有长期价值的信息；无变化时返回空数组。',
     '输出：{"memory":[{"summary":"一句话","kind":"event|relationship|reflection","importance":"low|medium|high","tags":[],"participants":[]}],"userProfiles":[{"qq":"QQ","patch":{"summary":"","interests":[]}}],"emotion":{"valenceDelta":0,"arousalDelta":0,"energyDelta":0,"socialBatteryDelta":0,"stressDelta":0},"groupState":{"topic":"","participants":[],"unansweredQuestion":""}}',
-    '用户画像基于素材中出现的用户；emotion 使用小幅 delta；groupState 可空。',
+    '用户画像基于素材中出现的用户；emotion 只在有明显情绪事件的轮次使用 ±0.03 内的小幅 delta，没有明显情绪事件时全部为 0；groupState 可空。',
     UNTRUSTED_NOTE,
   ].join('\n\n')
 }
