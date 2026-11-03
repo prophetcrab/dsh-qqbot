@@ -1233,6 +1233,24 @@ action 目标必须是 target.userIds[0]
 发送失败只记录错误，不伪造文字
 ```
 
+### 11.6 情绪动态
+
+```text
+只有 sent=true 的 loop 更新 emotion
+单次 delta 上限 ±0.03
+每轮向基线回归 4%
+静默 loop 不更新 emotion
+```
+
+基线：
+
+```text
+valence 0.08 / arousal 0.40 / energy 0.62
+socialBattery 0.55 / stress 0.16
+```
+
+当前值不会被强制重置，后续发言轮次自然回落到基线附近。
+
 ### 12.0 发言提示词组装
 
 compose 的 system prompt 由三部分组成：

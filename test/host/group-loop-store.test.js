@@ -49,7 +49,7 @@ test('group loop store serializes concurrent state updates without losing emotio
     store.applyStateUpdate({ loopId: 'loop-b', groupId: 'g2', patches: { ...base, emotion: { valenceDelta: 0.2 } }, participants: [] }),
   ])
   const character = await store.loadCharacter()
-  assert.ok(Math.abs(character.emotion.valence - 0.38) < 1e-9, `valence=${character.emotion.valence}`)
+  assert.ok(Math.abs(character.emotion.valence - 0.136448) < 1e-9, `valence=${character.emotion.valence}`)
   const groups = await store.loadGroups()
   assert.equal(groups.groups.g1.lastLoop, 'loop-a')
   assert.equal(groups.groups.g2.lastLoop, 'loop-b')
@@ -107,5 +107,22 @@ test('character initialization inherits persona interest keywords', async () => 
   await writeFile(join(root, 'persona.json'), JSON.stringify({ name: '测试角色', keywords: ['股票', '漫画'] }), 'utf8')
   const character = await store.loadCharacter()
   assert.deepEqual(character.core.keywords, ['股票', '漫画'])
+  await rm(root, { recursive: true, force: true })
+})
+
+test('emotion deltas are capped, regress toward baseline, and skip silent loops', async () => {
+  const { root, store } = await workspace()
+  const character = await store.loadCharacter()
+  await store.saveCharacter({ ...character, emotion: { valence: 0.99, arousal: 0.9, energy: 0.04, socialBattery: 0.1, stress: 0.6 } })
+  const patches = { memory: [], userProfiles: [], groupState: {}, emotion: { valenceDelta: 0.5, arousalDelta: -0.5 } }
+  await store.applyStateUpdate({ loopId: 'active', groupId: 'g1', patches, participants: [], emotionActive: true })
+  const active = await store.loadCharacter()
+  assert.ok(active.emotion.valence < 0.99, 'valence should regress')
+  assert.ok(active.emotion.valence > 0.9, 'one update should not reset the current value')
+  assert.ok(active.emotion.arousal < 0.9, 'negative capped delta should apply')
+  assert.ok(active.emotion.valence - 0.99 < 0.04, 'delta is capped')
+  await store.applyStateUpdate({ loopId: 'silent', groupId: 'g1', patches: { ...patches, emotion: { valenceDelta: -1 } }, participants: [], emotionActive: false })
+  const silent = await store.loadCharacter()
+  assert.equal(silent.emotion.valence, active.emotion.valence)
   await rm(root, { recursive: true, force: true })
 })

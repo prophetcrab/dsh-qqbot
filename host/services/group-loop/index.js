@@ -352,7 +352,7 @@ export class GroupLoopService {
     const patches = normalizePatches(parsed)
     const known = knownParticipants(participants)
     patches.userProfiles = patches.userProfiles.filter((entry) => entry !== null && typeof entry === 'object' && known.has(String(entry.qq)))
-    const applied = await this.store.applyStateUpdate({ loopId, groupId, patches, participants })
+    const applied = await this.store.applyStateUpdate({ loopId, groupId, patches, participants, emotionActive: sendResult.sent === true })
     return { ...applied.result, duplicate: applied.duplicate, degraded, ...(error !== '' ? { error } : {}) }
   }
 

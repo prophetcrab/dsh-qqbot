@@ -10,6 +10,9 @@ const DEFAULTS = () => ({
 })
 
 const PROCESSED_LIMIT = 500
+const EMOTION_BASELINE = Object.freeze({ valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 })
+const EMOTION_DELTA_LIMIT = 0.03
+const EMOTION_REGRESSION = 0.04
 
 export class GroupLoopStore {
   constructor({ projectDir, personaPath, profilesPath, logger }) {
@@ -165,21 +168,25 @@ export class GroupLoopStore {
   }
 
   /** Apply a full state patch under one lock so concurrent groups cannot lose updates. */
-  async applyStateUpdate({ loopId, groupId, patches, participants }) {
+  async applyStateUpdate({ loopId, groupId, patches, participants, emotionActive = true }) {
     return this.writeQueue.run(async () => {
       const processed = await this.loadProcessed()
       const cached = processed.loops[loopId]
       if (cached !== undefined) return { duplicate: true, result: cached }
       const character = await this.loadCharacter()
       const emotion = { ...character.emotion }
-      for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
-        const delta = Number(patches.emotion[`${key}Delta`])
-        if (!Number.isFinite(delta)) continue
-        const bounds = key === 'valence' ? [-1, 1] : [0, 1]
-        const value = Number(emotion[key]) + delta
-        emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(value) ? value : 0))
+      if (emotionActive === true) {
+        for (const key of ['valence', 'arousal', 'energy', 'socialBattery', 'stress']) {
+          const rawDelta = Number(patches.emotion[`${key}Delta`])
+          const delta = Number.isFinite(rawDelta) ? Math.max(-EMOTION_DELTA_LIMIT, Math.min(EMOTION_DELTA_LIMIT, rawDelta)) : 0
+          const baseline = EMOTION_BASELINE[key]
+          const bounds = key === 'valence' ? [-1, 1] : [0, 1]
+          const afterDelta = Number(emotion[key]) + delta
+          const afterRegression = afterDelta + (baseline - afterDelta) * EMOTION_REGRESSION
+          emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(afterRegression) ? afterRegression : baseline))
+        }
       }
-      const saved = await this.saveCharacter({ ...character, emotion })
+      const saved = emotionActive === true ? await this.saveCharacter({ ...character, emotion }) : character
       const members = await this.appendMemory(patches.memory, loopId)
       const profileCount = await this.applyProfilesUnlocked(groupId, patches.userProfiles, participants)
       const groups = await this.loadGroups()
@@ -198,7 +205,7 @@ export class GroupLoopStore {
         ok: true,
         memory: members.length,
         userProfiles: profileCount,
-        emotionUpdated: true,
+        emotionUpdated: emotionActive === true,
         groupStateUpdated: typeof groupState.topic === 'string' || Array.isArray(groupState.participants),
         character: saved,
         memoryIds: members.map((item) => item.id),
