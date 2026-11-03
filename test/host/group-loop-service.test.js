@@ -111,3 +111,13 @@ test('compose attaches images as image content parts', async () => {
   assert.ok(captured.messages[0].content.some((part) => part.type === 'image'))
   await rm(root, { recursive: true, force: true })
 })
+
+test('group prompts describe behavior without explicit prohibition lists', async () => {
+  const { analyzeSystem, composeSystem, emotionPrompt, stateUpdateSystem } = await import('../../host/services/group-loop/prompts.js')
+  const prompts = [
+    analyzeSystem('角色', false, emotionPrompt({ valence: 0.1, energy: 0.5, socialBattery: 0.5, stress: 0.2, arousal: 0.4 })),
+    composeSystem('角色', { kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: [] } }, ''),
+    stateUpdateSystem(),
+  ]
+  for (const prompt of prompts) assert.doesNotMatch(prompt, /不要|禁止/u)
+})
