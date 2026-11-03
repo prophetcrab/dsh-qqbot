@@ -179,7 +179,7 @@ test('chat: profile is the second system segment and focus instruction follows',
   assert.match(captured.system, /【当前消息发送者】小明/u)
   assert.match(captured.system, /不同发送者相互独立/u)
   assert.match(captured.system, /不要把不同人的发言合并成同一个人/u)
-  await rm(dir, { recursive: true, force: true })
+  await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 })
 })
 
 test('chat: current-message images are stored as attachments and attached to the prompt', async () => {

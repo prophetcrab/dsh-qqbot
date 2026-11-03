@@ -7,7 +7,7 @@
  */
 
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 const MAX = {
@@ -91,7 +91,13 @@ export async function saveProfileStore(path, store) {
   }
   const payload = { version: 1, updatedAt: new Date().toISOString(), profiles }
   await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+  const temp = `${path}.${process.pid}.${Date.now()}.tmp`
+  try {
+    await writeFile(temp, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    await rename(temp, path)
+  } finally {
+    await unlink(temp).catch(() => {})
+  }
 }
 
 /** Get or create the profile for a group member. */

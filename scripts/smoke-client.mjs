@@ -255,8 +255,8 @@ const GROUP_DASHBOARD = {
     '805836168': { bufferSize: 7, unprocessed: 1, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: null }, lastLoop: null },
   },
   loops: [
-    { loopId: 'loop_001', at: '2026-11-02T15:22:11+08:00', trigger: 'mention', materialCount: 18, speak: { enabled: true }, reply: '今天真热，鱼鱼已经快化了。', sendResult: { sent: true, parts: 1 }, analysisMs: 812 },
-    { loopId: 'loop_002', at: '2026-11-02T15:18:00+08:00', trigger: 'count', materialCount: 12, speak: { enabled: false }, reply: '', sendResult: { sent: false }, analysisMs: 640 },
+    { loopId: 'loop_001', at: '2026-11-02T15:22:11+08:00', trigger: 'mention', materialCount: 18, speak: { enabled: true }, reply: '今天真热，鱼鱼已经快化了。', sendResult: { sent: true, parts: 1 }, durationMs: 812 },
+    { loopId: 'loop_002', at: '2026-11-02T15:18:00+08:00', trigger: 'count', materialCount: 12, speak: { enabled: false }, reply: '', sendResult: { sent: false }, durationMs: 640 },
   ],
   memories: [
     { id: 'mem_1', at: '2026-11-02T15:22:11+08:00', summary: '被说可爱时先回了“才不是”，但后面还是接受了。', kind: 'event', importance: 'medium' },
@@ -363,8 +363,11 @@ globalThis.fetch = async (url, init) => {
     }
     return json({ ok: true, data: STATUS })
   }
-  if (path === '/qqbot/group/dashboard') {
-    return json({ ok: true, data: GROUP_DASHBOARD })
+  if (path.startsWith('/qqbot/group/dashboard')) {
+    const url = new URL(path, 'http://localhost')
+    const groupId = url.searchParams.get('groupId')
+    const data = groupId === null ? { ...GROUP_DASHBOARD, profiles: [] } : { ...GROUP_DASHBOARD, profiles: GROUP_DASHBOARD.profiles.filter((profile) => profile.groupId === groupId) }
+    return json({ ok: true, data })
   }
   if (path === '/qqbot/ai/chat') {
     return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
@@ -801,7 +804,7 @@ clickTestId(tree, 'qqbot-ai-loop-filter-all')
 tree = await settle()
 clickTestId(tree, 'qqbot-ai-refresh')
 tree = await settle()
-const dashboardGets = fetchLog.filter((entry) => entry.method === 'GET' && entry.url === '/qqbot/group/dashboard')
+const dashboardGets = fetchLog.filter((entry) => entry.method === 'GET' && entry.url.startsWith('/qqbot/group/dashboard'))
 if (dashboardGets.length < 1) throw new Error('dashboard was not fetched')
 console.log('ai dashboard: ok')
 clickTestId(tree, 'qqbot-tab-overview')

@@ -714,13 +714,6 @@ window.__ModuleLoader__.load({
         return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
       }
       function percent(value) { return Math.round(Math.max(0, Math.min(1, num(value))) * 100) }
-      function ago(ms) {
-        if (!Number.isFinite(ms) || ms <= 0) return '—'
-        const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000))
-        if (seconds < 60) return `${seconds} 秒前`
-        if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟前`
-        return `${Math.round(seconds / 3600)} 小时前`
-      }
 
       function profilesBlock(h, selectedId, profiles) {
         return h('div', { className: 'qqbot-ai-profile-block', 'data-testid': 'qqbot-ai-profiles' },
@@ -737,10 +730,12 @@ window.__ModuleLoader__.load({
 
       function useAi(panel) {
         const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null })
-        const load = React.useCallback(async (manual = false) => {
+        const selectedRef = React.useRef(null)
+        const load = React.useCallback(async (manual = false, groupId = selectedRef.current) => {
           if (manual) setView((prev) => ({ ...prev, phase: prev.data === null ? 'loading' : 'refreshing', error: null }))
           try {
-            const payload = await requestJson('/qqbot/group/dashboard')
+            const query = groupId === null ? '' : `?groupId=${encodeURIComponent(groupId)}`
+            const payload = await requestJson(`/qqbot/group/dashboard${query}`)
             const data = obj(payload?.data)
             const ids = [...new Set([...Object.keys(obj(data.listener?.groups)), ...Object.keys(obj(data.groups))])]
             setView((prev) => {
@@ -754,14 +749,24 @@ window.__ModuleLoader__.load({
           }
         }, [])
         React.useEffect(() => {
-          load()
-          const timer = setInterval(() => { void load() }, 5000)
+          if (panel.tab !== 'ai') return undefined
+          void load()
+          const timer = setInterval(() => { void load(false, selectedRef.current) }, 5000)
           return () => clearInterval(timer)
-        }, [load])
+        }, [panel.tab, load])
+        React.useEffect(() => {
+          if (view.overview === true || view.selected === null) return
+          selectedRef.current = view.selected
+          void load(false, view.selected)
+        }, [view.selected, view.overview, load])
         return () => renderAiTab(panel, {
           ...view,
-          refresh: () => { void load(true) },
-          selectGroup: (id) => setView((prev) => ({ ...prev, selected: id ?? null, overview: id === null })),
+          refresh: () => { void load(true, selectedRef.current) },
+          selectGroup: (id) => {
+            selectedRef.current = id ?? null
+            setView((prev) => ({ ...prev, selected: id ?? null, overview: id === null }))
+            void load(false, id ?? null)
+          },
           setFilter: (filter) => setView((prev) => ({ ...prev, filter })),
           toggleLoop: (id) => setView((prev) => ({ ...prev, expanded: prev.expanded === id ? null : id })),
         })
@@ -815,6 +820,7 @@ window.__ModuleLoader__.load({
 
       function loopRow(h, loop, expanded, toggle) {
         const sent = loop.sendResult?.sent === true
+        const failed = sent !== true && (typeof loop.sendResult?.error === 'string' || loop.sendResult?.reason === 'compose_failed' || loop.sendResult?.reason === 'loop_failed')
         const speak = loop.speak?.enabled === true
         return h('div', { key: loop.loopId, className: 'qqbot-ai-loop' },
           h('button', { type: 'button', className: 'qqbot-ai-loop-head', 'data-testid': 'qqbot-ai-loop-row', onClick: () => toggle(loop.loopId) },
@@ -822,14 +828,14 @@ window.__ModuleLoader__.load({
             h('span', { className: 'qqbot-ai-loop-main' },
               h('strong', null, TRIGGER_LABEL[loop.trigger] || loop.trigger || 'loop'),
               h('span', null, `${time(loop.at)} · ${num(loop.materialCount)} 条素材`)),
-            h('span', { className: `qqbot-ai-loop-state ${sent ? 'is-sent' : ''}` }, sent ? '已发言' : speak ? '生成中' : '未发言'),
+            h('span', { className: `qqbot-ai-loop-state ${sent ? 'is-sent' : ''}` }, sent ? '已发言' : failed ? '发送失败' : speak ? '未发送' : '未发言'),
             h('span', { className: 'qqbot-ai-loop-arrow' }, expanded ? '−' : '+')),
           expanded ? h('div', { className: 'qqbot-ai-loop-detail' },
             h('div', { className: 'qqbot-ai-loop-reply' }, loop.reply || '本轮没有发送内容'),
             h('div', { className: 'qqbot-ai-loop-meta' },
               h('span', null, `触发 ${loop.trigger || '—'}`),
               h('span', null, `素材 ${num(loop.materialCount)}`),
-              h('span', null, `分析 ${num(loop.analysisMs)} ms`),
+              h('span', null, `耗时 ${num(loop.durationMs)} ms`),
               h('span', null, sent ? `发送 ${num(loop.sendResult?.parts)} 条` : '未发送')),
             h('div', { className: 'qqbot-ai-loop-meta' }, h('span', null, loop.loopId || '—'))) : null)
       }
@@ -852,7 +858,7 @@ window.__ModuleLoader__.load({
         const activeLoop = selectedGroup?.lastLoop ?? null
         const queueCount = groups.reduce((sum, [, g]) => sum + (obj(g.queue).urgent ? 1 : 0) + (obj(g.queue).normal ? 1 : 0), 0)
         const activeCount = groups.filter(([, g]) => g.running === true).length
-        const sentCount = arr(data.loops).filter((loop) => loop.sendResult?.sent === true).length
+        const sentCount = arr(loopSource).filter((loop) => loop.sendResult?.sent === true).length
         const loading = view.phase === 'loading'
         if (loading) {
           return h('div', { className: 'qqbot-ai-dashboard', 'data-testid': 'qqbot-ai-dashboard' }, h('div', { className: 'qqbot-ai-skeleton' }, '正在连接群聊监听器…'))
