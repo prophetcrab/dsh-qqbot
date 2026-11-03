@@ -1206,6 +1206,25 @@ compose
 
 工具结果不会原样进入群聊。
 
+### 12.0 发言提示词组装
+
+compose 的 system prompt 由三部分组成：
+
+```text
+人设卡：name / role / tone / personality / rules
+情绪软约束：当前 emotion
+输出协议：target、replyType、parts JSON、气泡预算
+```
+
+人设卡直接读取 `persona.json`，不再手工拼接 identity：
+
+```text
+examples：暂不注入
+keywords：暂不注入，只用于 listener 触发
+```
+
+硬编码的 compose 性格和行为规则已移除，由 persona.rules 承担。
+
 ### 12.1 消息延迟
 
 只在 `speak.enabled=true` 时计算；不回复不延迟。

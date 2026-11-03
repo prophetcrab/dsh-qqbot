@@ -1,6 +1,6 @@
 /** Service-level tests for prompt boundaries, degraded updates and idempotency. */
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -203,5 +203,25 @@ test('structured JSON fallback is never emitted as a speech bubble', async () =>
   const { root, service } = await setup(stream)
   const result = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
   assert.deepEqual(result.parts, ['一', '二'])
+  await rm(root, { recursive: true, force: true })
+})
+
+test('compose reads personality and rules from persona.json without few-shot/keywords', async () => {
+  let captured = null
+  const stream = async function* (options) {
+    captured = options
+    yield { type: 'text-delta', text: '{"parts":["在"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  await writeFile(join(root, 'persona.json'), JSON.stringify({
+    name: '测试角色', role: '群里的测试角色', tone: '短句', personality: '热情、好奇', rules: '像熟人一样接话',
+    keywords: ['股票'], examples: [{ user: '你好', assistant: '在' }],
+  }), 'utf8')
+  const result = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  assert.match(captured.system, /性格：热情、好奇/u)
+  assert.match(captured.system, /行为准则：像熟人一样接话/u)
+  assert.doesNotMatch(captured.system, /兴趣关键词|对话示例|股票/u)
   await rm(root, { recursive: true, force: true })
 })

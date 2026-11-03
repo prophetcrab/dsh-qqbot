@@ -1,5 +1,5 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
-import { buildPersonaPrompt } from '../persona/index.js'
+import { buildCharacterPrompt } from '../persona/index.js'
 import { GroupLoopStore } from './store.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
 import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
@@ -180,13 +180,12 @@ export class GroupLoopService {
 
   async characterSnapshot() {
     const character = await this.store.loadCharacter()
-    const prompt = buildPersonaPrompt({
-      name: character.core.name,
-      role: character.core.identity,
-      tone: character.core.voice,
-      personality: '',
-      rules: '',
-      examples: [],
+    const persona = await this.store.loadPersona()
+    const prompt = buildCharacterPrompt({
+      ...(persona !== null && typeof persona === 'object' ? persona : {}),
+      name: persona?.name || character.core.name,
+      role: persona?.role || character.core.identity,
+      tone: persona?.tone || character.core.voice,
     })
     return { character, prompt }
   }
