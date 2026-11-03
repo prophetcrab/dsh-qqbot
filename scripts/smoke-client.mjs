@@ -251,7 +251,7 @@ const GROUP_DASHBOARD = {
     emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
   },
   groups: {
-    '1026855069': { bufferSize: 18, unprocessed: 3, running: true, active: 'loop_001', cooldownUntil: 0, queue: { urgent: 'mention', normal: null }, lastLoop: { sendResult: { sent: true } } },
+    '1026855069': { bufferSize: 18, unprocessed: 3, countThreshold: 6, running: true, active: 'loop_001', cooldownUntil: 0, queue: { urgent: 'mention', normal: null }, lastLoop: { sendResult: { sent: true } } },
     '805836168': { bufferSize: 7, unprocessed: 1, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: null }, lastLoop: null },
   },
   loops: [
@@ -266,7 +266,7 @@ const GROUP_DASHBOARD = {
   listener: {
     updatedAt: '2026-11-02T15:22:11+08:00',
     groups: {
-      '780654567': { name: '测试群·摸鱼办事处', bufferSize: 4, unprocessed: 2, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: 'count' }, lastLoop: null },
+      '780654567': { name: '测试群·摸鱼办事处', bufferSize: 4, unprocessed: 2, countThreshold: 7, running: false, active: null, cooldownUntil: 0, queue: { urgent: null, normal: 'count' }, lastLoop: null },
     },
   },
 }
