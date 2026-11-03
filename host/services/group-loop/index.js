@@ -1,7 +1,7 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
 import { buildPersonaPrompt } from '../persona/index.js'
 import { GroupLoopStore } from './store.js'
-import { analyzeSystem, composeSystem, stateUpdateSystem, userMaterial } from './prompts.js'
+import { analyzeSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -125,9 +125,9 @@ export class GroupLoopService {
     return `【本轮附带图片】当前消息 ${counts[0]} 张；引用消息 ${counts[1]} 张；最近背景 ${counts[2]} 张。图片按这个顺序附带，请先看图片再回复。`
   }
 
-  async characterPrompt() {
+  async characterSnapshot() {
     const character = await this.store.loadCharacter()
-    return buildPersonaPrompt({
+    const prompt = buildPersonaPrompt({
       name: character.core.name,
       role: character.core.identity,
       tone: character.core.voice,
@@ -135,7 +135,9 @@ export class GroupLoopService {
       rules: '',
       examples: [],
     })
+    return { character, prompt }
   }
+
 
   async profileContext(groupId, participants) {
     const qqs = (Array.isArray(participants) ? participants : []).map((participant) => participant.qq)
@@ -150,8 +152,9 @@ export class GroupLoopService {
     const direct = triggerReason === 'mention' || triggerReason === 'reply'
     const profiles = await this.profileContext(groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
+    const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(analyzeSystem(await this.characterPrompt(), direct), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 420, temperature: 0.25, images })
+      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 420, temperature: 0.25, images })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -167,8 +170,9 @@ export class GroupLoopService {
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
     const profiles = await this.profileContext(input.groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
+    const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 500, temperature: 0.7, images })
+      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 500, temperature: 0.7, images })
       const parts = normalizeParts(parseJson(raw), raw)
       return { ok: true, text: parts.join(''), parts, speak }
     } catch (error) {

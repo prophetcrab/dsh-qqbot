@@ -36,6 +36,8 @@ test('profile data is placed in user content, never in the system prompt', async
   assert.equal(result.ok, true)
   assert.equal(result.speak.enabled, false)
   assert.equal(captured.system.includes('秘密画像摘要'), false)
+  assert.match(captured.system, /【当前状态（软约束）】/u)
+  assert.match(captured.system, /社交电量/u)
   assert.equal(captured.messages[0].content[0].text.includes('<profile-data>'), true)
   assert.equal(captured.messages[0].content[0].text.includes('秘密画像摘要'), true)
   await rm(root, { recursive: true, force: true })
