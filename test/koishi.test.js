@@ -557,3 +557,23 @@ test('startCommand: falls back to npm start without a local CLI', async (t) => {
   assert.notEqual(command.local, true)
   assert.match(command.file, /npm/u)
 })
+
+test('adoptExternal: takes over only a Koishi process owned by this project', async (t) => {
+  const dir = await makeProject(t)
+  const manager = makeManager(dir, {
+    portPid: async () => 777,
+    findProcess: (pattern) => ({ running: pattern.includes('node_modules/koishi'), pid: 777 }),
+    fetch: unreachable,
+  })
+  assert.equal(await manager.adoptExternal(), true)
+  assert.equal(manager.managedPid, 777)
+  assert.equal(manager.isManaged(), true)
+
+  const wrong = makeManager(dir, {
+    portPid: async () => 777,
+    findProcess: () => ({ running: true, pid: 888 }),
+    fetch: unreachable,
+  })
+  assert.equal(await wrong.adoptExternal(), false)
+  assert.equal(wrong.isManaged(), false)
+})

@@ -16,6 +16,7 @@ import {
   detectKoishiProject,
   expandHome,
   hostPlatform as platformHostPlatform,
+  findProcess as platformFindProcess,
   httpJson,
   killPid as platformKillPid,
   npmExecutable as platformNpmExecutable,
@@ -75,6 +76,7 @@ export class KoishiManager {
     this.hostPlatform = injectedHostPlatform ?? platformHostPlatform
     this.portPid = injectedPortPid ?? platformPortPid
     this.hasInjectedPortPid = injectedPortPid !== null
+    this.findProcess = typeof options.findProcess === 'function' ? options.findProcess : platformFindProcess
     this.killPid = injectedKillPid ?? platformKillPid
     this.hasInjectedKillPid = injectedKillPid !== null
     this.npmExecutable = injectedNpmExecutable ?? platformNpmExecutable
@@ -148,6 +150,24 @@ export class KoishiManager {
       }
     }
     return { ok: true, output }
+  }
+
+  /**
+   * Adopt a running Koishi only when the port owner's command belongs to this
+   * project. A restart is an explicit user request, so this lets the panel
+   * safely take over a process started before a panel reload.
+   */
+  async adoptExternal() {
+    if (this.managedPid !== null) return true
+    const pid = await this.findPortPid(this.port)
+    if (pid === null) return false
+    const expected = join(this.projectDir, 'node_modules', 'koishi')
+    const found = this.findProcess(expected)
+    if (found === null || typeof found !== 'object' || found.running !== true || found.pid !== pid) return false
+    this.managedPid = pid
+    this.startedAt = new Date().toISOString()
+    this.logger.info('已接管当前项目的 Koishi 进程（pid=%s）', pid)
+    return true
   }
 
   async findPortPid(port = this.port) {
@@ -363,7 +383,12 @@ export class KoishiManager {
   }
 
   async restart(options = {}) {
-    const stopped = await this.stop(options)
+    let stopped = await this.stop(options)
+    if (stopped.ok === false) {
+      // A panel reload loses managedChild state. Adopt only a PID whose command
+      // is the Koishi CLI under this exact project directory, then retry.
+      if (await this.adoptExternal()) stopped = await this.stop(options)
+    }
     if (stopped.ok === false) {
       return { ok: false, message: stopped.error, error: stopped.error }
     }
