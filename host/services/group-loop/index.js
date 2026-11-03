@@ -45,14 +45,20 @@ function normalizePatches(value) {
 function normalizeParts(value, fallback = '') {
   const source = object(value)
   const list = Array.isArray(source.parts) ? source.parts : []
-  const parts = list
-    .filter((part) => typeof part === 'string')
-    .map((part) => part.trim().slice(0, 300))
-    .filter(Boolean)
-    .slice(0, 3)
+  const parts = []
+  for (const item of list) {
+    if (typeof item !== 'string') continue
+    for (const line of item.split(/\n+/u)) {
+      const part = line.trim().slice(0, 300)
+      if (part !== '') parts.push(part)
+      if (parts.length >= 3) break
+    }
+    if (parts.length >= 3) break
+  }
   if (parts.length > 0) return parts
   const fallbackText = text(fallback)
-  return fallbackText === '' ? [] : [fallbackText.slice(0, 300)]
+  if (fallbackText === '') return []
+  return fallbackText.split(/\n+/u).map((part) => part.trim()).filter(Boolean).slice(0, 3).map((part) => part.slice(0, 300))
 }
 
 function knownParticipants(participants) {

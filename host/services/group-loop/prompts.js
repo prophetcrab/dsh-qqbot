@@ -72,7 +72,7 @@ export function composeSystem(characterPrompt, speak, statePrompt = '') {
     speak.replyType === 'quote' ? 'quote：直接回应被引用的内容。' : '',
     '本轮附带图片时，结合图片内容来写。',
     '真人群聊风格：1-3 条短气泡，每条表达一个意思；允许不完整句、省略主语、口语和省略号；少用句号；直接给出发言内容，保持口语自然。',
-    '输出 JSON：{"parts":["第一条","第二条"]}；parts 长度 1-3，每条尽量短；内容短时给一条。',
+    '输出 JSON：{"parts":["第一条","第二条"]}；每个 parts 元素是一条独立气泡；需要多条时放入不同元素；parts 长度 1-3，每条尽量短。',
     `target.messageIds=${JSON.stringify(target.messageIds ?? [])}，target.userIds=${JSON.stringify(target.userIds ?? [])}`,
   ].filter(Boolean).join('\n\n')
 }

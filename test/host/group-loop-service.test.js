@@ -135,3 +135,16 @@ test('compose falls back to plain model text without a TDZ error', async () => {
   assert.deepEqual(result.parts, ['在的，刚爬完楼'])
   await rm(root, { recursive: true, force: true })
 })
+
+test('compose splits newline-separated bubble content from one JSON part', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '{"parts":["第一句\\n\\n第二句"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.compose({
+    groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: ['1'] } },
+  })
+  assert.deepEqual(result.parts, ['第一句', '第二句'])
+  await rm(root, { recursive: true, force: true })
+})
