@@ -38,6 +38,13 @@ function parseJson(raw) {
   try { return JSON.parse(value.slice(start, end + 1)) } catch { return null }
 }
 
+function normalizeRef(value) {
+  const source = object(value)
+  const messageIds = Array.isArray(source.messageIds) ? source.messageIds.filter((id) => typeof id === 'string').slice(0, 4) : []
+  const userIds = Array.isArray(source.userIds) ? source.userIds.filter((id) => typeof id === 'string').slice(0, 4) : []
+  return { messageIds, userIds }
+}
+
 function normalizeSpeak(value) {
   const source = object(value)
   if (source.enabled !== true) return { enabled: false }
@@ -49,7 +56,12 @@ function normalizeSpeak(value) {
   const userIds = Array.isArray(target.userIds) ? target.userIds.filter((id) => typeof id === 'string').slice(0, 4) : []
   if (replyType === 'quote' && messageIds.length === 0) return { enabled: false }
   if ((replyType === 'at' || replyType === 'action') && userIds.length === 0) return { enabled: false }
-  return { enabled: true, kind, replyType, target: { messageIds, userIds } }
+  const result = { enabled: true, kind, replyType, target: { messageIds, userIds } }
+  const focus = normalizeRef(source.focus)
+  const quote = normalizeRef(source.quote)
+  if (focus.messageIds.length > 0) result.focus = focus
+  if (quote.messageIds.length > 0) result.quote = quote
+  return result
 }
 
 function normalizePatches(value) {

@@ -1206,6 +1206,16 @@ compose
 
 工具结果不会原样进入群聊。
 
+### 11.4 direct 的 target / focus / quote
+
+```text
+target：发送锚点，direct 固定当前触发消息和发送者
+focus：语义焦点，可指向素材里更早的消息
+quote：可选发送引用，覆盖默认引用消息
+```
+
+direct 被 @ 时 target 仍指向当前消息，因此不会丢掉对当前人的 @；focus 可以回答上一条，quote 可以引用上一条。
+
 ### 11.5 戳一戳 action
 
 `replyType=action` 不生成文字，直接调用 OneBot：
