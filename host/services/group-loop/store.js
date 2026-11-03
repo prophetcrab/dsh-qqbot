@@ -203,6 +203,12 @@ export class GroupLoopStore {
     })
   }
 
+  async groupState(groupId) {
+    const groups = await this.loadGroups()
+    const state = groups.groups?.[groupId]
+    return state !== null && typeof state === 'object' ? state : {}
+  }
+
   async dashboard(listenerPath, groupId = null) {
     const [character, groups, memories] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40)])
     const profiles = groupId === null || groupId === '' ? [] : await this.profilesFor(groupId)

@@ -278,21 +278,31 @@ direct 不使用 action-only
 
 这不会影响 direct 触发。
 
-## 6. 分析素材
+## 6. 阶段化素材
 
-触发后：
+100 条仍然是**缓冲区上限**，不是每次都把 100 条塞给所有阶段。
 
 ```text
-以触发消息为终点
-向前截取最多 100 条
+buffer：最近 100 条
+
+analyze：
+  最近 30 条（analysisWindow）+ 群状态摘要
+
+compose：
+  target 消息 ±4 条，最多 12 条
+
+state_update：
+  关键片段 ±3 条，最多 10 条
 ```
+
+更早的背景只通过状态更新维护的群话题摘要进入 analyze / compose，不重复发送完整 100 条。
 
 ```text
 触发消息：m105
-素材：m6 ～ m105
+analyze：m76 ～ m105
+compose：target 附近窗口
+state_update：本轮关键片段
 ```
-
-不足 100 条则全部带上。
 
 ### 6.1 素材结构
 
@@ -1054,14 +1064,15 @@ direct 可以入队，并在队列 worker 中优先处理
 ### 输入
 
 ```text
-分析素材（同一份）
+target 附近窗口（不是完整 100 条）
 speak.kind
 speak.replyType
 speak.target（messageIds / userIds）
-机器人上一句
+群背景摘要
+机器人上一句（若在窗口内）
 角色核心摘要
 当前情绪
-相关记忆
+相关用户画像
 ```
 
 ### 输出
@@ -1352,7 +1363,10 @@ cooldown：speak.enabled=true / false 后行为
 ```text
 fake clock 推进 5 分钟
 fake LLM 返回不发言、statement、四种 reply；fake state_update 返回 patch
-伪造 105 条消息验证素材只取 100 条
+伪造 105 条消息验证 buffer 只保留 100 条
+验证 analyze 只取最近 30 条
+验证 compose 只取 target 附近窗口
+验证 state_update 只取关键片段
 两个用户同时 @ 验证只产生一个 urgent 合并请求
 两个 count/time 请求只保留一个 normal 合并请求
 两个群同时触发验证可以并行

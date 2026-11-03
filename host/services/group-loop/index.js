@@ -5,6 +5,7 @@ import { analyzeSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMat
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
+const MATERIAL_LIMITS = { analyze: 16000, compose: 8000, stateUpdate: 10000 }
 
 function object(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }
 function text(value) { return typeof value === 'string' ? value.trim() : '' }
@@ -144,9 +145,17 @@ export class GroupLoopService {
     return this.store.profilesFor(groupId, qqs)
   }
 
+  async groupBackground(groupId) {
+    const state = await this.store.groupState(groupId)
+    const lines = []
+    if (typeof state.topic === 'string' && state.topic.trim() !== '') lines.push(`最近话题：${state.topic.trim()}`)
+    if (Array.isArray(state.participants) && state.participants.length > 0) lines.push(`常出现的参与者：${state.participants.slice(0, 8).join('、')}`)
+    return lines.length === 0 ? '' : `【群聊背景摘要（历史状态，不是当前消息）】\n${lines.join('\n')}`
+  }
+
   async analyze(input) {
     const groupId = text(input.groupId)
-    const material = text(input.material).slice(-24000)
+    const material = text(input.material).slice(-MATERIAL_LIMITS.analyze)
     if (groupId === '' || material === '') return { ok: false, error: 'material/groupId required' }
     const triggerReason = text(input.trigger?.reason)
     const direct = triggerReason === 'mention' || triggerReason === 'reply'
@@ -154,7 +163,7 @@ export class GroupLoopService {
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 420, temperature: 0.25, images })
+      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId)), { maxTokens: 420, temperature: 0.25, images })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -165,14 +174,14 @@ export class GroupLoopService {
   }
 
   async compose(input) {
-    const material = text(input.material).slice(-24000)
+    const material = text(input.material).slice(-MATERIAL_LIMITS.compose)
     const speak = normalizeSpeak(input.speak)
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
     const profiles = await this.profileContext(input.groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input)), { maxTokens: 500, temperature: 0.7, images })
+      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId)), { maxTokens: 500, temperature: 0.7, images })
       const parts = normalizeParts(parseJson(raw), raw)
       return { ok: true, text: parts.join(''), parts, speak }
     } catch (error) {
@@ -195,7 +204,7 @@ export class GroupLoopService {
   async runStateUpdate(input) {
     const loopId = text(input.loopId)
     const groupId = text(input.groupId)
-    const material = text(input.material).slice(-16000)
+    const material = text(input.material).slice(-MATERIAL_LIMITS.stateUpdate)
     const participants = Array.isArray(input.participants) ? input.participants : []
     const character = await this.store.loadCharacter()
     const speak = normalizeSpeak(input.speak)
