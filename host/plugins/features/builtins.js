@@ -67,7 +67,7 @@ async function startAll(deps) {
   steps.push(await step('koishi', () => deps.koishi.start()))
   steps.push(await step('napcat', () => deps.napcat.start()))
   return {
-    ok: steps.some((entry) => entry.ok),
+    ok: steps.every((entry) => entry.ok),
     message: steps.map((entry) => `${entry.name}: ${entry.ok ? 'ok' : 'failed'}${entry.message ? ` (${entry.message})` : ''}`).join('; '),
     steps,
   }

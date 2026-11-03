@@ -998,7 +998,7 @@ window.__ModuleLoader__.load({
       }
 
       function renderFeatures(panel) {
-        const { t, lang, features, featuresPhase, featuresError, busyOf, loadFeatures, runFeatureAction, h } = panel
+        const { t, lang, features, featuresPhase, featuresError, busyOf, lifecycleBusy, loadFeatures, runFeatureAction, h } = panel
         const items = Array.isArray(features) ? features : []
         const cards = items.map((feature) => {
           const title = pickText(feature.title, lang) || feature.id
@@ -1041,7 +1041,7 @@ window.__ModuleLoader__.load({
                   'data-testid': `qqbot-action-${action.id}`,
                   'aria-label': label,
                   'aria-busy': working ? 'true' : undefined,
-                  disabled: working,
+                  disabled: working || (feature.id === 'lifecycle' && lifecycleBusy === true),
                   onClick: () => { runFeatureAction(feature, action) },
                 }, working ? t('working') : label)
               })))
@@ -1641,7 +1641,7 @@ window.__ModuleLoader__.load({
           t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
           stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
           settings, napcatSupported, platformInstallHint, napcatAccounts, wsClients, napcatInstalled,
-          napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, h
+          napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, lifecycleBusy, h
         } = panel
         if (!hasSnapshot) {
           if (loading) return h('div', { className: 'qqbot-empty', role: 'status' }, t('loading'))
@@ -1691,8 +1691,8 @@ window.__ModuleLoader__.load({
             h('span', { className: 'qqbot-card-sub' }, `QQ · ${qq.installed === true ? t('stInstalled') : t('stMissing')}`)),
           h('div', { className: 'qqbot-rows' }, ...napcatRows),
           h('div', { className: 'qqbot-actions-row' },
-            actionButton('napcat-start', t('napcatStart'), null, startNapcat, { disabled: napcatRunning }),
-            actionButton('napcat-stop', t('napcatStop'), 'danger', stopNapcat, { disabled: !napcatRunning })))
+            actionButton('napcat-start', t('napcatStart'), null, startNapcat, { disabled: napcatRunning || lifecycleBusy }),
+            actionButton('napcat-stop', t('napcatStop'), 'danger', stopNapcat, { disabled: !napcatRunning || lifecycleBusy })))
 
         const koishiCard = h('section', { className: 'qqbot-card' },
           h('div', { className: 'qqbot-card-head' },
@@ -1700,8 +1700,8 @@ window.__ModuleLoader__.load({
             h('span', { className: 'qqbot-card-sub' }, `${t('lblPort')} · ${koishi.port || settings.koishiPort || '—'}`)),
           h('div', { className: 'qqbot-rows' }, ...koishiRows),
           h('div', { className: 'qqbot-actions-row' },
-            actionButton('koishi-start', t('koishiStart'), null, startKoishi, { disabled: koishiRunning }),
-            actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning })))
+            actionButton('koishi-start', t('koishiStart'), null, startKoishi, { disabled: koishiRunning || lifecycleBusy }),
+            actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning || lifecycleBusy })))
 
         return h('div', { className: 'qqbot-stack' },
           h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
@@ -1711,8 +1711,8 @@ window.__ModuleLoader__.load({
             h('div', { className: 'qqbot-card-head' },
               h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),
             h('div', { className: 'qqbot-btns' },
-              actionButton('all-start', t('startAll'), 'primary', startAll),
-              actionButton('all-stop', t('stopAll'), 'danger', stopAll),
+              actionButton('all-start', t('startAll'), 'primary', startAll, { disabled: lifecycleBusy }),
+              actionButton('all-stop', t('stopAll'), 'danger', stopAll, { disabled: lifecycleBusy }),
               !napcatInstalled
                 ? actionButton('napcat-install', t('installNapcat'), null, installNapcat, {
                   disabled: !napcatSupported,
@@ -3251,10 +3251,13 @@ window.__ModuleLoader__.load({
         const loginPollRef = React.useRef({ busy: false, loggedIn: false })
         const contactsBusyRef = React.useRef(false)
         const messagesPollRef = React.useRef(false)
+        const busyRef = React.useRef({})
         const setupActionRef = React.useRef(false)
         tabRef.current = tab
 
         const busyOf = (key) => busy[key] === true
+        const isLifecycleKey = (key) => key.startsWith('feature:lifecycle:') || /^(all|koishi|napcat)-(start|stop|restart)$/u.test(key)
+        const lifecycleBusy = Object.keys(busy).some(isLifecycleKey)
 
         const loadStatus = async () => {
           try {
@@ -3299,7 +3302,9 @@ window.__ModuleLoader__.load({
         }
 
         const runPost = async (key, path, body, after, successText, extraOptions) => {
-          if (busyOf(key)) return null
+          if (busyRef.current[key] === true) return null
+          if (isLifecycleKey(key) && Object.keys(busyRef.current).some(isLifecycleKey)) return null
+          busyRef.current[key] = true
           setBusy((previous) => ({ ...previous, [key]: true }))
           setBanner(null)
           let result = null
@@ -3314,6 +3319,7 @@ window.__ModuleLoader__.load({
           } catch (error) {
             setBanner({ kind: 'error', text: `${t('actionFailed')}: ${messageOf(error)}` })
           } finally {
+            delete busyRef.current[key]
             setBusy((previous) => {
               const next = { ...previous }
               delete next[key]
@@ -3350,6 +3356,7 @@ window.__ModuleLoader__.load({
           personaPresetName, setPersonaPresetName, lastPromptState, setLastPromptState, fullPromptOpen, setFullPromptOpen,
           tabRef, loggedInRef, loginPollRef, contactsBusyRef, messagesPollRef, setupActionRef,
           busyOf,
+          lifecycleBusy,
           loadStatus,
           loadContacts,
           runPost,

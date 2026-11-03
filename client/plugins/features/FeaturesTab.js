@@ -25,7 +25,7 @@ export function runFeatureAction(panel, feature, action) {
 }
 
 export function renderFeatures(panel) {
-  const { t, lang, features, featuresPhase, featuresError, busyOf, loadFeatures, runFeatureAction, h } = panel
+  const { t, lang, features, featuresPhase, featuresError, busyOf, lifecycleBusy, loadFeatures, runFeatureAction, h } = panel
   const items = Array.isArray(features) ? features : []
   const cards = items.map((feature) => {
     const title = pickText(feature.title, lang) || feature.id
@@ -68,7 +68,7 @@ export function renderFeatures(panel) {
             'data-testid': `qqbot-action-${action.id}`,
             'aria-label': label,
             'aria-busy': working ? 'true' : undefined,
-            disabled: working,
+            disabled: working || (feature.id === 'lifecycle' && lifecycleBusy === true),
             onClick: () => { runFeatureAction(feature, action) },
           }, working ? t('working') : label)
         })))

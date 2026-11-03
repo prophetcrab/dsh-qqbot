@@ -32,7 +32,7 @@ export function routes(api) {
           sendJson(res, 400, { ok: false, error: 'feature and action are required' })
           return
         }
-        const result = await api.kernel.featureRegistry.run(featureId, actionId, body.params ?? {})
+        const result = await api.serialize(() => api.kernel.featureRegistry.run(featureId, actionId, body.params ?? {}))
         sendJson(res, 200, { ok: result?.ok !== false, data: result })
       }),
     },
