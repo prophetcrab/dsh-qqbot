@@ -37,7 +37,7 @@ export function validateAnalyze(body) {
   if (groupId === '') return bad('groupId is required')
   if (material === '') return bad('material is required')
   const reason = str(body.trigger?.reason, 30).trim()
-  if (reason !== '' && !['mention', 'reply', 'count', 'time'].includes(reason)) return bad('invalid trigger.reason')
+  if (reason !== '' && !['mention', 'reply', 'count', 'time', 'keyword'].includes(reason)) return bad('invalid trigger.reason')
   return { ok: true, value: { apiVersion: API_VERSION, groupId, material, trigger: { reason, messageId: str(body.trigger?.messageId, 80) }, participants: participants(body.participants), images: images(body.images), quotedImages: images(body.quotedImages), backgroundImages: images(body.backgroundImages) } }
 }
 
