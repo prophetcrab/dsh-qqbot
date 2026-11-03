@@ -90,6 +90,7 @@ test('help is generated from the command registry', async () => {
   assert.match(help.replies[0], /\/注册/u)
   assert.match(help.replies[0], /\/签到/u)
   assert.match(help.replies[0], /\/账号背包/u)
+  assert.match(help.replies[0], /\/help/u)
   const alias = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/帮助' })
   assert.match(alias.replies[0], /\/注册/u)
   await rm(root, { recursive: true, force: true })

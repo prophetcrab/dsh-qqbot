@@ -25,7 +25,7 @@ export class GameCore {
     }
     try {
       if (rawCommand === '/help' || rawCommand === '/帮助') {
-        return { ok: true, replies: [this.registry.helpText()] }
+        return { ok: true, replies: [`${this.registry.helpText()}\n/help  查看所有命令（等同 /帮助）`] }
       }
       return await this.registry.dispatch(rawCommand, {
         groupId,
