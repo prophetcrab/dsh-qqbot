@@ -280,10 +280,12 @@ baitInventory
 普通鱼饵不直接给固定概率，而是对当前鱼竿的概率组做乘算修正。
 
 ```text
-weight'[tier] = rodWeight[tier] * baitCoefficient[tier]
+raw[tier] = rodWeight[tier] * baitCoefficient[tier]
+total = sum(raw)
+probability[tier] = raw[tier] / total
 ```
 
-然后对五个等级重新归一化。
+最终五个等级的概率必须归一化到总和 100%。
 
 系数小于 1 表示降低该等级权重，大于 1 表示提高。
 
