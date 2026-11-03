@@ -41,6 +41,19 @@ function normalizePatches(value) {
   }
 }
 
+function normalizeParts(value, fallback = '') {
+  const source = object(value)
+  const list = Array.isArray(source.parts) ? source.parts : []
+  const parts = list
+    .filter((part) => typeof part === 'string')
+    .map((part) => part.trim().slice(0, 300))
+    .filter(Boolean)
+    .slice(0, 3)
+  if (parts.length > 0) return parts
+  const text = text(fallback)
+  return text === '' ? [] : [text.slice(0, 300)]
+}
+
 function knownParticipants(participants) {
   return new Set((Array.isArray(participants) ? participants : []).map((participant) => String(participant.qq)))
 }
@@ -121,8 +134,9 @@ export class GroupLoopService {
     if (speak.enabled !== true) return { ok: true, text: '', empty: true }
     const profiles = await this.profileContext(input.groupId, input.participants)
     try {
-      const reply = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles), { maxTokens: 500, temperature: 0.7 })
-      return { ok: true, text: reply.slice(0, 2000), speak }
+      const raw = await this.stream(composeSystem(await this.characterPrompt(), speak), userMaterial(material, profiles), { maxTokens: 500, temperature: 0.7 })
+      const parts = normalizeParts(parseJson(raw), raw)
+      return { ok: true, text: parts.join(''), parts, speak }
     } catch (error) {
       this.logger.warn?.('group-loop compose failed: %s', String(error?.message ?? error))
       return { ok: false, error: String(error?.message ?? error), text: '' }

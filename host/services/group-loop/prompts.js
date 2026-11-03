@@ -38,7 +38,8 @@ export function composeSystem(characterPrompt, speak) {
     speak.replyType === 'normal' ? 'normal：不写 @、不写引用标记，直接写文本。' : '',
     speak.replyType === 'at' ? 'at：不要手写 @，发送层会插入 @。' : '',
     speak.replyType === 'quote' ? 'quote：不要重复引用全文，直接回应。' : '',
-    '短一点，像群聊，不要客服腔，不要列表，不要解释你在做什么。',
+    '真人群聊风格：1-3 条短气泡，每条只表达一个意思；允许不完整句、省略主语、口语和省略号；少用句号；不要每条都解释，不要客服腔，不要列表，不要总结整段素材。',
+    '输出严格 JSON：{"parts":["第一条","第二条"]}；parts 长度 1-3，每条尽量短；不需要多条时只给一条。不要输出 Markdown 或解释。',
     `target.messageIds=${JSON.stringify(target.messageIds ?? [])}，target.userIds=${JSON.stringify(target.userIds ?? [])}`,
   ].filter(Boolean).join('\n\n')
 }
