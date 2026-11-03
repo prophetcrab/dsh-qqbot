@@ -315,7 +315,7 @@ reason: duplicate_rod_sale
 
 ## 存放位置
 
-玩家钓鱼相关 possessions 分为三个独立区域：
+玩家钓鱼相关资产分为三个独立区域：
 
 ```text
 鱼仓      钓到的鱼
