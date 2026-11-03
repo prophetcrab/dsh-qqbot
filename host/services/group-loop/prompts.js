@@ -83,7 +83,7 @@ export function stateUpdateSystem() {
   ].join('\n\n')
 }
 
-export function userMaterial(material, profiles, imageNote = '') {
+export function userMaterial(material, profiles, imageNote = '', background = '') {
   const data = profileData(profiles)
-  return `${data ? `${data}\n\n` : ''}${imageNote ? `${imageNote}\n\n` : ''}【本轮群聊素材】\n${material}`
+  return `${data ? `${data}\n\n` : ''}${imageNote ? `${imageNote}\n\n` : ''}${background ? `${background}\n\n` : ''}【本轮群聊素材】\n${material}`
 }
