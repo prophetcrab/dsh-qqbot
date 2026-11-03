@@ -39,6 +39,11 @@ export const playersModule = {
   id: 'players',
   version: 2,
   commands: COMMANDS,
+  help: {
+    '/注册': '在当前群注册玩家',
+    '/签到': '每天在本群签到一次，随机获得 10–30 金币',
+    '/账号背包': '查看当前群的账号背包',
+  },
 
   async execute({ command, groupId, userId, nickname, store, random, now }) {
     if (!PlayerStore.isPlayerId(userId)) return { ok: false, error: 'invalid player id' }

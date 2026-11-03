@@ -26,4 +26,14 @@ export class GameRegistry {
     if (module === undefined) return { ok: false, error: 'unknown command' }
     return module.execute({ ...context, command })
   }
+
+  helpText() {
+    const lines = ['可用命令：']
+    for (const [command, module] of this.commands) {
+      const description = module.help?.[command] ?? module.description ?? '—'
+      lines.push(`${command}  ${description}`)
+    }
+    if (this.commands.size === 0) lines.push('暂无可用命令')
+    return lines.join('\n')
+  }
 }
