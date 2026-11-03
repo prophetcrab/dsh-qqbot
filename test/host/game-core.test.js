@@ -1,4 +1,4 @@
-/** Deterministic per-group player registration and daily check-in tests. */
+/** Per-group player registration, bag and daily check-in tests. */
 import assert from 'node:assert/strict'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -6,9 +6,15 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { GameCore } from '../../host/services/game-core/index.js'
 
+const NOW = new Date('2026-11-03T08:00:00+08:00')
+
 async function workspace() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-game-core-'))
-  return { root, game: new GameCore({ projectDir: root, logger: { warn() {} }, random: () => 0, now: () => new Date('2026-11-03T08:00:00+08:00') }) }
+  return { root, game: new GameCore({ projectDir: root, logger: { warn() {} }, random: () => 0, now: () => NOW }) }
+}
+
+async function readGroup(root, groupId) {
+  return JSON.parse(await readFile(join(root, `data/state/games/players/${groupId}.json`), 'utf8'))
 }
 
 test('register creates one player per group and is idempotent', async () => {
@@ -21,26 +27,42 @@ test('register creates one player per group and is idempotent', async () => {
   assert.match(second.replies[0], /已经在册/u)
   const otherGroup = await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/注册' })
   assert.equal(otherGroup.ok, true)
-  const file = JSON.parse(await readFile(join(root, 'data/state/games/players/g1.json'), 'utf8'))
+  const file = await readGroup(root, 'g1')
   assert.equal(file.players['20000'].nickname, '小明 /签到')
   assert.equal(file.players['20000'].coins, 0)
   await rm(root, { recursive: true, force: true })
 })
 
-test('check-in grants 10-30 once per Shanghai day and persists coins', async () => {
+test('check-in grants 10-30 once per group per Shanghai day', async () => {
   const { root, game } = await workspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const first = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(first.replies[0], /\+10 金币/u)
-  assert.match(first.replies[0], /账号金币 10/u)
+  assert.match(first.replies[0], /当前金币 10/u)
   const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(again.replies[0], /已经签到/u)
-  const account = JSON.parse(await readFile(join(root, 'data/state/games/accounts/20000.json'), 'utf8'))
-  assert.equal(account.bag.coins, 10)
+  const file = await readGroup(root, 'g1')
+  assert.equal(file.players['20000'].coins, 10)
   await rm(root, { recursive: true, force: true })
 })
 
-test('unregistered check-in and unsafe ids are rejected safely', async () => {
+test('backpack is scoped to the current group and groups are independent', async () => {
+  const { root, game } = await workspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
+  const bag = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/账号背包' })
+  assert.match(bag.replies[0], /金币：10/u)
+  const otherBag = await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/账号背包' })
+  assert.match(otherBag.replies[0], /先发送 \/注册/u)
+  await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/注册' })
+  const otherCheckin = await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/签到' })
+  assert.match(otherCheckin.replies[0], /\+10 金币/u)
+  assert.equal((await readGroup(root, 'g1')).players['20000'].coins, 10)
+  assert.equal((await readGroup(root, 'g2')).players['20000'].coins, 10)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('unregistered and unsafe inputs are rejected safely', async () => {
   const { root, game } = await workspace()
   const missing = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(missing.replies[0], /先发送 \/注册/u)
@@ -53,27 +75,9 @@ test('unregistered check-in and unsafe ids are rejected safely', async () => {
 
 test('check-in gain includes the 30 coin endpoint', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-game-core-max-'))
-  const game = new GameCore({ projectDir: root, logger: { warn() {} }, random: () => 0.999999, now: () => new Date('2026-11-03T08:00:00+08:00') })
+  const game = new GameCore({ projectDir: root, logger: { warn() {} }, random: () => 0.999999, now: () => NOW })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(result.replies[0], /\+30 金币/u)
-  await rm(root, { recursive: true, force: true })
-})
-
-test('account backpack is account-level and migrates legacy group coins once', async () => {
-  const { root, game } = await workspace()
-  const legacy = {
-    version: 1, groupId: 'g1', updatedAt: null,
-    players: { '20000': { qq: '20000', nickname: '小明', coins: 18, registeredAt: null, checkinCount: 1, lastCheckinDate: '2026-11-03', lastCheckinAt: null } },
-  }
-  await import('node:fs/promises').then(({ mkdir, writeFile }) => mkdir(join(root, 'data/state/games/players'), { recursive: true }).then(() => writeFile(join(root, 'data/state/games/players/g1.json'), JSON.stringify(legacy))))
-  const bag = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/账号背包' })
-  assert.match(bag.replies[0], /金币：18/u)
-  const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/账号背包' })
-  assert.match(again.replies[0], /金币：18/u)
-  const after = JSON.parse(await readFile(join(root, 'data/state/games/players/g1.json'), 'utf8'))
-  assert.equal(after.players['20000'].coins, 0)
-  const checkin = await game.command({ groupId: 'g2', userId: '20000', nickname: '小明', command: '/签到' })
-  assert.match(checkin.replies[0], /先发送 \/注册/u, 'account bag is not a substitute for group registration')
   await rm(root, { recursive: true, force: true })
 })
