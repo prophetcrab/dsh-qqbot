@@ -4,7 +4,7 @@
  * manage permissions by clicking real names instead of typing ids.
  */
 
-import { httpJson } from '../../platform/mac/index.js'
+import { httpJson } from '../../platform/index.js'
 
 /**
  * Fetch groups and friends from the local Koishi project.

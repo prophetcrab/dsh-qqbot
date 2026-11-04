@@ -225,8 +225,11 @@ test('start spawns npm start detached and polls health until online', async (t) 
   assert.match(result.message, /已启动/u)
 
   assert.equal(spawnCalls.length, 1)
-  assert.equal(spawnCalls[0].file, 'npm')
-  assert.deepEqual(spawnCalls[0].args, ['start'])
+  const expectedStart = process.platform === 'win32'
+    ? { file: 'cmd.exe', args: ['/c', 'npm', 'start'] }
+    : { file: 'npm', args: ['start'] }
+  assert.equal(spawnCalls[0].file, expectedStart.file)
+  assert.deepEqual(spawnCalls[0].args, expectedStart.args)
   assert.equal(spawnCalls[0].options.cwd, dir)
   assert.equal(spawnCalls[0].options.detached, true)
   assert.deepEqual(spawnCalls[0].options.stdio, ['ignore', 'pipe', 'pipe'])
@@ -450,8 +453,11 @@ test('installDeps runs npm install with an argv array and honours force', async 
 
   const result = await manager.installDeps()
   assert.equal(result.ok, true)
-  assert.equal(exec.call.file, 'npm')
-  assert.deepEqual(exec.call.args, ['install', '--no-audit', '--no-fund'])
+  const expectedInstall = process.platform === 'win32'
+    ? { file: 'cmd.exe', args: ['/c', 'npm', 'install', '--no-audit', '--no-fund'] }
+    : { file: 'npm', args: ['install', '--no-audit', '--no-fund'] }
+  assert.equal(exec.call.file, expectedInstall.file)
+  assert.deepEqual(exec.call.args, expectedInstall.args)
   assert.equal(exec.call.options.cwd, dir)
   assert.match(result.output, /added 1 package/u)
 
@@ -555,14 +561,14 @@ test('startCommand: falls back to npm start without a local CLI', async (t) => {
   const manager = makeManager(dir)
   const command = manager.startCommand(dir)
   assert.notEqual(command.local, true)
-  assert.match(command.file, /npm/u)
+  assert.equal(command.file, process.platform === 'win32' ? 'cmd.exe' : 'npm')
 })
 
 test('adoptExternal: takes over only a Koishi process owned by this project', async (t) => {
   const dir = await makeProject(t)
   const manager = makeManager(dir, {
     portPid: async () => 777,
-    findProcess: (pattern) => ({ running: pattern.includes('node_modules/koishi'), pid: 777 }),
+    findProcess: (pattern) => ({ running: pattern.replace(/\\/gu, '/').includes('node_modules/koishi'), pid: 777 }),
     fetch: unreachable,
   })
   assert.equal(await manager.adoptExternal(), true)
@@ -584,7 +590,7 @@ test('stop adopts a matching project worker before stopping it', async (t) => {
   const manager = makeManager(dir, {
     fetch: unreachable,
     portPid: async () => 777,
-    findProcess: (pattern) => ({ running: pattern.includes('node_modules/koishi'), pid: 777 }),
+    findProcess: (pattern) => ({ running: pattern.replace(/\\/gu, '/').includes('node_modules/koishi'), pid: 777 }),
     processKill: kill,
   })
   const result = await manager.stop()

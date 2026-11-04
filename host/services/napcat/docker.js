@@ -27,7 +27,7 @@ import {
   sleep as sleepFor,
   writeFileAtomic,
   resolveSettings,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import { failure, isPlainObject, normalizeLogger } from './common.js'
 import { autoConfigure, configure } from './configure.js'
 import { loginState as webuiLoginState, loginStatus as webuiLoginStatus, refreshQr as webuiRefreshQr } from './webui.js'

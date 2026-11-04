@@ -3,7 +3,7 @@
  * discovery endpoint file and `POST /qqbot/ai/chat`.
  */
 
-import { dataPaths } from '../../platform/mac/index.js'
+import { dataPaths } from '../../platform/index.js'
 import { AiChatService } from '../../services/ai/index.js'
 import { createDiscovery } from './discovery.js'
 import { routes } from './routes.js'

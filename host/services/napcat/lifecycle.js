@@ -6,7 +6,7 @@
  * timeout is not a hard failure.
  */
 
-import { QQ_APP_PATH } from '../../platform/mac/index.js'
+import { QQ_APP_PATH } from '../../platform/index.js'
 import {
   UNSUPPORTED_CONTROL,
   UNSUPPORTED_INSTALL,

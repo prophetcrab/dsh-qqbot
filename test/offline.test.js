@@ -89,7 +89,7 @@ test('macLoaderSource only boots NapCat with --no-sandbox', () => {
   assert.match(source, /QQUpdate\.app/u)
 })
 
-test('installMacOffline stages the payload and patches the QQ loader', async (t) => {
+test('installMacOffline stages the payload and patches the QQ loader', { skip: process.platform === 'win32' ? 'macOS-only installer' : false }, async (t) => {
   const vendorDir = defaultVendorDir()
   if (!existsSync(join(vendorDir, 'manifest.json'))) {
     t.skip('vendor bundle is not present')

@@ -366,6 +366,32 @@ autoSyncSelfId     true
 logLines           200
 ```
 
+### Windows 平台层（`host/platform/win/`）
+
+`host/platform/index.js` 是唯一根据 `process.platform` 选择实现的入口；macOS 用
+`host/platform/mac/`，Windows 用 `host/platform/win/`。Windows 层实现相同的
+paths/process/http/capabilities/data-paths 接口：
+
+| 能力 | Windows 实现 |
+| --- | --- |
+| 进程查找 | `Get-CimInstance Win32_Process`（PowerShell，JSON） |
+| 端口占用 | `netstat -ano -p tcp` + LISTENING 解析 |
+| 停止进程 | `taskkill /PID <pid> /T`（必要时 `/F`） |
+| npm | `npm.cmd` 经 `cmd.exe /c` 启动（规避 CVE-2024-27980） |
+| 路径/文件 | `%USERPROFILE%` 展开、原子写入等与 macOS 同一套语义 |
+| QQ/NapCat 探测 | QQNT 默认安装路径；NapCat 本地安装只做只读探测 |
+
+Windows 的默认 NapCat 后端是 **`docker`**（`host/platform/win/capabilities.js` 的
+`DEFAULT_SETTINGS.napcatBackend`），因为本机 patched QQ 客户端只支持 macOS。
+Windows 运行前提是 Docker Desktop + WSL2；无需在主机上安装/启动 QQ。
+
+当前 Windows 侧还有两个已知缺口：
+
+- 小游戏卡片渲染（SVG → PNG）依赖 `sips`（macOS）或 `rsvg-convert`；Windows 需自行安装
+  librsvg 才会出图，相关测试在 Windows 上跳过；
+- 内置离线依赖包目前只有 `darwin-arm64`；Windows 首次安装会回退到 `npm install`
+  （需要网络），后续可补 `node_modules-win32-x64.tar.gz`。
+
 ## 安装
 
 ```bash
@@ -376,8 +402,8 @@ node scripts/install-profile.mjs --profile desktop --install
 首次加载会：
 
 1. 从 `template/` 创建 `~/project/qq-bot`
-2. 解压内置 Koishi `darwin-arm64` 依赖
-3. 从 `vendor/napcat` 离线安装 NapCat
+2. 解压内置 Koishi `darwin-arm64` 依赖（Windows 目前回退 npm install）
+3. 从 `vendor/napcat` 离线安装 NapCat（Windows 默认改用 Docker 后端，跳过本机安装）
 4. 写 OneBot 反向 WS 配置
 5. 启动后扫码登录
 

@@ -6,7 +6,7 @@
  */
 
 import { dirname, join } from 'node:path'
-import { expandHome } from '../../platform/mac/index.js'
+import { expandHome } from '../../platform/index.js'
 import { failure, isPlainObject } from './common.js'
 import { WS_CLIENT_NAME, QQ_EXECUTABLE, listWebsocketClients } from './onebot-config.js'
 

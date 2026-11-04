@@ -201,6 +201,6 @@ test('host wires the backend selected by napcatBackend', async (t) => {
   assert.ok(docker.getService().kernel.get('napcat') instanceof DockerNapcatManager)
 
   const local = createFakeContext()
-  await apply(local.ctx, { projectDir: localDir, bootstrap: false })
+  await apply(local.ctx, { projectDir: localDir, bootstrap: false, napcatBackend: 'local' })
   assert.ok(local.getService().kernel.get('napcat') instanceof NapcatManager)
 })

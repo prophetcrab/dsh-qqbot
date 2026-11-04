@@ -90,6 +90,7 @@ test('installDeps: runs npm install and captures logs', async () => {
       // Keep the historical POSIX expectations deterministic on any host.
       hostPlatform: () => 'macos',
       npmExecutable: () => 'npm',
+      npmCommand: (args) => ({ file: 'npm', args }),
       spawn: (file, args, options) => {
         calls.push([file, ...args, options.cwd])
         return fakeSpawn({ code: 0, stdout: 'added 1 package\n' })()
@@ -185,6 +186,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
     logger,
     deps: {
       templateDir,
+      bundleKey: 'darwin-arm64',
       spawn: () => { spawned += 1; return fakeSpawn()() },
       run: async (file, args) => {
         assert.equal(file, 'tar')
@@ -218,6 +220,7 @@ test('offline bundle: ensureProject extracts bundled dependencies', async () => 
     logger,
     deps: {
       templateDir,
+      bundleKey: 'darwin-arm64',
       run: async () => {
         await mkdir(join(settings.projectDir, 'node_modules'), { recursive: true })
         return { code: 0, stdout: '', stderr: '' }

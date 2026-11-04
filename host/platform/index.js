@@ -1,0 +1,66 @@
+/**
+ * Selected host platform facade.
+ *
+ * This is the **only** file outside `host/platform/`-internal modules that knows
+ * which OS is running. Services and plugins import from here; macOS and Windows
+ * implementations never import each other.
+ */
+
+import * as mac from './mac/index.js'
+import * as win from './win/index.js'
+
+const impl = process.platform === 'win32' ? win : mac
+
+export const DEFAULT_SETTINGS = impl.DEFAULT_SETTINGS
+export const NAPCAT_INSTALL_DIR = impl.NAPCAT_INSTALL_DIR
+export const NAPCAT_CONFIG_DIRS = impl.NAPCAT_CONFIG_DIRS
+export const QQ_APP_PATH = impl.QQ_APP_PATH
+
+export const resolveSettings = impl.resolveSettings
+export const hostPlatform = impl.hostPlatform
+export const platformInfo = impl.platformInfo
+export const macInfo = impl.macInfo
+export const detectQq = impl.detectQq
+export const detectNapcat = impl.detectNapcat
+export const detectKoishiProject = impl.detectKoishiProject
+export const napcatQrPath = impl.napcatQrPath
+
+export const expandHome = impl.expandHome
+export const existsSync = impl.existsSync
+export const ensureDir = impl.ensureDir
+export const readText = impl.readText
+export const readJson = impl.readJson
+export const writeFileAtomic = impl.writeFileAtomic
+export const directoryExists = impl.directoryExists
+export const sha256Hex = impl.sha256Hex
+export const findCommand = impl.findCommand
+export const maskToken = impl.maskToken
+export const sleep = impl.sleep
+export const RingLog = impl.RingLog
+export const readdir = impl.readdir
+export const fileMtime = impl.fileMtime
+
+export const run = impl.run
+export const runShell = impl.runShell
+export const findProcess = impl.findProcess
+export const portPid = impl.portPid
+export const killPid = impl.killPid
+export const npmExecutable = impl.npmExecutable
+export const npmCommand = impl.npmCommand
+
+export const httpJson = impl.httpJson
+
+export const dataPaths = impl.dataPaths
+export const migrateDataLayout = impl.migrateDataLayout
+
+/**
+ * Offline `node_modules` bundle key for the current platform/arch
+ * (`darwin-arm64`, `win32-x64`, ...).
+ *
+ * @param {string} [platform] Node's `process.platform` value
+ * @param {string} [arch] Node's `process.arch` value
+ * @returns {string}
+ */
+export function bundleKey(platform = process.platform, arch = process.arch) {
+  return `${platform}-${arch}`
+}

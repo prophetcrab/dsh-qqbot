@@ -154,7 +154,7 @@ async function seedPlayer(game, fields) {
   })
 }
 
-test('single draw consumes a single ticket before coins', async () => {
+test('single draw consumes a single ticket before coins', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 1, tenTickets: 1 } } })
@@ -236,7 +236,7 @@ test('duplicate rods are auto-sold during ten draw', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-test('same player gacha requests are serialized', async () => {
+test('same player gacha requests are serialized', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 0, tenTickets: 1 } } })
@@ -251,7 +251,7 @@ test('same player gacha requests are serialized', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-test('fishing item library returns an image and owned items', async () => {
+test('fishing item library returns an image and owned items', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, {
@@ -271,7 +271,7 @@ test('fishing item library returns an image and owned items', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-test('view and change equipped rod', async () => {
+test('view and change equipped rod', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, {
@@ -289,7 +289,7 @@ test('view and change equipped rod', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-test('fishing pool command renders rates and pity progress', async () => {
+test('fishing pool command renders rates and pity progress', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, {
@@ -322,7 +322,7 @@ test('legendary pity uses the current UP selection', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-test('cast waits for the ready time, consumes bait and stores a fish', async () => {
+test('cast waits for the ready time, consumes bait and stores a fish', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-cast-'))
   const clock = { at: new Date('2026-11-04T08:00:00+08:00') }
   const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
@@ -388,7 +388,7 @@ test('legendary rod effects: grey guarantees lv3 and taigong casts without bait'
   await rm(root, { recursive: true, force: true })
 })
 
-test('fish warehouse shows numbered fish and sells by number', async () => {
+test('fish warehouse shows numbered fish and sells by number', { skip: process.platform === 'win32' ? 'PNG renderer unavailable on Windows' : false }, async () => {
   const { root, game } = await gachaWorkspace()
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await seedPlayer(game, {

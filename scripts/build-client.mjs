@@ -42,6 +42,8 @@ function transform(id, source) {
   const exported = []
   let hasDefault = false
   const out = []
+  // Normalize CRLF so the line scanner behaves identically on Windows.
+  source = source.replace(/\r\n/g, '\n')
   // Normalize multi-line named imports so the line scanner below stays simple.
   source = source.replace(/import\s*\{([\s\S]*?)\}\s*from\s*'([^']+)'/g, (match, names, specifier) => {
     const list = names.split(',').map((part) => part.trim()).filter(Boolean).join(', ')

@@ -118,3 +118,14 @@ export async function killPid(pid, { force = false, group = false } = {}) {
 export function npmExecutable() {
   return 'npm'
 }
+
+/**
+ * Build an npm invocation for macOS (the executable runs directly).
+ *
+ * @param {string[]} [args] npm arguments, without the leading `npm`
+ * @param {string} [executable] injected executable seam
+ * @returns {{ file: string, args: string[] }}
+ */
+export function npmCommand(args = [], executable = npmExecutable()) {
+  return { file: executable, args: Array.isArray(args) ? args.map((arg) => String(arg)) : [] }
+}

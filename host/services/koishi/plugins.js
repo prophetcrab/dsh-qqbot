@@ -11,7 +11,7 @@ import {
   readText,
   run,
   writeFileAtomic,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import {
   addPluginEntry,
   combineOutput,

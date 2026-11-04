@@ -59,7 +59,8 @@ const DYNAMIC_TESTIDS = [
 ]
 
 test('client.js is an up-to-date build of client/', () => {
-  assert.equal(read('client.js'), buildClient(), 'run `node scripts/build-client.mjs`')
+  const normalize = (text) => text.replace(/\r\n/g, '\n')
+  assert.equal(normalize(read('client.js')), normalize(buildClient()), 'run `node scripts/build-client.mjs`')
 })
 
 test('the bundle registers a DSH client plugin', () => {

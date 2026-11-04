@@ -13,7 +13,7 @@ import { createReadStream, promises as fsp } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ensureDir, existsSync, expandHome, run as execFileRun } from '../../platform/mac/index.js'
+import { ensureDir, existsSync, expandHome, run as execFileRun } from '../../platform/index.js'
 
 /** Environment override pointing at an alternative `vendor/napcat` directory. */
 export const VENDOR_ENV = 'DSH_QQBOT_VENDOR_DIR'

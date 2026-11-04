@@ -19,11 +19,11 @@ import {
   findProcess as platformFindProcess,
   httpJson,
   killPid as platformKillPid,
-  npmExecutable as platformNpmExecutable,
+  npmCommand as platformNpmCommand, npmExecutable as platformNpmExecutable,
   portPid as platformPortPid,
   run,
   sleep as defaultSleep,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import { adoptKoishiProcess } from './adopt.js'
 import {
   DEFAULT_HEALTH_TIMEOUT_MS,
@@ -106,7 +106,7 @@ export class KoishiManager {
     this.childExit = null
   }
 
-  npmStartCommand() { return { file: this.npmExecutable(), args: ['start'] } }
+  npmStartCommand() { return platformNpmCommand(['start'], this.npmExecutable()) }
   startCommand(projectDir) {
     const bin = join(projectDir, 'node_modules', 'koishi', 'bin.js')
     if (existsSync(bin)) {
@@ -117,7 +117,7 @@ export class KoishiManager {
     return this.npmStartCommand()
   }
 
-  npmInstallCommand() { return { file: this.npmExecutable(), args: ['install', '--no-audit', '--no-fund'] } }
+  npmInstallCommand() { return platformNpmCommand(['install', '--no-audit', '--no-fund'], this.npmExecutable()) }
 
   async installDeps({ force = false } = {}) {
     const project = detectKoishiProject(this.settings)

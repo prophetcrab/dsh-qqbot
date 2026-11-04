@@ -11,7 +11,7 @@ import {
   httpJson,
   portPid as platformPortPid,
   run,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 
 /** Absolute lsof path on macOS; used by the legacy (injected exec) PID path. */
 export const LSOF = '/usr/sbin/lsof'

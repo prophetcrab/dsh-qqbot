@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict'
 import { readdir, readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
@@ -33,7 +34,7 @@ async function listJs(urlOrPath) {
 
 test('settings: defaults keep the legacy data directory contract', () => {
   const settings = resolveSettings()
-  assert.equal(settings.projectDir, `${process.env.HOME}/project/qq-bot`)
+  assert.equal(settings.projectDir, `${homedir()}/project/qq-bot`)
   assert.equal(settings.koishiPort, DEFAULT_SETTINGS.koishiPort)
   assert.equal(settings.napcatPort, DEFAULT_SETTINGS.napcatPort)
   assert.equal(settings.reversePath, '/onebot')

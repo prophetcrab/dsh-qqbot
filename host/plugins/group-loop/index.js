@@ -1,5 +1,5 @@
 /** Group listener loop: LLM analyze/compose/state-update and dashboard state. */
-import { dataPaths } from '../../platform/mac/index.js'
+import { dataPaths } from '../../platform/index.js'
 import { GroupLoopService } from '../../services/group-loop/index.js'
 import { routes } from './routes.js'
 

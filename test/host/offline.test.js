@@ -26,7 +26,7 @@ test('offline: the bundled vendor manifest resolves a real payload', async () =>
   assert.equal(typeof manifest.napcat.version, 'string')
   const payload = await resolvePayload(vendorDir)
   assert.equal(payload.version, manifest.napcat.version)
-  assert.ok(payload.shellPath.endsWith(payload.shell.file))
+  assert.ok(payload.shellPath.replace(/\\/gu, '/').endsWith(payload.shell.file.replace(/\\/gu, '/')))
   assert.ok(payload.shell.bytes >= 1024 * 1024, 'NapCat archive must carry a real payload')
 })
 
@@ -71,13 +71,14 @@ test('offline: archive verification checks size and sha256', async (t) => {
 test('offline: runtime bundle key selects darwin-arm64 under template', async () => {
   const { SetupManager } = await import('../../host/services/setup/index.js')
   const manager = new SetupManager({ settings: { projectDir: '/tmp/qq-bot' }, deps: { templateDir: '/repo/template', bundleKey: 'darwin-arm64' } })
-  assert.equal(manager.bundlePath(), '/repo/template/runtime-bundles/node_modules-darwin-arm64.tar.gz')
+  assert.equal(manager.bundlePath().replace(/\\/gu, '/'), '/repo/template/runtime-bundles/node_modules-darwin-arm64.tar.gz')
 })
 
 test('offline: macOS container paths and loader source target the QQ container', () => {
+  const posix = (value) => value.replace(/\\/gu, '/')
   const paths = macContainerPaths('/Users/tester')
-  assert.equal(paths.napcatDir, '/Users/tester/Library/Containers/com.tencent.qq/Data/Documents/napcat')
-  assert.ok(paths.loaderPath.endsWith('/Documents/loadNapCat.js'))
+  assert.equal(posix(paths.napcatDir), '/Users/tester/Library/Containers/com.tencent.qq/Data/Documents/napcat')
+  assert.ok(posix(paths.loaderPath).endsWith('/Documents/loadNapCat.js'))
   const loader = macLoaderSource('/Applications/QQ.app')
   assert.match(loader, /--no-sandbox/u)
   assert.match(loader, /napcat\/napcat\.mjs/u)

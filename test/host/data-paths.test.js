@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { test } from 'node:test'
 import { dataPaths, migrateDataLayout } from '../../host/platform/mac/data-paths.js'
 
@@ -39,7 +39,8 @@ test('migrateDataLayout: --database moves sqlite and updates koishi.yml', async 
 
 test('dataPaths: stable canonical layout', () => {
   const paths = dataPaths('/tmp/project')
-  assert.ok(paths.config.access.endsWith('data/config/access.json'))
-  assert.ok(paths.state.aiDiscovery.endsWith('data/state/ai.json'))
-  assert.ok(paths.assets.profiles.endsWith('data/assets/profiles.json'))
+  const posix = (value) => value.split(sep).join('/')
+  assert.ok(posix(paths.config.access).endsWith('data/config/access.json'))
+  assert.ok(posix(paths.state.aiDiscovery).endsWith('data/state/ai.json'))
+  assert.ok(posix(paths.assets.profiles).endsWith('data/assets/profiles.json'))
 })
