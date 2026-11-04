@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { GameCore } from '../../host/services/game-core/index.js'
-import { FISH_STATS } from '../../host/services/game-core/fishing-data.js'
+import { FISH_STATS } from '../../host/services/game-core/games/fishing/data.js'
 
 const NOW = new Date('2026-11-03T08:00:00+08:00')
 

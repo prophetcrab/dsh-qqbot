@@ -8,7 +8,7 @@ export const bagHelp = Object.freeze([
   ['/钓鱼 道具库', '查看鱼竿、鱼饵和抽卡券长图'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
 
 
 function readCatalog(assetsDir, name, key) {

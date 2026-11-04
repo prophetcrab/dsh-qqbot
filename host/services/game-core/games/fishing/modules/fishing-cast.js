@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS } from '../fishing-data.js'
+import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS } from '../data.js'
 import { ROD_INFO } from './fishing-rod.js'
 import { renderCatchCard } from '../render/catch-card.js'
 
@@ -11,7 +11,7 @@ export const castHelp = Object.freeze([
   ['/钓鱼 收竿', '收下当前钓到的鱼'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
 const SPECIAL_RATE = 0.03
 const SPECIAL_SPLIT = { low: 0.7, high: 0.3 }
 

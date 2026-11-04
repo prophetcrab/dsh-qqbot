@@ -1,5 +1,5 @@
 /** Fishing currency exchange: deterministic, server-owned balances. */
-import { PlayerStore } from '../player-store.js'
+import { PlayerStore } from '../../../player-store.js'
 
 export const EXCHANGE_RATE = 10
 export const exchangeHelp = Object.freeze([

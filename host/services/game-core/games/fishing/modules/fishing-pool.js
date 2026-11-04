@@ -9,7 +9,7 @@ export const poolHelp = Object.freeze([
   ['/钓鱼 卡池', '查看卡池物品、分类出率和保底进度'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
 const CATEGORY_RATES = Object.freeze({
   bait: { 1: 37.5, 2: 30, 3: 20, 4: 2.5 },
   rod: { 1: 5, 2: 2.857, 3: 1.786, 4: 0.357 },

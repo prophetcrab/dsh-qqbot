@@ -28,7 +28,7 @@ dsh-qqbot/
 │   ├── contracts/           # AI/status/config/panel/plugin-manifest schema
 │   ├── platform/mac/        # 路径、进程、端口、能力
 │   ├── services/            # napcat / koishi / setup / ai / persona / profiles / access
-│   │   └── game-core/       # 确定性小游戏核心、玩家存储、图片渲染、管理快照
+│   │   └── game-core/       # 共享玩家存储 + games/fishing 等游戏包
 │   └── plugins/             # lifecycle / napcat / koishi / install / ai / persona /
 │                            # access / messages / features / tools / game-core
 ├── client/
@@ -119,11 +119,19 @@ QQ 群消息
 
 ```text
 host/services/game-core/
-├── modules/<gameId>.js        # 规则、状态迁移、命令执行
-├── render/<gameId>-card.js    # 可选：结果图/库存图
-├── admin.js                   # 管理台快照；新游戏在此注册 GAMES
+├── games/
+│   └── fishing/               # 当前游戏参考实现
+│       ├── index.js           # FishingGame 门面：装配服务与帮助
+│       ├── data.js            # 鱼种数值、鱼饵系数
+│       ├── admin.js           # 管理台快照、UP 校验、GAMES
+│       ├── up-store.js        # 按群 UP 持久化
+│       ├── gacha-config.js    # 默认 UP
+│       ├── modules/           # 命令、状态迁移、事务
+│       └── render/            # 抽卡/卡池/鱼仓/上鱼图片
+├── modules/players.js         # 共享账号：注册/签到/账号背包
 ├── player-store.js            # 按群玩家状态，原子写入
-└── index.js                   # 统一注册服务、命令路由和帮助
+├── registry.js
+└── index.js                   # 装配共享模块和游戏包
 
 client/plugins/games/          # 小游戏管理台（群 → 游戏 → 玩家）
 assets/<gameId>/               # 游戏专属 sprite/catalog
@@ -131,7 +139,8 @@ assets/frames/                 # 共用边框
 assets/items/                  # 共用特殊物品/券
 ```
 
-新增游戏逻辑放在 `modules/`，不要写进 Koishi listener，也不要写进
+新增游戏逻辑放在 `games/<gameId>/modules/`，通过
+`games/<gameId>/index.js` 暴露游戏门面。不要写进 Koishi listener，也不要写进
 `players.js` 的账号背包逻辑。
 
 ### 3. 状态与配置
@@ -252,11 +261,11 @@ GameAdminService.GAMES 中的 id / name / description
 
 ```text
 [ ] 选择稳定 gameId，camelCase/snake_case 固定
-[ ] modules/<gameId>.js：命令解析、状态迁移、事务执行
+[ ] games/<gameId>/modules：命令解析、状态迁移、事务执行
 [ ] player.<gameId> 命名空间和旧数据迁移
 [ ] 账号背包不展示游戏专属仓库/货币
 [ ] 概率、保底、扣除和发放原子完成
-[ ] 需要图片时提供 render/<gameId>-*.js
+[ ] 需要图片时提供 games/<gameId>/render/*.js
 [ ] 管理台 GAMES + getGame 快照
 [ ] Koishi GAME_COMMANDS / ARGUMENT_COMMANDS
 [ ] 服务测试：成功、失败、原子性、边界
