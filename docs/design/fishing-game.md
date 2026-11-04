@@ -9,7 +9,7 @@
 不包含：
 
 - 默认鱼稀有度权重
-- 各鱼种 pricePerKg 和 weightKg 数值
+- 各鱼种 basePricePerKg 和 weightKg 数值
 - 特殊物品清单
 - 资产画风与生成参数
 
@@ -64,11 +64,53 @@
 
 ## 鱼类计价
 
-鱼按重量计价，不按条固定价格。
+鱼按重量和单价共同计价。
+
+同一种鱼，重量越大，`pricePerKg` 也越高。
+
+### 单价随重量上浮
+
+每条鱼有：
 
 ```text
+basePricePerKg
+weightKg 范围
+weightPriceBonus
+```
+
+先计算该条鱼在鱼种重量区间中的位置：
+
+```text
+ratio = clamp((weightKg - minKg) / (maxKg - minKg), 0, 1)
+```
+
+再计算单价：
+
+```text
+pricePerKg = round(basePricePerKg * (1 + ratio * weightPriceBonus))
 value = round(weightKg * pricePerKg)
 ```
+
+`ratio = 0` 时使用基础单价，`ratio = 1` 时使用该鱼种的最大单价。
+
+### 等级上浮上限
+
+| 等级 | weightPriceBonus |
+|---|---:|
+| Lv.1 | 15% |
+| Lv.2 | 20% |
+| Lv.3 | 25% |
+| Lv.4 | 35% |
+| Lv.5 | 50% |
+
+同一条鱼大重量会同时放大：
+
+```text
+更大的 weightKg
+更高的 pricePerKg
+```
+
+因此最终 `value` 增长快于单纯线性重量。
 
 每条鱼获需要保存：
 
@@ -78,6 +120,7 @@ fishId
 name
 tier
 weightKg
+basePricePerKg
 pricePerKg
 value
 ```
@@ -223,7 +266,8 @@ Lv.5 鱼
 鱼竿不改变鱼的单价：
 
 ```text
-value = round(weightKg * fish.pricePerKg)
+pricePerKg = 按鱼类计价规则计算
+value = round(weightKg * pricePerKg)
 ```
 
 特殊物品固定价格。
@@ -479,6 +523,7 @@ fishId
 name
 tier
 weightKg
+basePricePerKg
 pricePerKg
 value
 caughtAt
@@ -580,7 +625,7 @@ priceType: fixed
 
 ```text
 默认鱼稀有度权重
-各鱼种 pricePerKg
+各鱼种 basePricePerKg
 各鱼种 weightKg 范围
 特殊物品清单、固定价格与存放位置
 资产风格
