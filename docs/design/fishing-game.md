@@ -875,6 +875,14 @@ bait_t{tier}_{index}_{id}.png
 
 普通鱼竿/鱼饵使用 `t1`–`t3`，传奇统一使用 `t4`。
 
+无等级道具：
+
+```text
+item_t0_{index}_{id}.png
+```
+
+`t0` 表示不分等级。
+
 规格：
 
 ```text

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "single_draw_ticket",
+      "name": "钓鱼单抽券",
+      "category": "ticket",
+      "tier": null,
+      "asset": "item_t0_01_single_draw_ticket.png"
+    },
+    {
+      "id": "ten_draw_ticket",
+      "name": "钓鱼十连券",
+      "category": "ticket",
+      "tier": null,
+      "asset": "item_t0_02_ten_draw_ticket.png"
+    }
+  ]
+}
