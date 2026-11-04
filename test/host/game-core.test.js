@@ -267,7 +267,5 @@ test('fishing item library returns an image and owned items', async () => {
   assert.match(result.replies[0], /鱼竿 2 把/u)
   assert.equal(result.image?.mime, 'image/png')
   assert.equal(result.image?.width, 1080)
-  const next = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 道具库 2' })
-  assert.match(next.replies[0], /道具库只有 1 页/u)
   await rm(root, { recursive: true, force: true })
 })

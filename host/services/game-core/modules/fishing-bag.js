@@ -5,12 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { renderBagCard } from '../render/bag-card.js'
 
 export const bagHelp = Object.freeze([
-  ['/钓鱼 道具库 [页码]', '查看鱼竿、鱼饵和抽卡券，超过 14 件自动分页'],
+  ['/钓鱼 道具库', '查看鱼竿、鱼饵和抽卡券长图'],
 ])
 
 const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
-const ROD_PAGE_SIZE = 14
-const BAIT_PAGE_SIZE = 14
+
 
 function readCatalog(assetsDir, name, key) {
   const parsed = JSON.parse(readFileSync(join(assetsDir, name, 'catalog.json'), 'utf8'))
@@ -53,10 +52,7 @@ export class FishingBagService {
   }
 
   async execute({ rawCommand, groupId, userId, store }) {
-    const match = String(rawCommand).trim().match(/^\/钓鱼\s+道具库(?:\s+(\d+))?$/u)
-    if (match === null) return null
-    const page = match[1] === undefined ? 1 : Number(match[1])
-    if (!Number.isSafeInteger(page) || page < 1) return { ok: true, replies: ['用法：/钓鱼 道具库 [页码]'] }
+    if (String(rawCommand).trim() !== '/钓鱼 道具库') return null
     try { this.load() } catch (error) {
       this.logger?.warn?.('fishing bag catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'fishing bag catalog unavailable' }
@@ -79,23 +75,17 @@ export class FishingBagService {
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh'))
     const equipped = normalized.equippedRod === null ? null : this.rods.get(normalized.equippedRod)
     const selected = normalized.selectedBait === null ? null : this.baits.get(normalized.selectedBait)
-    const totalPages = Math.max(1, Math.ceil(allRods.length / ROD_PAGE_SIZE), Math.ceil(allBaits.length / BAIT_PAGE_SIZE))
-    if (page > totalPages) return { ok: true, replies: [`道具库只有 ${totalPages} 页。`] }
-    const rods = allRods.slice((page - 1) * ROD_PAGE_SIZE, page * ROD_PAGE_SIZE)
-    const baits = allBaits.slice((page - 1) * BAIT_PAGE_SIZE, page * BAIT_PAGE_SIZE)
     const data = {
-      rods,
-      baits,
+      rods: allRods,
+      baits: allBaits,
       tickets: normalized.tickets,
       fishingCoins: number(player.fishingCoins),
       equippedName: equipped?.name ?? null,
       selectedName: selected?.name ?? null,
-      page,
-      totalPages,
       totalRods: allRods.length,
       totalBaits: allBaits.length,
     }
-    const text = `钓鱼道具库 · 第 ${page}/${totalPages} 页\n鱼竿 ${allRods.length} 把 · 鱼饵 ${allBaits.length} 种 · 单抽券 ${data.tickets.singleTickets} · 十连券 ${data.tickets.tenTickets}`
+    const text = `钓鱼道具库\n鱼竿 ${allRods.length} 把 · 鱼饵 ${allBaits.length} 种 · 单抽券 ${data.tickets.singleTickets} · 十连券 ${data.tickets.tenTickets}`
     let image
     try {
       image = await renderBagCard({ nickname: player.nickname || userId, data, assetsDir: this.assetsDir })
