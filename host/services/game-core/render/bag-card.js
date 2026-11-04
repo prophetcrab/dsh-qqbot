@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { frameHref } from './frames.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -89,11 +90,12 @@ function empty(y) {
   <text x="80" y="${y + 37}" fill="${MUTED}" font-size="17" font-family="${FONT}">暂无</text>`
 }
 
-function itemTile(item, x, y, href) {
+function itemTile(item, x, y, href, frame) {
   const c = color(item.tier)
   return `<g>
     <rect x="${x}" y="${y}" width="128" height="142" rx="16" fill="${CARD}" stroke="${c}" stroke-width="2"/>
     ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
+    ${frame === '' ? '' : `<image x="${x + 12}" y="${y - 2}" width="104" height="104" href="${frame}"/>`}
     <text x="${x + 64}" y="${y + 112}" text-anchor="middle" fill="${INK}" font-size="14" font-weight="700" font-family="${FONT}">${esc(cut(item.name, 7))}</text>
     <text x="${x + 64}" y="${y + 132}" text-anchor="middle" fill="${c}" font-size="11" font-weight="700" font-family="${FONT}">${tierLabel(item.tier)}</text>
     ${item.badge ? `<rect x="${x + 74}" y="${y + 8}" width="48" height="22" rx="11" fill="${c}"/><text x="${x + 98}" y="${y + 24}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="${FONT}">${esc(item.badge)}</text>` : ''}
@@ -105,7 +107,7 @@ function grid(items, startY, assetsDir, folder) {
   return `<g>${items.map((item, index) => {
     const x = 56 + (index % 7) * 140
     const y = startY + Math.floor(index / 7) * 154
-    return itemTile(item, x, y, item.href ?? '')
+    return itemTile(item, x, y, item.href ?? '', item.frame ?? '')
   }).join('')}</g>`
 }
 
@@ -129,10 +131,12 @@ export async function renderBagCard({ nickname, data, assetsDir }) {
   const rods = await Promise.all(data.rods.map(async (rod) => ({
     ...rod,
     href: await hrefFor(assetsDir, 'rods', rod.asset),
+    frame: frameHref(assetsDir, { kind: 'rod', item: rod }),
   })))
   const baits = await Promise.all(data.baits.map(async (bait) => ({
     ...bait,
     href: await hrefFor(assetsDir, 'baits', bait.asset),
+    frame: frameHref(assetsDir, { kind: 'bait', item: bait }),
   })))
   const singleHref = await hrefFor(assetsDir, 'items', 'item_t0_01_single_draw_ticket.png')
   const tenHref = await hrefFor(assetsDir, 'items', 'item_t0_02_ten_draw_ticket.png')

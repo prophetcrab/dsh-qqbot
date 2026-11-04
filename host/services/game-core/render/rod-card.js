@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { frameHref } from './frames.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -74,7 +75,7 @@ function probabilityBars(weights) {
     }).join('')
 }
 
-function buildSvg({ nickname, title, rod, href }) {
+function buildSvg({ nickname, title, rod, href, frame }) {
   const c = color(rod.tier)
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
@@ -83,6 +84,7 @@ function buildSvg({ nickname, title, rod, href }) {
   <rect x="110" y="236" width="860" height="720" rx="32" fill="${CARD}" stroke="${c}" stroke-width="3"/>
   <rect x="126" y="252" width="828" height="688" rx="24" fill="none" stroke="${c}" stroke-opacity="0.24"/>
   ${href === '' ? '' : `<image x="382" y="280" width="316" height="316" href="${href}"/>`}
+  ${frame === '' ? '' : `<image x="370" y="268" width="340" height="340" href="${frame}"/>`}
   <text x="540" y="650" text-anchor="middle" fill="${INK}" font-size="44" font-weight="700" font-family="${FONT}">${esc(cut(rod.name, 18))}</text>
   ${badge(486, 672, rod.tier)}
   <text x="142" y="738" fill="${MUTED}" font-size="17" font-family="${FONT}">售价 ${rod.sellPrice} 钓鱼币 · 单次钓鱼使用此概率组</text>
@@ -97,12 +99,13 @@ function buildSvg({ nickname, title, rod, href }) {
 }
 
 export async function renderRodCard({ nickname, title, rod, assetsDir }) {
+  const frame = frameHref(assetsDir, { kind: 'rod', item: rod })
   let href = ''
   try {
     const bytes = await readFile(join(assetsDir, 'rods', rod.asset))
     href = `data:image/png;base64,${bytes.toString('base64')}`
   } catch {}
-  const svg = buildSvg({ nickname, title, rod, href })
+  const svg = buildSvg({ nickname, title, rod, href, frame })
   const dir = await mkdtemp(join(tmpdir(), 'dsh-rod-card-'))
   const input = join(dir, 'rod.svg')
   const output = join(dir, 'rod.png')
