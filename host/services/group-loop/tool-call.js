@@ -2,11 +2,11 @@
 import { renderCalculation } from './calculator.js'
 import { renderFinanceCalendar } from './finance-calendar.js'
 import { renderMarketQuote } from './market-quote.js'
-import { renderReadUrl } from './read-url.js'
+import { renderWebFetch } from './web-fetch.js'
 import { renderWeatherResult } from './weather.js'
 import { renderSearchResult } from './web-search.js'
 
-export const TOOL_NAMES = new Set(['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator', 'finance_calendar'])
+export const TOOL_NAMES = new Set(['web_search', 'weather', 'group_search', 'web_fetch', 'market_quote', 'calculator', 'finance_calendar'])
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -77,7 +77,7 @@ export function renderObservation(tool, result) {
   switch (tool) {
     case 'web_search': return renderSearchResult(result)
     case 'weather': return renderWeatherResult(result)
-    case 'read_url': return renderReadUrl(result)
+    case 'web_fetch': return renderWebFetch(result)
     case 'market_quote': return renderMarketQuote(result)
     case 'calculator': return renderCalculation(result)
     case 'finance_calendar': return renderFinanceCalendar(result)

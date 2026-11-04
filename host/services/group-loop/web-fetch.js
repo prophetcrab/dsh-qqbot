@@ -1,10 +1,10 @@
-/** Read a public URL as readable text for the ReAct read_url tool. */
+/** Read a public URL as readable text for the ReAct web_fetch tool. */
 import { fetchPage } from './page-fetch.js'
 
 const MAX_URL = 2000
 
-export function parseReadUrlCall(raw, parsed = null) {
-  if (parsed?.type === 'tool_call' && parsed.tool === 'read_url') {
+export function parseWebFetchCall(raw, parsed = null) {
+  if (parsed?.type === 'tool_call' && parsed.tool === 'web_fetch') {
     const url = String(parsed.args?.url ?? '').trim().slice(0, MAX_URL)
     return url === '' ? null : { url }
   }
@@ -14,7 +14,7 @@ export function parseReadUrlCall(raw, parsed = null) {
   return match === null ? null : { url: match[1].slice(0, MAX_URL) }
 }
 
-export async function readUrl(url, { timeoutMs = 6000, maxChars = 4000, fetchImpl = fetch } = {}) {
+export async function fetchWeb(url, { timeoutMs = 6000, maxChars = 4000, fetchImpl = fetch } = {}) {
   const target = String(url ?? '').trim()
   if (target === '') return { ok: false, error: 'url 为空' }
   let parsed
@@ -25,7 +25,7 @@ export async function readUrl(url, { timeoutMs = 6000, maxChars = 4000, fetchImp
   return { ok: true, url: result.url, title: result.title, text: result.text, chars: result.chars }
 }
 
-export function renderReadUrl(result) {
-  if (result?.ok !== true) return `【read_url】读取失败：${result?.error ?? '未知错误'}`
-  return `【read_url】\n标题：${result.title || '未知'}\nURL：${result.url}\n正文：\n${String(result.text ?? '').slice(0, 5000)}`
+export function renderWebFetch(result) {
+  if (result?.ok !== true) return `【web_fetch】读取失败：${result?.error ?? '未知错误'}`
+  return `【web_fetch】\n标题：${result.title || '未知'}\nURL：${result.url}\n正文：\n${String(result.text ?? '').slice(0, 5000)}`
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { evaluateExpression } from '../../host/services/group-loop/calculator.js'
 import { getMarketQuote, parseTencentQuotes, tencentCode } from '../../host/services/group-loop/market-quote.js'
-import { parseReadUrlCall, renderReadUrl } from '../../host/services/group-loop/read-url.js'
+import { parseWebFetchCall, renderWebFetch } from '../../host/services/group-loop/web-fetch.js'
 import { parseToolCall, parseToolCalls, renderObservation, toolQuery } from '../../host/services/group-loop/tool-call.js'
 
 test('calculator evaluates arithmetic without eval', () => {
@@ -42,7 +42,7 @@ test('market quote uses an injected fetch and caches by code', async () => {
 })
 
 test('tool call parser handles all six tools and rejects unknown tools', () => {
-  for (const tool of ['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator', 'finance_calendar']) {
+  for (const tool of ['web_search', 'weather', 'group_search', 'web_fetch', 'market_quote', 'calculator', 'finance_calendar']) {
     const call = parseToolCall(JSON.stringify({ type: 'tool_call', tool, args: { query: 'x', location: '上海', url: 'https://example.com', symbol: 'sh000001', expression: '1+1' } }))
     assert.equal(call.tool, tool)
     assert.ok(toolQuery(call) !== '')
@@ -51,8 +51,8 @@ test('tool call parser handles all six tools and rejects unknown tools', () => {
   const embedded = parseToolCalls('<toolcall>{"name":"calculator","arguments":{"expression":"(5000*0.18)+12"}}</toolcall><toolcall>{"name":"market_quote","arguments":{"symbol":"sh000001"}}</toolcall>')
   assert.deepEqual(embedded.map((call) => call.tool), ['calculator', 'market_quote'])
   assert.deepEqual(embedded[0].args, { expression: '(5000*0.18)+12' })
-  assert.equal(parseReadUrlCall('{"type":"tool_call","tool":"read_url","args":{"url":"https://example.com"}}').url, 'https://example.com')
-  assert.match(renderReadUrl({ ok: false, error: 'bad' }), /读取失败/u)
+  assert.equal(parseWebFetchCall('{"type":"tool_call","tool":"web_fetch","args":{"url":"https://example.com"}}').url, 'https://example.com')
+  assert.match(renderWebFetch({ ok: false, error: 'bad' }), /读取失败/u)
 })
 
 test('group search renders no-result and matched observations', () => {

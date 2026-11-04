@@ -87,7 +87,7 @@ export function composeReActSystem(characterPrompt, speak, statePrompt = '', tar
     '- web_search：查询外部网页信息。输入 {"query":"检索词"}。适合新闻、行情、事实核验、需要网页来源的内容。',
     '- weather：查询实时天气和未来预报。输入 {"location":"上海","date":"today|tomorrow|后天|YYYY-MM-DD"}。',
     '- group_search：检索本群已归档的历史消息。输入 {"query":"关键词","limit":10}。适合当前素材不足以确认“之前/上次/谁说过/旧链接”等本群历史时使用。',
-    '- read_url：读取用户给出的公开网页正文。输入 {"url":"https://..."}。',
+    '- web_fetch：读取用户给出的公开网页正文。输入 {"url":"https://..."}。',
     '- market_quote：查询股票、指数、期货、黄金、原油、汇率快照。输入 {"symbol":"sh000001"} 或 {"symbol":"IF","market":"cn_futures"}。只做行情查询，不做交易建议。',
     '- calculator：安全计算算术表达式。输入 {"expression":"(5000*0.18)+12"}。适合保证金、盈亏、换算。',
     '- finance_calendar：查询财经日历，包括经济数据发布和行业会议。输入 {"date":"today|tomorrow|week|YYYY-MM-DD","type":"all|economic|event"}。',

@@ -9,7 +9,7 @@ import { searchWeb } from './web-search.js'
 import { evaluateExpression } from './calculator.js'
 import { getMarketQuote } from './market-quote.js'
 import { getFinanceCalendar } from './finance-calendar.js'
-import { readUrl } from './read-url.js'
+import { fetchWeb } from './web-fetch.js'
 import { parseToolCalls, renderObservation, toolQuery, toolSignature } from './tool-call.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
@@ -122,7 +122,7 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, financeCalendar = getFinanceCalendar, readUrl: readUrlTool = readUrl, random = Math.random }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, financeCalendar = getFinanceCalendar, webFetch: webFetchTool = fetchWeb, random = Math.random }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
@@ -134,7 +134,7 @@ export class GroupLoopService {
     this.weather = weather
     this.marketQuote = marketQuote
     this.financeCalendar = financeCalendar
-    this.readUrl = readUrlTool
+    this.webFetch = webFetchTool
     this.random = random
   }
 
@@ -373,10 +373,10 @@ export class GroupLoopService {
         const messages = await this.store.searchMessages(groupId, query, limit)
         return { ok: true, messages, source: 'local' }
       }
-      case 'read_url': {
+      case 'web_fetch': {
         const url = text(args.url).slice(0, 2000)
         if (url === '') return { ok: false, error: 'url 为空' }
-        return this.readUrl(url, { timeoutMs: this.settings.webFetchTimeoutMs, maxChars: this.settings.webFetchMaxChars, fetchImpl: globalThis.fetch })
+        return this.webFetch(url, { timeoutMs: this.settings.webFetchTimeoutMs, maxChars: this.settings.webFetchMaxChars, fetchImpl: globalThis.fetch })
       }
       case 'market_quote': {
         const symbol = text(args.symbol).slice(0, 40)
