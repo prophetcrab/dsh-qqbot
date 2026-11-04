@@ -26,6 +26,8 @@ export const DEFAULT_SETTINGS = {
   qqPath: '',
   /** Optional explicit NapCat directory (unusual layouts / tests). */
   napcatDir: '',
+  /** Stop Koishi when the DSH host process exits (detached watchdog). */
+  lifecycleGuard: true,
   /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
@@ -92,6 +94,7 @@ export function resolveSettings(raw = {}) {
     napcatToken: typeof source.napcatToken === 'string' ? source.napcatToken : '',
     qqPath: typeof source.qqPath === 'string' ? expandHome(source.qqPath) : '',
     napcatDir: typeof source.napcatDir === 'string' ? expandHome(source.napcatDir) : '',
+    lifecycleGuard: source.lifecycleGuard === undefined ? DEFAULT_SETTINGS.lifecycleGuard : source.lifecycleGuard === true,
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',

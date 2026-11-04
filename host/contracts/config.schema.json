@@ -12,6 +12,7 @@
     "napcatToken": { "type": "string" },
     "qqPath": { "type": "string" },
     "napcatDir": { "type": "string" },
+    "lifecycleGuard": { "type": "boolean" },
     "offlineVendorDir": { "type": "string" },
     "offlineNapcatVersion": { "type": "string" },
     "aiProvider": { "type": "string" },
