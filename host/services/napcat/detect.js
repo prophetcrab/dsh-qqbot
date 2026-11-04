@@ -12,6 +12,9 @@ import { WS_CLIENT_NAME, QQ_EXECUTABLE, listWebsocketClients } from './onebot-co
 
 /** `ws://127.0.0.1:<koishiPort><reversePath>` expected by Koishi. */
 export function websocketUrl(manager) {
+  // The Docker backend points OneBot at the host from inside the container, so
+  // it overrides the URL (`host.docker.internal` instead of 127.0.0.1).
+  if (typeof manager.onebotUrl === 'string' && manager.onebotUrl !== '') return manager.onebotUrl
   return `ws://127.0.0.1:${manager.settings.koishiPort}${manager.settings.reversePath}`
 }
 

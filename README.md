@@ -314,6 +314,34 @@ offlineNapcatVersion 空
 
 NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
 
+### NapCat Docker 后端（Linux QQ 容器）
+
+除了本机 macOS QQ.app，还可以把 Linux QQ + NapCat 跑在容器里，与主机的 QQ 完全隔离（不会杀本机 QQ、不需要 App 管理/管理员授权）。Docker 后端与平台无关，只要能运行 Docker 即可：
+
+```text
+napcatBackend        docker
+dockerNapcatImage    mlikiowa/napcat-docker:latest
+dockerNapcatContainer dsh-qqbot-napcat
+dockerNapcatDataDir  空（默认 <projectDir>/runtime/napcat-docker）
+dockerNapcatHost     host.docker.internal
+dockerNapcatToken    空（自动生成并持久化 WebUI token）
+```
+
+| 项 | 值 |
+| --- | --- |
+| 镜像 | `mlikiowa/napcat-docker`（Linux QQ + NapCat，官方社区镜像） |
+| 数据目录 | `<projectDir>/runtime/napcat-docker/{data/napcat-config,data/qq,data/napcat-cache}` |
+| WebUI | 容器 `6099` 映射到 `127.0.0.1:<napcatPort>` |
+| 反向 WS | 容器内用 `ws://host.docker.internal:<koishiPort><reversePath>` 连回主机 |
+| 数据卷 | `napcat-config`、QQ 数据、二维码缓存均 bind mount，重建容器不丢登录态 |
+
+注意：
+
+- Docker Desktop（Windows/macOS）或 Docker Engine（Linux）需要在外部安装一次；Windows 需要 WSL2/Hyper-V。国内网络拉取 Docker Hub 镜像时需要在 Docker Desktop 配置代理或镜像源；
+- 容器内是 **Linux 版 QQ**，登录仍需手机扫码一次；二维码在面板「概览」或 `http://127.0.0.1:<napcatPort>/webui` 获取；
+- 建议使用机器人小号，并把本机旧 NapCat 停掉，避免同一 QQ 多端同时在线；
+- 插件生成的 compose 位于数据目录，可用 `docker compose -f <dataDir>/compose.yaml logs/stop` 排查。
+
 ### Koishi
 
 | 项 | 值 |

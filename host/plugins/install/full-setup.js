@@ -25,8 +25,12 @@ export async function runFullSetup({ api, setup }) {
   push('koishi-deps', deps)
 
   const support = typeof platform.platformInfo === 'function' ? platform.platformInfo() : { napcatSupported: false, label: 'Unsupported' }
+  // The Docker backend is platform-neutral: it can manage a Linux QQ container
+  // even on hosts where the local NapCat backend is unsupported.
+  const dockerBackend = api.settings.napcatBackend === 'docker'
+  const napcatSupported = dockerBackend || support.napcatSupported === true
   const napcatBefore = await napcat.status()
-  if (support.napcatSupported !== true) {
+  if (napcatSupported !== true) {
     steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `当前平台（${support.label}）暂不支持 NapCat 自动安装` })
   } else if (napcatBefore.installed !== true) {
     push('napcat-install', await napcat.install())

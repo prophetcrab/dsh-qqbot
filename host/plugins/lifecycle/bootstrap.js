@@ -20,6 +20,12 @@ export async function bootstrap(api) {
   try {
     const boot = await setup.autoBootstrap()
     if (boot?.ok === false) logger.warn('自动安装 Koishi 运行环境失败：%s', boot.message ?? boot.error ?? 'unknown')
+    // Docker backend: the container image is pulled explicitly (install/start),
+    // not on every plugin activation, so boot does not block on a large pull.
+    if (api.settings.napcatBackend === 'docker') {
+      logger.info('NapCat 使用 Docker 后端，跳过本机离线安装引导')
+      return
+    }
     const state = await napcat.status()
     if (state.installed !== true) {
       // This macOS build ships NapCat offline. Install once; the macOS admin

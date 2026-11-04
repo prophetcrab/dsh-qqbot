@@ -26,6 +26,17 @@ export const DEFAULT_SETTINGS = {
   qqPath: '',
   /** Optional explicit NapCat directory (unusual layouts / tests). */
   napcatDir: '',
+  /** NapCat backend: 'local' (patched macOS QQ.app) or 'docker' (Linux QQ container). */
+  napcatBackend: 'local',
+  /** Docker backend: image tag, container name and data directory. */
+  dockerNapcatImage: 'mlikiowa/napcat-docker:latest',
+  dockerNapcatContainer: 'dsh-qqbot-napcat',
+  /** Empty means `<projectDir>/runtime/napcat-docker`. */
+  dockerNapcatDataDir: '',
+  /** Host name the container uses to reach Koishi on this machine. */
+  dockerNapcatHost: 'host.docker.internal',
+  /** Empty means generate and persist a random WebUI token in the data dir. */
+  dockerNapcatToken: '',
   /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
@@ -84,6 +95,11 @@ export function resolveSettings(raw = {}) {
     : DEFAULT_SETTINGS.reversePath
   const reversePath = reversePathRaw.startsWith('/') ? reversePathRaw : `/${reversePathRaw}`
   const logLines = toBoundedInt(source.logLines, DEFAULT_SETTINGS.logLines, 20, 2000)
+  const napcatBackend = source.napcatBackend === 'docker' ? 'docker' : 'local'
+  const dockerNapcatDataDirRaw = typeof source.dockerNapcatDataDir === 'string' ? source.dockerNapcatDataDir.trim() : ''
+  const dockerNapcatDataDir = dockerNapcatDataDirRaw === ''
+    ? join(projectDir, 'runtime', 'napcat-docker')
+    : expandHome(dockerNapcatDataDirRaw)
   return {
     projectDir,
     koishiPort,
@@ -92,6 +108,18 @@ export function resolveSettings(raw = {}) {
     napcatToken: typeof source.napcatToken === 'string' ? source.napcatToken : '',
     qqPath: typeof source.qqPath === 'string' ? expandHome(source.qqPath) : '',
     napcatDir: typeof source.napcatDir === 'string' ? expandHome(source.napcatDir) : '',
+    napcatBackend,
+    dockerNapcatImage: typeof source.dockerNapcatImage === 'string' && source.dockerNapcatImage.trim() !== ''
+      ? source.dockerNapcatImage.trim()
+      : DEFAULT_SETTINGS.dockerNapcatImage,
+    dockerNapcatContainer: typeof source.dockerNapcatContainer === 'string' && source.dockerNapcatContainer.trim() !== ''
+      ? source.dockerNapcatContainer.trim()
+      : DEFAULT_SETTINGS.dockerNapcatContainer,
+    dockerNapcatDataDir,
+    dockerNapcatHost: typeof source.dockerNapcatHost === 'string' && source.dockerNapcatHost.trim() !== ''
+      ? source.dockerNapcatHost.trim()
+      : DEFAULT_SETTINGS.dockerNapcatHost,
+    dockerNapcatToken: typeof source.dockerNapcatToken === 'string' ? source.dockerNapcatToken.trim() : '',
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',

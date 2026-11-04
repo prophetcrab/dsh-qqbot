@@ -43,7 +43,7 @@ export function runDetail(result) {
 
 /** Whether NapCat actions are supported on a normalized platform id. */
 export function isSupportedPlatform(platform) {
-  return platform === 'macos'
+  return platform === 'macos' || platform === 'docker'
 }
 
 /** Extract the meaningful payload from a NapCat WebUI API envelope. */
@@ -73,7 +73,7 @@ export function firstString(data, keys) {
 export function platformId(manager) {
   try {
     const id = manager.platform.hostPlatform()
-    if (id === 'macos' || id === 'other') return id
+    if (id === 'macos' || id === 'docker' || id === 'other') return id
     return 'other'
   } catch {
     return 'other'
