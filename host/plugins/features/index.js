@@ -15,10 +15,10 @@ export default {
   version,
   inject: ['platform', 'napcat', 'koishi', 'koishiPlugins', 'access', 'lifecycle'],
   provides: ['features'],
-  description: 'Built-in feature cards (overview/lifecycle/setup/plugins/access) and their actions.',
+  description: 'Read-only feature status cards (overview, plugins, access).',
   async apply(api) {
     for (const feature of BUILTIN_FEATURES) api.registerFeature(feature)
     api.registerRoutes(routes(api))
-    api.registerClientTab({ id: 'features', title: { zh: '功能', en: 'Features' }, order: 5 })
+    api.registerClientTab({ id: 'features', title: { zh: '功能', en: 'Features' }, order: 9 })
   },
 }

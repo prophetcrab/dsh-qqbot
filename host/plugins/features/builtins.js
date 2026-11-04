@@ -190,7 +190,7 @@ const access = {
 }
 
 /** Ordered built-in feature descriptors. */
-export const BUILTIN_FEATURES = [overview, lifecycle, configuration, koishiPlugins, access]
+export const BUILTIN_FEATURES = [overview, koishiPlugins, access]
 
 /**
  * Register every built-in feature on a plugin API (or a plain FeatureRegistry

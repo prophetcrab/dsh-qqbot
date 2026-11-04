@@ -135,24 +135,10 @@ const PLUGINS = [
 ]
 
 const FEATURES = [
-  {
-    id: 'lifecycle',
-    title: { zh: '启停', en: 'Lifecycle' },
-    description: { zh: '启动或停止 NapCat 与 Koishi。', en: 'Start or stop NapCat and Koishi.' },
-    actions: [
-      { id: 'all-start', title: { zh: '一键启动全部', en: 'Start everything' }, tone: 'primary' },
-      { id: 'all-stop', title: { zh: '全部停止', en: 'Stop everything' }, tone: 'danger' },
-    ],
-    status: { napcat: { running: false }, koishi: { running: true } },
-  },
-  {
-    id: 'koishi-plugins',
-    title: { zh: 'Koishi 插件', en: 'Koishi plugins' },
-    description: { zh: '插件数量摘要。', en: 'Plugin count summary.' },
-    actions: [],
-  },
+  { id: 'overview', title: { zh: '总览', en: 'Overview' }, description: { zh: '安装和环境状态。', en: 'Installation and environment state.' }, actions: [], status: { qq: { installed: true }, koishi: { running: true } } },
+  { id: 'koishi-plugins', title: { zh: 'Koishi 插件', en: 'Koishi plugins' }, description: { zh: '插件数量摘要。', en: 'Plugin count summary.' }, actions: [] },
+  { id: 'access', title: { zh: '权限管理', en: 'Access control' }, description: { zh: '群聊收发权限。', en: 'Group access policy.' }, actions: [] },
 ]
-
 
 const ADMIN_GAME_USERS = [
   {
@@ -1053,19 +1039,12 @@ console.log('plugin toggle POST: ok')
 clickTestId(tree, 'qqbot-tab-features')
 tree = await settle()
 const cards = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-feature-card')
-if (cards.length !== 2) throw new Error(`expected two feature cards, got ${cards.length}`)
-if (!text(cards[0]).includes('启停')) throw new Error('feature title not localized')
+if (cards.length !== 3) throw new Error(`expected three read-only feature cards, got ${cards.length}`)
+if (!text(cards[0]).includes('总览')) throw new Error('feature title not localized')
+if (findAll(tree, (node) => String(node.props && node.props['data-testid']).startsWith('qqbot-action-')).length !== 0) throw new Error('feature page should be read-only')
 if (!text(expectTestId(tree, 'qqbot-panel')).includes("inject: ['qqbot']")) throw new Error('feature extension note missing')
 
-clickTestId(tree, 'qqbot-action-all-start')
-tree = await settle()
-const runs = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/features/run')
-if (runs.length !== 1) throw new Error(`expected one feature run POST, got ${runs.length}`)
-const runBody = JSON.parse(String(runs[0].body))
-if (runBody.feature !== 'lifecycle' || runBody.action !== 'all-start') {
-  throw new Error(`unexpected feature run body: ${JSON.stringify(runBody)}`)
-}
-console.log('feature run POST: ok')
+
 
 // ---- logs tab ---------------------------------------------------------------
 clickTestId(tree, 'qqbot-tab-logs')

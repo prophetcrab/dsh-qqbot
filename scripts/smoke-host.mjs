@@ -140,16 +140,19 @@ try {
   assert.ok(Array.isArray(status.data.features))
   assert.ok(Array.isArray(status.data.clientTabs))
   const featureIds = status.data.features.map((feature) => feature.id)
-  for (const id of ['overview', 'lifecycle', 'configuration', 'koishi-plugins', 'access']) {
+  for (const id of ['overview', 'koishi-plugins', 'access']) {
     assert.ok(featureIds.includes(id), `missing built-in feature ${id}`)
   }
-  const lifecycle = status.data.features.find((feature) => feature.id === 'lifecycle')
-  assert.ok(lifecycle.actions.some((action) => action.id === 'all-start'))
+  for (const id of ['lifecycle', 'configuration']) {
+    assert.ok(!featureIds.includes(id), `read-only feature page should not expose ${id}`)
+  }
+  for (const feature of status.data.features) assert.deepEqual(feature.actions, [])
 
   const featuresResponse = await fetch(`${base}/qqbot/features`)
   const features = await featuresResponse.json()
   assert.equal(features.ok, true)
-  assert.ok(features.data.some((feature) => feature.id === 'configuration'))
+  assert.ok(features.data.some((feature) => feature.id === 'access'))
+  assert.ok(!features.data.some((feature) => feature.id === 'configuration'))
 
   const tabsResponse = await fetch(`${base}/qqbot/client/tabs`)
   const tabs = await tabsResponse.json()

@@ -74,7 +74,7 @@ export const LEGACY_TOOL_NAMES = [
   'qqbot_logs',
 ]
 
-export const BUILTIN_FEATURE_IDS = ['overview', 'lifecycle', 'configuration', 'koishi-plugins', 'access']
+export const BUILTIN_FEATURE_IDS = ['overview', 'koishi-plugins', 'access']
 
 /** Minimal fake Cordis context that records host contributions. */
 export function createFakeContext() {

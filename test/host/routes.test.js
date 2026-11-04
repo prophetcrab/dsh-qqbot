@@ -36,9 +36,6 @@ test('host: built-in feature ids and actions are preserved', async (t) => {
   const { getService, host } = await loadHost(t)
   const features = host.kernel.featureRegistry.list()
   assert.deepEqual(features.map((feature) => feature.id), BUILTIN_FEATURE_IDS)
-  const lifecycle = features.find((feature) => feature.id === 'lifecycle')
-  assert.ok(lifecycle.actions.some((action) => action.id === 'all-start'))
-  assert.ok(lifecycle.actions.some((action) => action.id === 'all-stop'))
   assert.equal(typeof getService().registerFeature, 'function')
 })
 

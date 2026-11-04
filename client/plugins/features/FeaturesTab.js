@@ -15,17 +15,8 @@ export async function loadFeatures(panel) {
   }
 }
 
-export function runFeatureAction(panel, feature, action) {
-  const { loadStatus, loadFeatures, runPost } = panel
-  const key = `feature:${feature.id}:${action.id}`
-  runPost(key, '/qqbot/features/run', { feature: feature.id, action: action.id, params: {} }, async () => {
-    await loadStatus()
-    await loadFeatures()
-  })
-}
-
 export function renderFeatures(panel) {
-  const { t, lang, features, featuresPhase, featuresError, busyOf, lifecycleBusy, loadFeatures, runFeatureAction, h } = panel
+  const { t, lang, features, featuresPhase, featuresError, loadFeatures, h } = panel
   const items = Array.isArray(features) ? features : []
   const cards = items.map((feature) => {
     const title = pickText(feature.title, lang) || feature.id
@@ -39,7 +30,6 @@ export function renderFeatures(panel) {
     },
       h('span', { className: 'qqbot-row-label' }, name),
       h('span', { className: 'qqbot-row-value qqbot-mono' }, compactValue(statusValue[name]))))
-    const actions = Array.isArray(feature.actions) ? feature.actions : []
     return h('article', {
       key: feature.id,
       className: 'qqbot-card',
@@ -54,24 +44,7 @@ export function renderFeatures(panel) {
       statusRows.length === 0 ? null : h('div', { className: 'qqbot-feature-status' }, ...statusRows),
       typeof feature.error === 'string' && feature.error !== ''
         ? h('p', { className: 'qqbot-error' }, feature.error)
-        : null,
-      actions.length === 0 ? null : h('div', { className: 'qqbot-actions-row' },
-        ...actions.map((action) => {
-          const label = pickText(action.title, lang) || action.id
-          const tone = action.tone === 'primary' ? 'primary' : action.tone === 'danger' ? 'danger' : null
-          const key = `feature:${feature.id}:${action.id}`
-          const working = busyOf(key)
-          return h('button', {
-            key: action.id,
-            type: 'button',
-            className: `qqbot-btn${tone ? ` qqbot-btn-${tone}` : ''}`,
-            'data-testid': `qqbot-action-${action.id}`,
-            'aria-label': label,
-            'aria-busy': working ? 'true' : undefined,
-            disabled: working || (feature.id === 'lifecycle' && lifecycleBusy === true),
-            onClick: () => { runFeatureAction(feature, action) },
-          }, working ? t('working') : label)
-        })))
+        : null)
   })
 
   return h('div', { className: 'qqbot-stack' },

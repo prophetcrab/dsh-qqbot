@@ -52,7 +52,6 @@ const DYNAMIC_TESTIDS = [
   '${config.rowPrefix}-${item.id}',
   'qqbot-access-extra-${config.scope}-${id}',
   'qqbot-access-remove-${config.scope}-${id}',
-  'qqbot-action-${action.id}',
   'qqbot-action-${id}',
   'qqbot-logs-source-${id}',
   'qqbot-ai-loop-filter-${filter}',
