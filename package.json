@@ -40,7 +40,8 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
-    "SETUP.md"
+    "SETUP.md",
+    "assets"
   ],
   "dsh": {
     "bundle": {
