@@ -257,11 +257,16 @@ export class FishingCastService {
     let extraSpecial
     if (cast.effects.includes('dardevle')) extraSpecial = this.specialItem(random)
     let extraBait
+    let extraBaitName
     if (cast.effects.includes('adams_dry_fly')) {
       const others = this.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
-      if (others.length > 0) extraBait = pick(others, random).id
+      if (others.length > 0) {
+        const extra = pick(others, random)
+        extraBait = extra.id
+        extraBaitName = extra.name
+      }
     }
-    return { kind: 'fish', item: fish, tier, weightKg, basePricePerKg: stats.basePricePerKg, pricePerKg, value, copies, extraSpecial, extraBait }
+    return { kind: 'fish', item: fish, tier, weightKg, basePricePerKg: stats.basePricePerKg, pricePerKg, value, copies, extraSpecial, extraBait, extraBaitName }
   }
 
   resolveSpecial(fishing, cast, random) {
@@ -286,7 +291,8 @@ export class FishingCastService {
       `${result.weightKg}kg × ${result.pricePerKg} 钓鱼币/kg = ${result.value} 钓鱼币`,
       result.copies > 1 ? `拉帕拉效果：本次鱼获复制 ${result.copies} 份` : '',
       cast.effects.includes('royal_coachman') ? '皇家教练羽饵：本次鱼获价值 +50%' : '',
-      cast.effects.includes('adams_dry_fly') ? '亚当斯干蝇：本次上鱼等级 +1' : '',
+      cast.effects.includes('adams_dry_fly') ? `亚当斯干蝇：本次上鱼等级 +1，返还「${result.extraBaitName ?? '传奇鱼饵'}」` : '',
+      result.extraSpecial ? `达德维尔效果：额外获得「${result.extraSpecial.name}」` : '',
     ]
     return lines.filter(Boolean).join('\n')
   }
