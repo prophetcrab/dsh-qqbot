@@ -293,18 +293,6 @@ function readNapcatVersion(installDir) {
   return null
 }
 
-/** Read the QQ bundle version from Info.plist without extra tools. */
-function readQqVersion(appPath) {
-  try {
-    const plist = readFileSync(join(appPath, 'Contents', 'Info.plist'), 'utf8')
-    const match = /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/u.exec(plist)
-    if (match !== null) return match[1]
-  } catch {
-    // fall through
-  }
-  return null
-}
-
 /** List account configs (`onebot11_<uin>.json`) under a NapCat config dir. */
 function readAccounts(configDir) {
   let names = []
@@ -343,14 +331,6 @@ function readWebui(configDir, fallbackPort) {
     }
   }
   return { port: fallbackPort, token: null }
-}
-
-/** First existing path from a list, or null. */
-function firstExisting(paths, predicate) {
-  for (const path of paths) {
-    if (predicate(path)) return path
-  }
-  return null
 }
 
 /** Clamp a candidate port into 1..65535, else fallback. */
