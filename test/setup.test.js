@@ -262,3 +262,23 @@ test('ensureProject: seeds shipped persona presets into data without overwriting
   await setup.ensureProject()
   assert.equal(await readFile(target, 'utf8'), '{"version":1,"presets":[]}')
 })
+
+test('ensureProject: aligns koishi.yml server port with the profile setting', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  await writeFile(join(templateDir, 'koishi.yml'), [
+    'plugins:',
+    '  group:server:',
+    '    server:sn8oqx:',
+    '      port: 5140',
+    '      maxPort: 5149',
+    '',
+  ].join('\n'))
+  const settings = await makeSettings(root)
+  settings.koishiPort = 5150
+  const setup = new SetupManager({ settings, logger, deps: { templateDir } })
+  await setup.ensureProject()
+  const text = await readFile(join(settings.projectDir, 'koishi.yml'), 'utf8')
+  assert.match(text, /port: 5150/u)
+  assert.match(text, /maxPort: 5150/u)
+})

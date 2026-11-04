@@ -11,8 +11,11 @@ import {
   hostPlatform as platformHostPlatform,
   httpJson,
   portPid as platformPortPid,
+  readText,
   run,
+  writeFileAtomic,
 } from '../../platform/mac/index.js'
+import { setServerPort } from './server-port.js'
 
 /** Absolute lsof path on macOS; used by the legacy (injected exec) PID path. */
 export const LSOF = '/usr/sbin/lsof'
@@ -313,4 +316,18 @@ export async function killSupervisor(manager) {
   } catch {
     return false
   }
+}
+
+/**
+ * Align `koishi.yml`'s server port with the panel setting before launch.
+ * Returns true when the file was rewritten.
+ */
+export async function syncKoishiPort(manager, projectDir = manager.projectDir) {
+  const file = join(projectDir, 'koishi.yml')
+  const text = await readText(file)
+  if (typeof text !== 'string') return false
+  const next = setServerPort(text, manager.port)
+  if (next === text) return false
+  await writeFileAtomic(file, next)
+  return true
 }
