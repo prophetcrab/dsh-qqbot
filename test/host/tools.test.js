@@ -42,7 +42,7 @@ test('market quote uses an injected fetch and caches by code', async () => {
 })
 
 test('tool call parser handles all six tools and rejects unknown tools', () => {
-  for (const tool of ['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator']) {
+  for (const tool of ['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator', 'finance_calendar']) {
     const call = parseToolCall(JSON.stringify({ type: 'tool_call', tool, args: { query: 'x', location: '上海', url: 'https://example.com', symbol: 'sh000001', expression: '1+1' } }))
     assert.equal(call.tool, tool)
     assert.ok(toolQuery(call) !== '')

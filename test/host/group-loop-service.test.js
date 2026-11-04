@@ -16,6 +16,7 @@ async function setup(stream, options = {}) {
     profilesPath: join(root, 'profiles.json'),
     ...(options.webSearch ? { webSearch: options.webSearch } : {}),
     ...(options.weather ? { weather: options.weather } : {}),
+    ...(options.financeCalendar ? { financeCalendar: options.financeCalendar } : {}),
     random: options.random ?? (() => 0.9),
   })
   return { root, service }
@@ -321,5 +322,22 @@ test('the ReAct loop can run calculator and group_search tools', async () => {
   assert.equal(result.ok, true)
   assert.deepEqual(result.toolCalls.map((call) => call.tool), ['calculator', 'group_search'])
   assert.match(result.toolCalls[0].query, /5000/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('finance calendar is available as a ReAct tool', async () => {
+  let index = 0
+  const stream = async function* () {
+    yield { type: 'text-delta', text: index++ === 0 ? '{"type":"tool_call","tool":"finance_calendar","args":{"date":"today","type":"economic"}}' : '{"type":"final","parts":["今天有ADP数据。"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, {
+    settings: { weatherEnabled: true },
+    financeCalendar: async (args) => ({ ok: true, start: '2026-11-04', end: '2026-11-05', events: [{ start: '2026-11-04', name: '美国:ADP就业人数', type: '经济数据' }], source: 'eastmoney' }),
+  })
+  const result = await service.compose({ groupId: 'g1', loopId: 'calendar-loop', material: '今天有什么财经数据', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  assert.equal(result.toolCalls[0].tool, 'finance_calendar')
+  assert.match(result.text, /ADP/u)
   await rm(root, { recursive: true, force: true })
 })

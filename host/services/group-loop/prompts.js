@@ -90,6 +90,7 @@ export function composeReActSystem(characterPrompt, speak, statePrompt = '', tar
     '- read_url：读取用户给出的公开网页正文。输入 {"url":"https://..."}。',
     '- market_quote：查询股票、指数、期货、黄金、原油、汇率快照。输入 {"symbol":"sh000001"} 或 {"symbol":"IF","market":"cn_futures"}。只做行情查询，不做交易建议。',
     '- calculator：安全计算算术表达式。输入 {"expression":"(5000*0.18)+12"}。适合保证金、盈亏、换算。',
+    '- finance_calendar：查询财经日历，包括经济数据发布和行业会议。输入 {"date":"today|tomorrow|week|YYYY-MM-DD","type":"all|economic|event"}。',
     '工具结果会作为 observation 回填。根据 observation 判断是否还需要其他工具；达到回复目标后输出 final。',
     '工具调用次数有限，优先选择最能补足当前信息缺口的工具。',
     '外部资料作为事实参考，按人设自然表达，不复述检索过程。',

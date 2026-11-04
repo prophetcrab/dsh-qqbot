@@ -1,11 +1,12 @@
 /** Shared ReAct tool-call parsing and rendering helpers. */
 import { renderCalculation } from './calculator.js'
+import { renderFinanceCalendar } from './finance-calendar.js'
 import { renderMarketQuote } from './market-quote.js'
 import { renderReadUrl } from './read-url.js'
 import { renderWeatherResult } from './weather.js'
 import { renderSearchResult } from './web-search.js'
 
-export const TOOL_NAMES = new Set(['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator'])
+export const TOOL_NAMES = new Set(['web_search', 'weather', 'group_search', 'read_url', 'market_quote', 'calculator', 'finance_calendar'])
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -79,6 +80,7 @@ export function renderObservation(tool, result) {
     case 'read_url': return renderReadUrl(result)
     case 'market_quote': return renderMarketQuote(result)
     case 'calculator': return renderCalculation(result)
+    case 'finance_calendar': return renderFinanceCalendar(result)
     case 'group_search': {
       if (result?.ok !== true) return `【group_search】检索失败：${result?.error ?? '未知错误'}`
       const rows = Array.isArray(result.messages) ? result.messages : []

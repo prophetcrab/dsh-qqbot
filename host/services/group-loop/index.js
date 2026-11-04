@@ -8,6 +8,7 @@ import { getWeather } from './weather.js'
 import { searchWeb } from './web-search.js'
 import { evaluateExpression } from './calculator.js'
 import { getMarketQuote } from './market-quote.js'
+import { getFinanceCalendar } from './finance-calendar.js'
 import { readUrl } from './read-url.js'
 import { parseToolCalls, renderObservation, toolQuery, toolSignature } from './tool-call.js'
 
@@ -121,7 +122,7 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, readUrl: readUrlTool = readUrl, random = Math.random }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, financeCalendar = getFinanceCalendar, readUrl: readUrlTool = readUrl, random = Math.random }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
@@ -132,6 +133,7 @@ export class GroupLoopService {
     this.webSearch = webSearch
     this.weather = weather
     this.marketQuote = marketQuote
+    this.financeCalendar = financeCalendar
     this.readUrl = readUrlTool
     this.random = random
   }
@@ -383,6 +385,9 @@ export class GroupLoopService {
       }
       case 'calculator': {
         return evaluateExpression(text(args.expression).slice(0, 240))
+      }
+      case 'finance_calendar': {
+        return this.financeCalendar({ date: text(args.date).slice(0, 20), start: text(args.start).slice(0, 20), end: text(args.end).slice(0, 20), type: text(args.type).slice(0, 20), limit: Number(args.limit) || 20 }, { timeoutMs: this.settings.financeCalendarTimeoutMs })
       }
       default:
         return { ok: false, error: `未知工具：${call.tool}` }

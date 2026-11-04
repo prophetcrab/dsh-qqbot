@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS = {
   weatherEnabled: true,
   weatherTimeoutMs: 8000,
   marketQuoteTimeoutMs: 8000,
+  financeCalendarTimeoutMs: 8000,
   autoRestartKoishi: true,
   autoInstallDeps: true,
   /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
@@ -109,6 +110,7 @@ export function resolveSettings(raw = {}) {
     weatherEnabled: source.weatherEnabled === undefined ? DEFAULT_SETTINGS.weatherEnabled : source.weatherEnabled === true,
     weatherTimeoutMs: toBoundedInt(source.weatherTimeoutMs, DEFAULT_SETTINGS.weatherTimeoutMs, 1000, 20000),
     marketQuoteTimeoutMs: toBoundedInt(source.marketQuoteTimeoutMs, DEFAULT_SETTINGS.marketQuoteTimeoutMs, 1000, 20000),
+    financeCalendarTimeoutMs: toBoundedInt(source.financeCalendarTimeoutMs, DEFAULT_SETTINGS.financeCalendarTimeoutMs, 1000, 20000),
     autoRestartKoishi: source.autoRestartKoishi === undefined ? DEFAULT_SETTINGS.autoRestartKoishi : source.autoRestartKoishi === true,
     autoInstallDeps: source.autoInstallDeps === undefined ? DEFAULT_SETTINGS.autoInstallDeps : source.autoInstallDeps === true,
     autoSyncSelfId: source.autoSyncSelfId === undefined ? DEFAULT_SETTINGS.autoSyncSelfId : source.autoSyncSelfId === true,
