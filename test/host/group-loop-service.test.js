@@ -303,3 +303,23 @@ test('the model may answer directly without using a tool when information is suf
   assert.equal(calls, 1)
   await rm(root, { recursive: true, force: true })
 })
+
+test('the ReAct loop can run calculator and group_search tools', async () => {
+  const responses = [
+    '{"type":"tool_call","tool":"calculator","args":{"expression":"(5000*0.18)+12"}}',
+    '{"type":"tool_call","tool":"group_search","args":{"query":"爆仓","limit":5}}',
+    '{"type":"final","parts":["算好了，也找到了。"]}',
+  ]
+  let index = 0
+  const stream = async function* () {
+    yield { type: 'text-delta', text: responses[index++] }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, { settings: { webSearchEnabled: true } })
+  await service.store.archiveMaterial('g1', '[2026/11/4 17:00:00] 小明(20000) [id:m1]：我爆仓了')
+  const result = await service.compose({ groupId: 'g1', loopId: 'tools-loop', material: '帮我算算，顺便查一下之前爆仓的事', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.toolCalls.map((call) => call.tool), ['calculator', 'group_search'])
+  assert.match(result.toolCalls[0].query, /5000/u)
+  await rm(root, { recursive: true, force: true })
+})

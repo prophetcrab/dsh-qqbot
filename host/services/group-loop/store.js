@@ -11,6 +11,7 @@ const DEFAULTS = () => ({
 
 const PROCESSED_LIMIT = 500
 const MEMORY_LIMIT = 50
+const MESSAGE_LIMIT = 5000
 const MEMORY_WRITE_LIMIT = 20
 const EMOTION_BASELINE = Object.freeze({ valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 })
 const EMOTION_DELTA_LIMIT = 0.03
@@ -45,6 +46,7 @@ export class GroupLoopStore {
     this.characterPath = join(this.root, 'character.json')
     this.groupsPath = join(this.root, 'groups.json')
     this.memoryPath = join(this.root, 'memory.jsonl')
+    this.messagesPath = join(this.root, 'messages.jsonl')
     this.processedPath = join(this.root, 'processed-loops.json')
     this.writeQueue = new SerialQueue()
   }
@@ -119,6 +121,53 @@ export class GroupLoopStore {
         try { return JSON.parse(line) } catch { return null }
       }).filter(Boolean)
     } catch { return [] }
+  }
+
+  async archiveMaterial(groupId, material) {
+    const source = String(material ?? '')
+    if (source === '') return 0
+    const parsed = []
+    for (const line of source.split('\n')) {
+      const match = line.match(/^(?:【[^】]+】)?\[([^\]]+)\]\s+(.+?)\((\d*)\)\s+\[id:([^\]]+)\]：([\s\S]*)$/u)
+      if (match === null) continue
+      const at = new Date(match[1])
+      parsed.push({
+        id: match[4].trim(),
+        groupId,
+        at: Number.isNaN(at.getTime()) ? '' : at.toISOString(),
+        time: match[1].trim(),
+        qq: match[3],
+        nickname: match[2].trim(),
+        text: match[5].trim().slice(0, 2000),
+      })
+    }
+    if (parsed.length === 0) return 0
+    return this.writeQueue.run(async () => {
+      const existing = await this.readMessages()
+      const seen = new Set(existing.map((entry) => entry.id))
+      const fresh = parsed.filter((entry) => !seen.has(entry.id))
+      if (fresh.length === 0) return 0
+      const rows = [...existing, ...fresh].slice(-MESSAGE_LIMIT)
+      await writeTextAtomic(this.messagesPath, rows.map((entry) => `${JSON.stringify(entry)}\n`).join(''))
+      return fresh.length
+    })
+  }
+
+  async readMessages() {
+    try {
+      const text = await readFile(this.messagesPath, 'utf8')
+      return text.split('\n').filter(Boolean).map((line) => {
+        try { return JSON.parse(line) } catch { return null }
+      }).filter(Boolean)
+    } catch { return [] }
+  }
+
+  async searchMessages(groupId, query = '', limit = 10) {
+    const rows = await this.readMessages()
+    const needle = String(query ?? '').trim().toLowerCase()
+    const max = Math.max(1, Math.min(20, Number(limit) || 10))
+    const filtered = rows.filter((entry) => entry.groupId === groupId && (needle === '' || `${entry.nickname} ${entry.qq} ${entry.text}`.toLowerCase().includes(needle)))
+    return filtered.slice(-max).reverse()
   }
 
   async hasMemoryForLoop(loopId) {

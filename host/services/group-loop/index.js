@@ -4,8 +4,12 @@ import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { normalizeUsage, TokenStatsStore } from './token-stats.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, memoryPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
-import { parseWeatherCall, getWeather, renderWeatherResult } from './weather.js'
-import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
+import { getWeather } from './weather.js'
+import { searchWeb } from './web-search.js'
+import { evaluateExpression } from './calculator.js'
+import { getMarketQuote } from './market-quote.js'
+import { readUrl } from './read-url.js'
+import { parseToolCall, renderObservation, toolQuery, toolSignature } from './tool-call.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -117,7 +121,7 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, random = Math.random }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, readUrl: readUrlTool = readUrl, random = Math.random }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
@@ -127,6 +131,8 @@ export class GroupLoopService {
     this.inFlight = new Map()
     this.webSearch = webSearch
     this.weather = weather
+    this.marketQuote = marketQuote
+    this.readUrl = readUrlTool
     this.random = random
   }
 
@@ -240,6 +246,7 @@ export class GroupLoopService {
     const profiles = await this.profileContext(groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
+    try { await this.store.archiveMaterial(groupId, material) } catch (error) { this.logger.warn?.('group-loop message archive failed: %s', String(error?.message ?? error)) }
     try {
       const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId), await this.memoryContext(groupId)), { maxTokens: 420, temperature: 0.25, images, onUsage: (usage) => this.recordUsage({ groupId, loopId: text(input.loopId), kind: 'analyze', usage }) })
       const parsed = parseJson(raw)
@@ -273,6 +280,7 @@ export class GroupLoopService {
 
   async composeWithTools({ input, speak, character, baseUser, images, budget }) {
     const toolCalls = []
+    const executed = new Set()
     let observations = ''
     let composeUsage = null
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
@@ -285,58 +293,42 @@ export class GroupLoopService {
         return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
       }
       const parsed = parseJson(raw)
-      const requestedWeather = parseWeatherCall(raw, parsed)
-      const requestedCall = parseWebSearchCall(raw, parsed)
-      if ((requestedWeather !== null || requestedCall !== null) && toolCalls.length >= 2) {
-        observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
-        continue
-      }
-      if (requestedWeather !== null) {
-        const location = text(requestedWeather.location).slice(0, 80)
-        if (location === '') {
-          observations += '\n\n【工具观察】天气地点为空，请补充 location，或直接给 final parts。'
+      const call = parseToolCall(raw, parsed)
+      if (call !== null) {
+        if (toolCalls.length >= 2) {
+          observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
           continue
         }
-        if (toolCalls.some((call) => call.tool === 'weather' && call.query === location)) {
-          observations += '\n\n【工具观察】这个地点的天气已经查过，请直接基于 observation 给 final parts。'
+        const signature = toolSignature(call)
+        if (executed.has(signature)) {
+          observations += '\n\n【工具观察】这个工具参数已经执行过，请直接基于已有 observation 给 final parts。'
           continue
         }
         const started = Date.now()
-        const result = await this.weather(location, {
-          timeoutMs: this.settings.weatherTimeoutMs,
-          date: requestedWeather.date,
-        })
-        toolCalls.push({ tool: 'weather', query: location, date: requestedWeather.date || '', source: result.source ?? 'open-meteo', ok: result.ok === true, results: result.ok === true ? 1 : 0, latencyMs: Date.now() - started })
-        observations += `\n\n${renderWeatherResult(result).slice(0, 8000)}`
-        if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
-        continue
-      }
-      if (requestedCall !== null) {
-        const query = text(requestedCall.query).slice(0, 160)
-        if (query === '') {
-          observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
-          continue
+        let result
+        try {
+          result = await this.runTool(call, input.groupId)
+        } catch (error) {
+          result = { ok: false, error: String(error?.message ?? error) }
         }
-        if (toolCalls.some((call) => call.query === query)) {
-          observations += '\n\n【工具观察】这个 query 已经检索过，请直接基于现有资料给 final parts。'
-          continue
-        }
-        const started = Date.now()
-        const result = await this.webSearch(query, {
-          maxResults: this.settings.webSearchMaxResults,
-          timeoutMs: this.settings.webSearchTimeoutMs,
-          enrich: this.settings.webFetchEnabled !== false,
-          pageLimit: this.settings.webFetchPages,
-          pageTimeoutMs: this.settings.webFetchTimeoutMs,
-          pageMaxChars: this.settings.webFetchMaxChars,
+        executed.add(signature)
+        const query = toolQuery(call)
+        const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
+        toolCalls.push({
+          tool: call.tool,
+          query,
+          source: result?.source ?? (call.tool === 'group_search' ? 'local' : call.tool === 'calculator' ? 'local' : 'unknown'),
+          ok: result?.ok === true,
+          results: count,
+          latencyMs: Date.now() - started,
+          ...(result?.ok === true ? {} : { error: String(result?.error ?? 'tool failed') }),
         })
-        toolCalls.push({ tool: 'web_search', query, source: result.source ?? 'unknown', ok: result.ok === true, results: result.results?.length ?? 0, latencyMs: Date.now() - started })
-        observations += `\n\n${renderSearchResult(result).slice(0, 14000)}`
+        observations += `\n\n${renderObservation(call.tool, result).slice(0, 14000)}`
         if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
         continue
       }
       if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {
-        observations += '\n\n【工具观察】工具调用格式无法解析，请重新调用 web_search，或直接给 final parts。'
+        observations += '\n\n【工具观察】工具调用格式无法解析，请重新输出合法 tool_call，或直接给 final parts。'
         continue
       }
       const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
@@ -344,10 +336,54 @@ export class GroupLoopService {
         await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
         return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
       }
-      observations += '\n\n【工具观察】请输出 final parts，或调用 web_search / weather。'
+      observations += '\n\n【工具观察】请输出 final parts，或调用可用工具。'
     }
     await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage })
     return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }
+  }
+
+  async runTool(call, groupId) {
+    const args = call.args ?? {}
+    switch (call.tool) {
+      case 'web_search': {
+        const query = text(args.query).slice(0, 160)
+        if (query === '') return { ok: false, error: 'query 为空' }
+        return this.webSearch(query, {
+          maxResults: this.settings.webSearchMaxResults,
+          timeoutMs: this.settings.webSearchTimeoutMs,
+          enrich: this.settings.webFetchEnabled !== false,
+          pageLimit: this.settings.webFetchPages,
+          pageTimeoutMs: this.settings.webFetchTimeoutMs,
+          pageMaxChars: this.settings.webFetchMaxChars,
+        })
+      }
+      case 'weather': {
+        const location = text(args.location).slice(0, 80)
+        if (location === '') return { ok: false, error: 'location 为空' }
+        return this.weather(location, { timeoutMs: this.settings.weatherTimeoutMs, date: text(args.date).slice(0, 20) })
+      }
+      case 'group_search': {
+        const query = text(args.query).slice(0, 80)
+        const limit = Math.max(1, Math.min(20, Number(args.limit) || 10))
+        const messages = await this.store.searchMessages(groupId, query, limit)
+        return { ok: true, messages, source: 'local' }
+      }
+      case 'read_url': {
+        const url = text(args.url).slice(0, 2000)
+        if (url === '') return { ok: false, error: 'url 为空' }
+        return this.readUrl(url, { timeoutMs: this.settings.webFetchTimeoutMs, maxChars: this.settings.webFetchMaxChars, fetchImpl: globalThis.fetch })
+      }
+      case 'market_quote': {
+        const symbol = text(args.symbol).slice(0, 40)
+        if (symbol === '') return { ok: false, error: 'symbol 为空' }
+        return this.marketQuote(symbol, { market: text(args.market).slice(0, 30), timeoutMs: this.settings.marketQuoteTimeoutMs })
+      }
+      case 'calculator': {
+        return evaluateExpression(text(args.expression).slice(0, 240))
+      }
+      default:
+        return { ok: false, error: `未知工具：${call.tool}` }
+    }
   }
 
   async stateUpdate(input) {

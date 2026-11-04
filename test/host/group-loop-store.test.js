@@ -196,3 +196,16 @@ test('memory prompt marks the current group and other groups', () => {
   assert.match(prompt, /\[群组未知\]/u)
   assert.match(prompt, /跨群/u)
 })
+
+test('group loop archives material lines and searches them by group', async () => {
+  const { store } = await workspace()
+  const material = '【当前触发消息】[2026/11/4 17:00:00] 小明(20000) [id:m1]：爆仓了\n[2026/11/4 17:01:00] 小红(30000) [id:m2]：去看漫画\n  [图片]'
+  assert.equal(await store.archiveMaterial('g1', material), 2)
+  assert.equal(await store.archiveMaterial('g1', material), 0)
+  assert.equal(await store.archiveMaterial('g2', '[2026/11/4 17:02:00] 小刚(40000) [id:m3]：另一个群'), 1)
+  const rows = await store.searchMessages('g1', '爆仓')
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].id, 'm1')
+  assert.equal(rows[0].nickname, '小明')
+  assert.deepEqual(await store.searchMessages('g1', '').then((list) => list.map((row) => row.id)), ['m2', 'm1'])
+})
