@@ -83,8 +83,8 @@ function buildSvg({ nickname, title, rod, href, frame }) {
   ${header(nickname, title)}
   <rect x="110" y="236" width="860" height="720" rx="32" fill="${CARD}" stroke="${c}" stroke-width="3"/>
   <rect x="126" y="252" width="828" height="688" rx="24" fill="none" stroke="${c}" stroke-opacity="0.24"/>
-  ${href === '' ? '' : `<image x="382" y="280" width="316" height="316" href="${href}"/>`}
   ${frame === '' ? '' : `<image x="370" y="268" width="340" height="340" href="${frame}"/>`}
+  ${href === '' ? '' : `<image x="382" y="280" width="316" height="316" href="${href}"/>`}
   <text x="540" y="650" text-anchor="middle" fill="${INK}" font-size="44" font-weight="700" font-family="${FONT}">${esc(cut(rod.name, 18))}</text>
   ${badge(486, 672, rod.tier)}
   <text x="142" y="738" fill="${MUTED}" font-size="17" font-family="${FONT}">售价 ${rod.sellPrice} 钓鱼币 · 单次钓鱼使用此概率组</text>
