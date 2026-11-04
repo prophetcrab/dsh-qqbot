@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { CURRENT_UP } from '../gacha-config.js'
 import { renderPoolCard } from '../render/pool-card.js'
 
 export const poolHelp = Object.freeze([
@@ -35,13 +36,22 @@ function normalizePity(player) {
   }
 }
 
-function withRates(items, kind) {
+function formatRate(value) {
+  const fixed = value < 1 ? value.toFixed(4) : value.toFixed(2)
+  return fixed.replace(/0+$/u, '').replace(/\.$/u, '')
+}
+
+function withRates(items, kind, upId) {
   const counts = {}
   for (const item of items) counts[item.tier] = (counts[item.tier] ?? 0) + 1
-  return items.map((item) => ({
-    ...item,
-    rate: (CATEGORY_RATES[kind][item.tier] / counts[item.tier]).toFixed(item.tier >= 4 ? 3 : 2).replace(/0+$/u, '').replace(/\.$/u, ''),
-  }))
+  return items.map((item) => {
+    const total = CATEGORY_RATES[kind][item.tier]
+    let rate = total / counts[item.tier]
+    if (item.tier === 4) {
+      rate = item.id === upId ? total * 0.5 : (total * 0.5) / Math.max(1, counts[item.tier] - 1)
+    }
+    return { ...item, rate: formatRate(rate), isUp: item.id === upId }
+  })
 }
 
 
@@ -56,8 +66,8 @@ export class FishingPoolService {
 
   load() {
     if (this.loaded) return
-    this.rods = withRates(readCatalog(this.assetsDir, 'rods', 'rods').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'rod')
-    this.baits = withRates(readCatalog(this.assetsDir, 'baits', 'baits').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'bait')
+    this.rods = withRates(readCatalog(this.assetsDir, 'rods', 'rods').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'rod', CURRENT_UP.rod)
+    this.baits = withRates(readCatalog(this.assetsDir, 'baits', 'baits').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'bait', CURRENT_UP.bait)
     this.loaded = true
   }
 
@@ -70,8 +80,11 @@ export class FishingPoolService {
     const state = await store.read(groupId)
     const player = state.players[userId]
     const pity = normalizePity(player)
+    const upRod = this.rods.find((item) => item.isUp)
+    const upBait = this.baits.find((item) => item.isUp)
     const text = [
       '钓鱼卡池',
+      `当前 UP：${upRod?.name ?? '无'} / ${upBait?.name ?? '无'}`,
       '单抽 10 钓鱼币 · 十连 90 钓鱼币',
       `保底进度：鱼竿 ${pity.rod}/${PITY.rod} · Lv3 ${pity.lv3Rod}/${PITY.lv3Rod} · 传奇饵 ${pity.legendaryBait}/${PITY.legendaryBait} · 传奇竿 ${pity.legendaryRod}/${PITY.legendaryRod}`,
     ].join('\n')
@@ -84,6 +97,7 @@ export class FishingPoolService {
           baits: this.baits,
           pity,
           categoryRates: CATEGORY_RATES,
+          up: { rod: upRod, bait: upBait },
         },
         assetsDir: this.assetsDir,
       })

@@ -299,7 +299,24 @@ test('fishing pool command renders rates and pity progress', async () => {
   assert.match(result.replies[0], /钓鱼卡池/u)
   assert.match(result.replies[0], /鱼竿 3\/10/u)
   assert.match(result.replies[0], /传奇竿 45\/150/u)
+  assert.match(result.replies[0], /太公竿/u)
+  assert.match(result.replies[0], /拉帕拉原版浮水米诺/u)
   assert.equal(result.image?.width, 1080)
   assert.ok(result.image?.height > 1200)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('legendary pity uses the current UP selection', async () => {
+  const { root, game } = await gachaWorkspace(() => 0)
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishingCoins: 0,
+    fishing: {
+      tickets: { singleTickets: 1, tenTickets: 0 },
+      gacha: { rodPity: 0, lv3RodPity: 0, legendaryBaitPity: 0, legendaryRodPity: 149 },
+    },
+  })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
+  assert.match(result.replies[0], /太公竿/u)
   await rm(root, { recursive: true, force: true })
 })

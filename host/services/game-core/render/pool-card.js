@@ -129,6 +129,24 @@ function itemTile(item, x, y, href) {
   </g>`
 }
 
+function upCard(item, x, href) {
+  if (item === undefined) return ''
+  return `<rect x="${x}" y="744" width="468" height="132" rx="20" fill="${CARD}" stroke="${TIER_COLOR[4]}" stroke-width="2"/>
+  ${href === '' ? '' : `<image x="${x + 14}" y="762" width="96" height="96" href="${href}"/>`}
+  <rect x="${x + 14}" y="754" width="44" height="22" rx="11" fill="${TIER_COLOR[4]}"/>
+  <text x="${x + 36}" y="770" text-anchor="middle" fill="#fff" font-size="11" font-weight="700" font-family="${FONT}">UP</text>
+  <text x="${x + 124}" y="796" fill="${INK}" font-size="20" font-weight="700" font-family="${FONT}">${esc(cut(item.name, 13))}</text>
+  <text x="${x + 124}" y="828" fill="${MUTED}" font-size="15" font-family="${FONT}">${esc(item.rate)}% · 占传奇 50%</text>
+  <text x="${x + 124}" y="856" fill="${TIER_COLOR[4]}" font-size="14" font-weight="700" font-family="${FONT}">当期概率提升</text>`
+}
+
+function upPanel(up, hrefs) {
+  if (up === undefined || up.rod === undefined || up.bait === undefined) return ''
+  return `<text x="56" y="712" fill="${INK}" font-size="24" font-weight="700" font-family="${FONT}">当期 UP</text>
+  ${upCard(up.rod, 56, hrefs.rod)}
+  ${upCard(up.bait, 556, hrefs.bait)}`
+}
+
 function sectionTitle(title, y) {
   return `<text x="56" y="${y}" fill="${INK}" font-size="24" font-weight="700" font-family="${FONT}">${title}</text>`
 }
@@ -150,10 +168,14 @@ function footer(height) {
 export async function renderPoolCard({ nickname, pool, assetsDir }) {
   const rods = await Promise.all(pool.rods.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'rods', item.asset) })))
   const baits = await Promise.all(pool.baits.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'baits', item.asset) })))
+  const up = pool.up
+  const upRodHref = up?.rod === undefined ? '' : await hrefFor(assetsDir, 'rods', up.rod.asset)
+  const upBaitHref = up?.bait === undefined ? '' : await hrefFor(assetsDir, 'baits', up.bait.asset)
+  const hasUp = up !== undefined && up.rod !== undefined && up.bait !== undefined
   const rodRows = Math.max(2, Math.ceil(rods.length / 7))
   const baitRows = Math.max(2, Math.ceil(baits.length / 7))
-  const rodTitle = 730
-  const rodGrid = 748
+  const rodTitle = hasUp ? 892 : 730
+  const rodGrid = rodTitle + 18
   const baitTitle = rodGrid + rodRows * 154 + 34
   const baitGrid = baitTitle + 18
   const height = baitGrid + baitRows * 154 + 160
@@ -164,6 +186,7 @@ export async function renderPoolCard({ nickname, pool, assetsDir }) {
   ${costCards()}
   ${ratesPanel(pool)}
   ${pityPanel(pool.pity)}
+  ${upPanel(up, { rod: upRodHref, bait: upBaitHref })}
   ${sectionTitle('鱼竿池', rodTitle)}
   ${grid(rods, rodGrid)}
   ${sectionTitle('鱼饵池', baitTitle)}
