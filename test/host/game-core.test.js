@@ -134,5 +134,101 @@ test('help includes fishing exchange commands', async () => {
   const help = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/help' })
   assert.match(help.replies[0], /兑换钓鱼币/u)
   assert.match(help.replies[0], /兑换金币/u)
+  assert.match(help.replies[0], /钓鱼 抽卡/u)
+  assert.match(help.replies[0], /钓鱼 十连/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+const ASSETS_DIR = join(process.cwd(), 'assets')
+
+async function gachaWorkspace(random = () => 0) {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-gacha-'))
+  return { root, game: new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random, now: () => NOW }) }
+}
+
+async function seedPlayer(game, fields) {
+  await game.store.mutate('g1', (state) => {
+    const player = state.players['20000']
+    Object.assign(player, fields)
+  })
+}
+
+test('single draw consumes a single ticket before coins', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 1, tenTickets: 1 } } })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
+  assert.match(result.replies[0], /单抽结果/u)
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.tickets.singleTickets, 0)
+  assert.equal(player.fishing.tickets.tenTickets, 1)
+  assert.equal(player.fishingCoins, 100)
+  assert.equal(player.fishing.gacha.history.length, 1)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('ten draw consumes ten ticket before single tickets and coins', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 50, fishing: { tickets: { singleTickets: 2, tenTickets: 1 } } })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 十连' })
+  assert.match(result.replies[0], /十连结果/u)
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.tickets.tenTickets, 0)
+  assert.equal(player.fishing.tickets.singleTickets, 2)
+  assert.equal(player.fishingCoins, 50)
+  assert.equal(player.fishing.gacha.history.length, 10)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('ten draw fills remaining pulls with coins after single tickets', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 50, fishing: { tickets: { singleTickets: 5, tenTickets: 0 } } })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 十连' })
+  assert.equal(result.ok, true)
+  assert.match(result.replies[0], /5 张单抽券 \+ 50 钓鱼币/u)
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.tickets.singleTickets, 0)
+  assert.equal(player.fishingCoins, 0)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('draw fails atomically when resources cannot cover the whole pull', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 40, fishing: { tickets: { singleTickets: 5, tenTickets: 0 } } })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 十连' })
+  assert.match(result.replies[0], /十连失败/u)
+  let player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.tickets.singleTickets, 5)
+  assert.equal(player.fishingCoins, 40)
+  assert.equal(player.fishing.gacha.history.length, 0)
+
+  await seedPlayer(game, { fishingCoins: 0, fishing: { tickets: { singleTickets: 0, tenTickets: 0 } } })
+  const single = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
+  assert.match(single.replies[0], /单抽失败/u)
+  player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.gacha.history.length, 0)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('duplicate rods are auto-sold during ten draw', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-gacha-dupe-'))
+  const game = new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.95, now: () => NOW })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  const rods = JSON.parse(await readFile(join(ASSETS_DIR, 'rods/catalog.json'), 'utf8')).rods
+  await seedPlayer(game, {
+    fishingCoins: 0,
+    fishing: {
+      tickets: { singleTickets: 0, tenTickets: 1 },
+      rods: { owned: rods.map((rod) => rod.id), equipped: 'bamboo_hand' },
+    },
+  })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 十连' })
+  assert.match(result.replies[0], /重复/u)
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.ok(player.fishingCoins > 0)
+  assert.equal(player.fishing.gacha.history.length, 10)
   await rm(root, { recursive: true, force: true })
 })
