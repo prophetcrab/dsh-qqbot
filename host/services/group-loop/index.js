@@ -224,7 +224,7 @@ export class GroupLoopService {
   }
 
   async memoryContext(groupId) {
-    return memoryPrompt(await this.store.memories(100), groupId)
+    return memoryPrompt(await this.store.memories(50), groupId)
   }
 
   async groupBackground(groupId) {

@@ -10,7 +10,7 @@ const DEFAULTS = () => ({
 })
 
 const PROCESSED_LIMIT = 500
-const MEMORY_LIMIT = 100
+const MEMORY_LIMIT = 50
 const MEMORY_WRITE_LIMIT = 20
 const EMOTION_BASELINE = Object.freeze({ valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 })
 const EMOTION_DELTA_LIMIT = 0.03
@@ -112,7 +112,7 @@ export class GroupLoopStore {
     return processed.loops[loopId] ?? null
   }
 
-  async memories(limit = 100) {
+  async memories(limit = 50) {
     try {
       const text = await readFile(this.memoryPath, 'utf8')
       return text.split('\n').filter(Boolean).slice(-limit).map((line) => {
@@ -270,7 +270,7 @@ export class GroupLoopStore {
   }
 
   async dashboard(listenerPath, groupId = null) {
-    const [character, groups, memories, persona] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(100), this.loadPersona()])
+    const [character, groups, memories, persona] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(50), this.loadPersona()])
     const profiles = groupId === null || groupId === '' ? [] : await this.profilesFor(groupId)
     const listener = await this.readJson(listenerPath, null)
     return { character, persona, groups: groups.groups ?? {}, memories, profiles, listener, updatedAt: new Date().toISOString() }

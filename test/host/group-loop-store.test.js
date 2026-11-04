@@ -170,7 +170,7 @@ test('social stress also lowers valence when the model omits a negative valence 
   await rm(root, { recursive: true, force: true })
 })
 
-test('memories carry group ids, write at most 20 per loop and retain the latest 100', async () => {
+test('memories carry group ids, write at most 20 per loop and retain the latest 50', async () => {
   const { root, store } = await workspace()
   const written = await store.appendMemory(Array.from({ length: 25 }, (_, index) => ({ summary: `memory-${index}` })), 'loop-cap', 'g1')
   assert.equal(written.length, 20)
@@ -179,7 +179,7 @@ test('memories carry group ids, write at most 20 per loop and retain the latest 
     await store.appendMemory(Array.from({ length: 20 }, (_, item) => ({ summary: `batch-${index}-${item}` })), `loop-${index}`, index % 2 ? 'g1' : 'g2')
   }
   const rows = await store.memories(500)
-  assert.equal(rows.length, 100)
+  assert.equal(rows.length, 50)
   assert.equal(rows.at(-1).summary, 'batch-5-19')
   assert.ok(rows.every((row) => typeof row.groupId === 'string' && row.groupId !== ''))
   await rm(root, { recursive: true, force: true })

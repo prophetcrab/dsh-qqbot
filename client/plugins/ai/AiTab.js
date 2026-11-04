@@ -219,7 +219,7 @@ function renderAiSettings(panel, view) {
   const groups = Object.keys({ ...listenerGroups, ...groupsState }).map((id) => [id, { ...obj(listenerGroups[id]), ...obj(groupsState[id]) }])
   const selectedId = view.selected ?? groups[0]?.[0] ?? null
   const profiles = arr(data.profiles).filter((profile) => selectedId === null || String(profile.groupId) === String(selectedId))
-  const memories = arr(data.memories).slice(-100).reverse()
+  const memories = arr(data.memories).slice(-50).reverse()
   const name = text(persona.name) || text(core.name) || '未命名角色'
   const role = text(persona.role) || text(core.identity)
   const tone = text(persona.tone) || text(core.voice)
