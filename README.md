@@ -23,11 +23,13 @@ DeepSeek Harness 的 QQ 机器人插件项目。仓库按平台拆分：**此分
 
 ## 从这里开始
 
+- [文档导航](docs/README.md)
+- [当前架构总览](docs/architecture/README.md)
+- [分支对比与同步状态](docs/architecture/branches.md)
 - [开发与发布约定](CONTRIBUTING.md)
-- [架构决策记录](docs/decisions/)
+- [架构决策目录](docs/decisions/README.md)
 - [路线图](docs/roadmap/README.md)
 - [发布记录](releases/README.md)
-- [事件运行时架构计划](docs/decisions/0001-event-runtime-plan.md)
 - [群聊监听状态机图](docs/design/group-listener-state-machine.html)
 
 ## 发布
