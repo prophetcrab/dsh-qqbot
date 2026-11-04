@@ -330,12 +330,16 @@ probability[tier] = raw[tier] / total
 | 名称 | 致敬对象 | 单次效果 |
 |---|---|---|
 | 拉帕拉原版浮水米诺 | Rapala Original Floater，Lauri Rapala，1936，芬兰 | 本次鱼获复制一份，复制体拥有相同重量和估值，一起进入鱼仓 |
-| 梅普斯旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次钓鱼不进入冷却 |
+| 梅普斯旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次鱼上钩速度 +50% |
 | 达德维尔红白汤匙 | Dardevle，Lou Eppinger，1906，美国 | 本次额外获得一个特殊物品 |
-| 亚当斯干蝇 | Adams Dry Fly，Leonard Halladay，1922，美国 | 本次额外获得一次抛竿机会，额外抛竿不再次消耗鱼饵 |
+| 亚当斯干蝇 | Adams Dry Fly，Leonard Halladay，1922，美国 | 本次上鱼等级 +1，最高 Lv.5；使用后随机获得一个其他传奇鱼饵 |
 | 皇家教练羽饵 | Royal Coachman，John Hilyard，1878，美国 | 本次鱼获价值 +50% |
 
 太公竿随机获得其中一种传奇鱼饵效果。
+
+亚当斯干蝇的等级 +1 在鱼竿概率和保底结算之后应用，不改变鱼竿概率组。
+
+亚当斯干蝇使用后，从其余四种传奇鱼饵中随机获得一种，放入鱼饵库存。
 
 鱼饵名称、钓鱼效果、获取方式、购买价格和消耗规则待定。
 
