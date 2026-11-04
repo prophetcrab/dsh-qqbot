@@ -20,7 +20,8 @@
 规则：
 
 - 新功能只改 `dsh-qqbot` 和 `qq-bot`。
-- `dshbot-mac` 当前是 macOS 开发主线。
+- `dshbot-win64` 当前是 Windows 开发主线；`dshbot-mac` 保留 macOS 代码。
+- `main` 只保留导向、决策和发布元数据，不挂插件本体代码。
 - `qq-bot/main` 是 Koishi 运行时的唯一主线。
 - 不允许把 `~/.dsh/profiles/*` 当源码修改；Profile 只通过安装脚本管理。
 
@@ -29,7 +30,7 @@
 ### dsh-qqbot
 
 ```text
-dshbot-mac          当前开发主线
+dshbot-win64        当前开发主线（Windows）
 feat/<topic>        新功能
 fix/<topic>         修复
 chore/<topic>       构建/文档/依赖
@@ -74,14 +75,13 @@ fix/<topic>
 index.js                 只组装，<=80 行
 host/kernel/             插件注册和贡献点
 host/contracts/          HTTP/插件契约
-host/platform/mac/       平台路径/进程/端口/能力
+host/platform/win/       平台路径/进程/端口/能力
 host/services/           业务服务，不得依赖 plugins/client
 host/plugins/            能力插件，index.js <=80 行
 client/                  Client 源码
 scripts/                 构建/校验/安装/冒烟
 test/                    测试
 template/                生成物，不手工改
-vendor/napcat/           离线二进制资产
 ```
 
 依赖方向：
@@ -232,7 +232,6 @@ build:client
 smoke:host
 smoke:client
 check:architecture
-offline:verify
 ```
 
 ### qq-bot
@@ -255,9 +254,9 @@ npx tsc --noEmit
 
 ### 涉及安装/离线
 
-- `offline:verify` 必须通过。
-- `npm pack --dry-run` 必须包含 `vendor/`、`template/`、`host/`。
-- 不能引入在线下载 NapCat。
+- `npm ci --prefix template && npm run test:template` 必须通过。
+- `npm pack --dry-run` 必须包含 `template/` 和 `host/`。
+- NapCat 使用 Docker 镜像；不能引入 macOS 本机离线安装资源。
 
 ## 9.1 功能性系统测试
 
@@ -265,7 +264,7 @@ npx tsc --noEmit
 
 - 合并前：至少按改动范围跑 [docs/system-test.md](docs/system-test.md) 中对应项
 - 发布前：必须跑完整个功能性系统测试清单
-- 生命周期、安装、AI 契约、数据路径改动必须在真实 macOS 环境验证
+- 生命周期、安装、AI 契约、数据路径改动必须在真实 Windows + Docker 环境验证
 
 ## 10. 模板同步
 
@@ -307,22 +306,22 @@ vX.Y.Z
 6. GitHub Release 标题：
 
 ```text
-dsh-qqbot vX.Y.Z (macOS Apple Silicon)
+dsh-qqbot vX.Y.Z (Windows x64)
 ```
 
 7. 资产名：
 
 ```text
-dsh-qqbot-X.Y.Z-macos-arm64.tgz
+dsh-qqbot-X.Y.Z-windows-x64.zip
 ```
 
 8. 触发商店索引刷新。
 9. Release 说明写清：
 
 ```text
-- macOS Apple Silicon only
+- Windows x64 only
 - 需要 DSH 版本范围
-- 需要 QQ.app 与管理员授权
+- 需要 Docker Desktop + WSL2
 - 首次扫码
 ```
 
@@ -338,7 +337,7 @@ dsh-qqbot-X.Y.Z-macos-arm64.tgz
 - 新安装默认权限必须失败关闭：白名单 + 空名单。
 - 任何 token 不得出现在日志、状态、错误、Release 说明。
 - 外部命令必须使用 argv 数组，不拼 shell。
-- 安装/升级 NapCat 必须校验 size + SHA-256。
+- NapCat 通过 Docker 镜像运行，不引入 macOS 本机离线安装资源。
 - 模型服务繁忙不得把原始上游错误发群。
 - 不自动执行用户未确认的管理员级操作。
 
@@ -383,7 +382,7 @@ docs/decisions/NNNN-<title>.md
 [x] client Tab 改为运行时注册表 + Host clientTabs 驱动
 [ ] 外部 Client Tab 在 Panel 挂载后才注册的 React hook 限制
 [ ] 新安装权限默认仍是 all，需要改为 whitelist 空名单
-[ ] 仅支持 Apple Silicon macOS
+[ ] 仅支持 Windows x64 + Docker Desktop
 ```
 
 这些不阻塞当前开发，但新功能不应扩大这些债务。

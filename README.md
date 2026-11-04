@@ -1,8 +1,8 @@
 # dsh-qqbot
 
-DeepSeek Harness 的跨平台 QQ 机器人控制中心：macOS 使用本地 QQ/NapCat，Windows 使用 Docker/Linux QQ。
+DeepSeek Harness 的 Windows QQ 机器人控制中心：Linux QQ/NapCat 运行在 Docker 容器中，Koishi 运行在宿主机。
 
-当前开发分支：`dshbot-win64`。项目已按 plugin-based 架构重写：
+当前开发分支：`dshbot-win64`（只包含 Windows 代码与资源；macOS 代码在 `dshbot-mac`）。`main` 将只保留导向与发布管理，见 [0008](docs/decisions/0008-main-guidance-only.md)。项目已按 plugin-based 架构重写：
 
 ```text
 QQ ↔ NapCat ↔ OneBot 11 ↔ Koishi ↔ DSH Host ↔ 面板 / LLM
@@ -26,7 +26,7 @@ dsh-qqbot/
 ├── host/
 │   ├── kernel/              # 插件注册、贡献点、路由/工具/Feature/Tab
 │   ├── contracts/           # AI/status/config/panel/plugin-manifest schema
-│   ├── platform/mac/        # 路径、进程、端口、能力
+│   ├── platform/win/        # 路径、进程、端口、能力的 Windows 实现
 │   ├── services/            # napcat / koishi / setup / ai / persona / profiles / access
 │   │   └── game-core/       # 共享玩家存储 + games/fishing 等游戏包
 │   └── plugins/             # lifecycle / napcat / koishi / install / ai / persona /
@@ -36,8 +36,7 @@ dsh-qqbot/
 │   ├── runtime/             # api / store / styles / locale
 │   ├── components/
 │   └── plugins/             # overview / ai / messages / access / plugins / features / logs / games
-├── template/                # Koishi 运行时模板（从 qq-bot 同步）
-├── vendor/napcat/           # NapCat 离线 payload
+├── template/                # Koishi 运行时模板
 └── scripts/                 # 构建、校验、冒烟、安装
 ```
 
@@ -217,7 +216,7 @@ template/plugins/group-listener/game-commands.ts
 游戏结果优先返回程序化图片，文字作为 fallback：
 
 ```text
-DSH renderer → SVG → /usr/bin/sips → PNG base64
+DSH renderer → SVG → @resvg/resvg-js → PNG base64
 Koishi 收到 base64 → h.image(...)
 ```
 
@@ -289,34 +288,9 @@ GameAdminService.GAMES 中的 id / name / description
 
 ## 两个外部依赖
 
-### NapCat（macOS）
+### NapCat（Docker 后端）
 
-| 项 | 值 |
-| --- | --- |
-| QQ.app | `/Applications/QQ.app` |
-| QQ 容器 | `~/Library/Containers/com.tencent.qq/Data` |
-| NapCat 目录 | `.../Documents/napcat` |
-| 配置目录 | `.../Library/Application Support/QQ/NapCat/config` 或 `.../Documents/napcat/config` |
-| WebUI | `127.0.0.1:6099` |
-| 反向 WS | `ws://127.0.0.1:5140/onebot` |
-| 离线包 | `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` |
-
-配置：
-
-```text
-napcatPort           6099
-napcatToken          空
-qqPath               空
-napcatDir            空
-offlineVendorDir     空
-offlineNapcatVersion 空
-```
-
-NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
-
-### NapCat Docker 后端（Linux QQ 容器）
-
-除了本机 macOS QQ.app，还可以把 Linux QQ + NapCat 跑在容器里，与主机的 QQ 完全隔离（不会杀本机 QQ、不需要 App 管理/管理员授权）。Docker 后端与平台无关，只要能运行 Docker 即可：
+Windows 分支只使用 Docker 后端：Linux QQ + NapCat 跑在容器里，与主机的 QQ 完全隔离。
 
 ```text
 napcatBackend        docker
@@ -341,7 +315,7 @@ lifecycleGuard      true（DSH 退出时停止 Koishi 与 NapCat 容器）
 
 注意：
 
-- Docker Desktop（Windows/macOS）或 Docker Engine（Linux）需要在外部安装一次；Windows 需要 WSL2/Hyper-V。国内网络拉取 Docker Hub 镜像时需要在 Docker Desktop 配置代理或镜像源；
+- Docker Desktop 需要在外部安装一次；Windows 需要 WSL2/Hyper-V。国内网络拉取 Docker Hub 镜像时需要在 Docker Desktop 配置代理或镜像源；
 - 容器内是 **Linux 版 QQ**，登录仍需手机扫码一次；二维码在面板「概览」或 `http://127.0.0.1:<napcatPort>/webui` 获取；
 - 建议使用机器人小号，并把本机旧 NapCat 停掉，避免同一 QQ 多端同时在线；
 - 插件生成的 compose 位于数据目录，可用 `docker compose -f <dataDir>/compose.yaml logs/stop` 排查；
@@ -357,7 +331,7 @@ lifecycleGuard      true（DSH 退出时停止 Koishi 与 NapCat 容器）
 | 端口 | 5140 |
 | 反向 WS | `/onebot` |
 | 本地 CLI | `node_modules/koishi/bin.js` |
-| 离线依赖 | `template/runtime-bundles/node_modules-darwin-arm64.tar.gz` |
+| 离线依赖 | `template/runtime-bundles/node_modules-win32-x64.tar.gz` |
 
 配置：
 
@@ -374,9 +348,8 @@ logLines           200
 
 ### Windows 平台层（`host/platform/win/`）
 
-`host/platform/index.js` 是唯一根据 `process.platform` 选择实现的入口；macOS 用
-`host/platform/mac/`，Windows 用 `host/platform/win/`。Windows 层实现相同的
-paths/process/http/capabilities/data-paths 接口：
+本分支的 `host/platform/index.js` 直接导出 Windows 实现，路径、进程、端口、HTTP、
+data-paths 都在 `host/platform/win/`：
 
 | 能力 | Windows 实现 |
 | --- | --- |
@@ -384,31 +357,30 @@ paths/process/http/capabilities/data-paths 接口：
 | 端口占用 | `netstat -ano -p tcp` + LISTENING 解析 |
 | 停止进程 | `taskkill /PID <pid> /T`（必要时 `/F`） |
 | npm | `npm.cmd` 经 `cmd.exe /c` 启动（规避 CVE-2024-27980） |
-| 路径/文件 | `%USERPROFILE%` 展开、原子写入等与 macOS 同一套语义 |
+| 路径/文件 | `%USERPROFILE%` 展开、原子写入 |
 | QQ/NapCat 探测 | QQNT 默认安装路径；NapCat 本地安装只做只读探测 |
 
-Windows 的默认 NapCat 后端是 **`docker`**（`host/platform/win/capabilities.js` 的
-`DEFAULT_SETTINGS.napcatBackend`），因为本机 patched QQ 客户端只支持 macOS。
-Windows 运行前提是 Docker Desktop + WSL2；无需在主机上安装/启动 QQ。
+Windows 的 NapCat 后端固定为 **`docker`**，运行前提是 Docker Desktop + WSL2；
+无需在主机上安装/启动 QQ。
 
 Windows 的离线依赖包已随仓库提供（`template/runtime-bundles/node_modules-win32-x64.tar.gz`），
 首次安装不需要 npm/网络；缺失时才回退 `npm install`。
 
-小游戏图片（SVG → PNG）不再依赖系统工具：优先使用 `sips` / `rsvg-convert`，
-两者都不可用时回退到随插件安装的 `@resvg/resvg-js`（Windows 默认走这条路径）。
+小游戏图片（SVG → PNG）优先使用随插件安装的 `@resvg/resvg-js`，不依赖系统工具；
+只有 resvg 失败时才回退系统 `rsvg-convert`。
 
 ## 安装
 
-```bash
-cd ~/project/dsh-qqbot
+```powershell
+cd $HOME\project\dsh-qqbot
 node scripts/install-profile.mjs --profile desktop --install
 ```
 
 首次加载会：
 
 1. 从 `template/` 创建 `~/project/qq-bot`
-2. 解压匹配平台的内置 Koishi 依赖（`darwin-arm64` / `win32-x64`）
-3. 从 `vendor/napcat` 离线安装 NapCat（Windows 默认改用 Docker 后端，跳过本机安装）
+2. 解压内置 Koishi 依赖（`win32-x64`）
+3. 拉取/启动 NapCat Docker 容器（不需要主机安装 NapCat）
 4. 写 OneBot 反向 WS 配置
 5. 启动后扫码登录
 
@@ -436,13 +408,12 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 198 tests
+npm test                 # 291 tests
 npm run build:client
-npm run smoke:host       # 41 routes / 6 tools / 5 features
+npm run smoke:host
 npm run smoke:client
 npm run check:architecture
-npm run check:template
-npm run offline:verify
+npm run test:template    # 需先 npm ci --prefix template
 npm run check            # 全部
 ```
 
@@ -466,9 +437,8 @@ npm run check            # 全部
 
 - NapCat token 不落日志、不返回明文
 - 外部命令使用 argv 数组，不拼 shell
-- 离线包 size/SHA-256 校验失败即拒绝
 - 权限策略由 Koishi `access-control` 执行
-- 当前分支只支持 macOS / Apple Silicon
+- 本分支只包含 Windows 代码；macOS 代码/资源在 `dshbot-mac`
 
 - [事件运行时架构计划](docs/decisions/0001-event-runtime-plan.md)
 - [运行时内核 v1 详细设计](docs/decisions/0002-runtime-v1-detailed-design.md)

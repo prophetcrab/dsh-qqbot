@@ -17,24 +17,20 @@
 
 参考 <https://napneko.github.io/> 安装 NapCat，登录机器人 QQ 账号。下文假设 NapCat 与 Koishi 在同一台机器上。
 
-#### macOS 本机安装（macOS 12+，Intel / Apple Silicon）
+#### Windows / Docker（推荐）
 
-1. 从 <https://im.qq.com/> 安装 QQ NT 到 `/Applications/QQ.app`
-2. 下载 [NapCat-Mac-Installer](https://github.com/NapNeko/NapCat-Mac-Installer/releases/latest)，打开后选择 NapCat 版本并安装
-3. 按提示把 QQ 入口切换为 NapCat（若被系统拒绝，到「系统设置 → 隐私与安全性 → App 管理」允许安装器管理 QQ）
-4. 在安装器面板点「启动 NapCat」，终端会输出 **WebUI 地址和 token**；按提示用手机 QQ 扫码登录机器人账号
-5. 打开 WebUI（地址/token 见终端输出），后续网络配置都在这里完成
+Windows 分支由 dsh-qqbot 管理 NapCat 容器，不要在宿主机安装/登录 QQ：
 
-> NapCat 的配置和插件位于 `~/Library/Containers/com.tencent.qq/Data/Documents/napcat`。
-> NapCat 与原版 QQ 可以同时运行，但必须登录**不同**的 QQ 账号。
+1. 安装并启动 Docker Desktop（WSL2 后端）
+2. 在 dsh-qqbot 面板点「安装/启动 NapCat」；插件会自动拉取 `mlikiowa/napcat-docker` 并生成 compose
+3. 打开 `http://127.0.0.1:6099/webui`（或面板概览的二维码）扫码登录机器人 QQ
+4. 容器内 OneBot 反向 WS 地址是 `ws://host.docker.internal:5140/onebot`，插件会自动写入 NapCat 配置
 
-#### 其他平台
-
-Windows / Linux / Docker 请按 <https://napneko.github.io/guide/boot/Shell> 安装。若 NapCat 跑在另一台机器上，下文 URL 中的 `127.0.0.1` 换成 Koishi 所在机器的内网/公网 IP，并保证双方网络互通（或在 NapCat 侧使用正向 WS）。
+> 若 NapCat 跑在另一台机器/容器，下文 URL 中的 `127.0.0.1` 换成 Koishi 所在机器的内网/公网 IP，并保证双方网络互通。
 
 ### 2. 配置 NapCat 与 Koishi 的连接
 
-项目默认监听反向 WS：`ws://127.0.0.1:5140/onebot`。
+项目默认监听反向 WS：宿主机 Koishi 为 `ws://127.0.0.1:5140/onebot`，Docker 内的 NapCat 使用 `ws://host.docker.internal:5140/onebot`。
 
 在 NapCat 的「网络配置」中：
 

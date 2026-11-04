@@ -1,7 +1,7 @@
 # 功能性系统测试清单
 
 自动化检查（`npm run check`）只验证模块、契约、构建和离线资产。  
-以下测试必须在真实 macOS / Apple Silicon 环境执行，不能只靠 CI。
+以下测试必须在真实 Windows x64 + Docker Desktop 环境执行，不能只靠 CI。
 
 ## 1. 合并前最低门槛
 
@@ -16,7 +16,7 @@
 | AI / 契约 | 真实群消息能触发一次 AI 回复 |
 | data / 配置 | 重启后权限、人设、AI 设置仍保留 |
 | template / 安装 | 临时项目能从 template 创建并启动 |
-| 离线包 | `offline:verify` + 干净目录解压测试 |
+| Docker / NapCat | Docker Desktop 可用；容器能启动、扫码登录并重建后保留登录态 |
 
 小改动可以只跑受影响项；生命周期、安装、AI 契约、数据路径改动必须跑真实环境。
 
@@ -88,10 +88,10 @@
 
 ```text
 [ ] 临时目录能由 template 创建项目
-[ ] 解压 darwin-arm64 node_modules
+[ ] 解压 win32-x64 node_modules
 [ ] 不联网可启动 Koishi
-[ ] NapCat 离线包 size/SHA-256 校验通过
-[ ] npm pack 包含 host/template/vendor/client.js
+[ ] NapCat Docker 镜像可拉取/启动，容器重建后保留登录态
+[ ] npm pack 包含 host/template/client.js
 ```
 
 ## 3. 记录方式
@@ -116,5 +116,6 @@ NapCat: 4.18.41 实际安装 / 4.18.42 内置
 Koishi: 4.18.11
 QQ: 7.0.2
 DSH: 0.2.1-rc.x
-macOS: Apple Silicon only
+macOS: 不适用（Windows 分支）  
+Windows: Windows 10/11 x64 + Docker Desktop/WSL2
 ```

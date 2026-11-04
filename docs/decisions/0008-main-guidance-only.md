@@ -1,0 +1,81 @@
+# 0008 - main as Guidance-Only Branch
+
+## Status
+
+Accepted. Supersedes the "platform branches merge main" part of
+[0007](0007-multiplatform-branch-strategy.md).
+
+## Decision
+
+`main` is the repository's **guidance / management** branch. It does not carry
+the plugin body (no `host/`, `client/`, `template/`, `vendor/`, built bundles or
+release binaries).
+
+```text
+main               direction, decisions, roadmap, release metadata, governance
+dshbot-mac         complete macOS code + macOS assets
+dshbot-win64       complete Windows code + Windows assets
+feature/*          short-lived work branched from the owning platform branch
+```
+
+## Branch Rules
+
+- Platform branches are code-bearing and platform-scoped. `dshbot-win64` must
+  not carry macOS source, payloads or runtime bundles; `dshbot-mac` must not
+  carry Windows-only assets.
+- `main` changes are documentation/governance changes only.
+- Do **not** merge `main` wholesale into a platform branch. If shared guidance
+  is needed, take the relevant paths explicitly:
+
+  ```bash
+  git checkout main -- docs/ README.md
+  ```
+
+- Shared code changes move directly between platform branches with
+  `git cherry-pick -x` (or a short-lived shared feature branch), not through
+  `main`.
+- Platform-specific features stay on the owning platform branch.
+
+## Release Shape
+
+Platform branches own their code tags:
+
+```text
+dshbot-mac    → v0.7.0-mac
+dshbot-win64  → v0.7.0-win64
+```
+
+`main` records the release set, artifact names, checksums and links under
+`releases/`; it does not host the artifacts.
+
+## CI
+
+- `main`: documentation/link/decision checks only.
+- `dshbot-mac`: macOS runner, macOS code tests and packaging.
+- `dshbot-win64`: Windows runner, Windows code tests and packaging.
+
+Shared workflow definitions may live under `main/.github/workflows/` as
+reusable workflows, but platform code is checked out and tested from the
+platform branch.
+
+## Platform Isolation
+
+Platform-specific code/resources live only on their branch:
+
+```text
+dshbot-mac    host/platform/mac, macOS NapCat payload, darwin runtime bundle
+dshbot-win64  host/platform/win, Docker backend, win32-x64 runtime bundle
+main          none of the above
+```
+
+Platform-neutral code (`host/platform/common`, kernel, contracts, most
+services/plugins/client) is synced between platform branches by cherry-pick or a
+focused shared change, never by importing code from `main`.
+
+## Migration
+
+1. Freeze code changes on `main` once platform branches are independent.
+2. Remove the plugin body from `main` in one dedicated commit.
+3. Never merge that removal commit back into a platform branch.
+4. From then on, only documentation/governance PRs target `main`.
+5. Platform branches record guidance references and keep their own code history.
