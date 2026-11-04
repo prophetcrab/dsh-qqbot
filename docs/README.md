@@ -8,7 +8,7 @@
 - [分支对比与同步状态](architecture/branches.md)
 - [架构决策目录](decisions/README.md)
 - [路线图](roadmap/README.md)
-- [发布记录](releases/README.md)
+- [发布记录](../releases/README.md)
 
 ## 平台文档
 
