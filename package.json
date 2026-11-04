@@ -1,6 +1,6 @@
 {
   "name": "dsh-qqbot",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "macOS-only, plugin-based QQ bot control center for DeepSeek Harness.",
   "license": "MIT",
   "author": "prophetcrab",
