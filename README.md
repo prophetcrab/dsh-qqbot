@@ -385,12 +385,13 @@ Windows 的默认 NapCat 后端是 **`docker`**（`host/platform/win/capabilitie
 `DEFAULT_SETTINGS.napcatBackend`），因为本机 patched QQ 客户端只支持 macOS。
 Windows 运行前提是 Docker Desktop + WSL2；无需在主机上安装/启动 QQ。
 
-当前 Windows 侧还有两个已知缺口：
+当前 Windows 侧还有一个已知缺口：
 
 - 小游戏卡片渲染（SVG → PNG）依赖 `sips`（macOS）或 `rsvg-convert`；Windows 需自行安装
-  librsvg 才会出图，相关测试在 Windows 上跳过；
-- 内置离线依赖包目前只有 `darwin-arm64`；Windows 首次安装会回退到 `npm install`
-  （需要网络），后续可补 `node_modules-win32-x64.tar.gz`。
+  librsvg 才会出图，相关测试在 Windows 上跳过。
+
+Windows 的离线依赖包已随仓库提供（`template/runtime-bundles/node_modules-win32-x64.tar.gz`），
+首次安装不需要 npm/网络；缺失时才回退 `npm install`。
 
 ## 安装
 
@@ -402,7 +403,7 @@ node scripts/install-profile.mjs --profile desktop --install
 首次加载会：
 
 1. 从 `template/` 创建 `~/project/qq-bot`
-2. 解压内置 Koishi `darwin-arm64` 依赖（Windows 目前回退 npm install）
+2. 解压匹配平台的内置 Koishi 依赖（`darwin-arm64` / `win32-x64`）
 3. 从 `vendor/napcat` 离线安装 NapCat（Windows 默认改用 Docker 后端，跳过本机安装）
 4. 写 OneBot 反向 WS 配置
 5. 启动后扫码登录

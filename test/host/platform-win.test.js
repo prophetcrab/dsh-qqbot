@@ -5,10 +5,12 @@
  */
 
 import assert from 'node:assert/strict'
+import { existsSync, statSync } from 'node:fs'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import * as facade from '../../host/platform/index.js'
 import * as macIndex from '../../host/platform/mac/index.js'
 import * as winIndex from '../../host/platform/win/index.js'
@@ -96,6 +98,12 @@ test('windows platform: index exports every macOS capability', () => {
   for (const name of Object.keys(macIndex)) {
     assert.ok(name in winIndex, `win/index.js is missing export ${name}`)
   }
+})
+
+test('windows platform: ships the win32-x64 offline dependency bundle', () => {
+  const bundle = fileURLToPath(new URL('../../template/runtime-bundles/node_modules-win32-x64.tar.gz', import.meta.url))
+  assert.ok(existsSync(bundle), 'missing template/runtime-bundles/node_modules-win32-x64.tar.gz')
+  assert.ok(statSync(bundle).size > 1024 * 1024, 'Windows offline bundle looks truncated')
 })
 
 test('platform facade: selects the Windows implementation on win32', { skip: process.platform !== 'win32' }, () => {
