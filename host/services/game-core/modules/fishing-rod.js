@@ -11,7 +11,7 @@ export const rodHelp = Object.freeze([
 
 const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 
-const ROD_INFO = Object.freeze({
+export const ROD_INFO = Object.freeze({
   bamboo_hand: { weights: [60, 30, 8, 2, 0], sellPrice: 3, effect: '无特殊效果' },
   fiberglass_hand: { weights: [58, 31, 8, 3, 0], sellPrice: 4, effect: '无特殊效果' },
   fiberglass_surf: { weights: [62, 28, 8, 2, 0], sellPrice: 3, effect: '无特殊效果' },
