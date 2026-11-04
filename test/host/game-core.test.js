@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { GameCore } from '../../host/services/game-core/index.js'
+import { FISH_STATS } from '../../host/services/game-core/fishing-data.js'
 
 const NOW = new Date('2026-11-03T08:00:00+08:00')
 
@@ -380,6 +381,7 @@ test('legendary rod effects: grey guarantees lv3 and taigong casts without bait'
   clock.at = new Date('2026-11-04T08:01:00+08:00')
   const taigong = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿' })
   assert.match(taigong.replies[0], /正在钓鱼/u)
+  assert.ok((await readGroup(root, 'g1')).players['20000'].fishing.cast.effects.length > 0)
   clock.at = new Date('2026-11-04T08:01:06+08:00')
   const caught = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
   assert.equal(caught.ok, true)
@@ -410,5 +412,84 @@ test('fish warehouse shows numbered fish and sells by number', async () => {
   assert.equal(player.fishing.fishWarehouse[0].id, 2)
   const missing = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卖鱼 99' })
   assert.match(missing.replies[0], /没有 #99/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('legendary rod and bait effects apply', async () => {
+  const { root, game } = await gachaWorkspace()
+  game.cast.load()
+  const seq = (values) => { let i = 0; return () => values[i++] ?? 0.5 }
+  const cast = (overrides = {}) => ({
+    rodId: 'bamboo_hand', effects: [], normalCoefficient: null, waltonFirst: false, forceFive: false, ...overrides,
+  })
+  const resolve = (overrides, random) => game.cast.resolve({ fishing: { rodDaily: {} }, cast: cast(overrides), random, now: NOW })
+
+  const grey = resolve({ rodId: 'grey' }, seq([0.5, 0.1, 0.5, 0.5]))
+  assert.ok(grey.tier >= 3)
+  const hemingway = resolve({ rodId: 'hemingway', forceFive: true }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(hemingway.tier, 5)
+
+  const waltonBase = resolve({ rodId: 'walton' }, seq([0.5, 0.5, 0.5, 0.5]))
+  const waltonFirst = resolve({ rodId: 'walton', waltonFirst: true }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(waltonFirst.weightKg, Math.round(waltonBase.weightKg * 2 * 100) / 100)
+
+  const ziling = resolve({ rodId: 'ziling' }, seq([0.5, 0.5, 0.5, 0.5]))
+  const zilingStats = FISH_STATS[ziling.item.id]
+  const zilingExpected = Math.round((zilingStats.minKg + 0.5 * (zilingStats.maxKg - zilingStats.minKg)) * 1.15 * 100) / 100
+  assert.equal(ziling.weightKg, zilingExpected)
+
+  const base = resolve({}, seq([0.5, 0.5, 0.5, 0.5]))
+  const rapala = resolve({ effects: ['rapala_floater'] }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(rapala.copies, 2)
+  const royal = resolve({ effects: ['royal_coachman'] }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(royal.value, Math.round(base.value * 1.5))
+  const adams = resolve({ effects: ['adams_dry_fly'] }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(adams.tier, Math.min(5, base.tier + 1))
+  assert.equal(typeof adams.extraBait, 'string')
+  const dardevle = resolve({ effects: ['dardevle'] }, seq([0.5, 0.5, 0.5, 0.5]))
+  assert.equal(typeof dardevle.extraSpecial?.name, 'string')
+
+  const low = game.cast.resolveSpecial({}, { effects: [] }, seq([0.0, 0.5]))
+  const high = game.cast.resolveSpecial({}, { effects: [] }, seq([0.99, 0.5]))
+  assert.equal(low.tier, 'low')
+  assert.equal(high.tier, 'high')
+
+  await rm(root, { recursive: true, force: true })
+})
+
+test('mepps bait shortens the cast and the resulting fish gets a numeric id', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-mepps-'))
+  const clock = { at: new Date('2026-11-04T09:00:00+08:00') }
+  const game = new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.store.mutate('g1', (state) => {
+    const p = state.players['20000']
+    p.fishing = { rods: { owned: ['bamboo_hand'], equipped: 'bamboo_hand' }, baits: { counts: { mepps_aglia: 1 } } }
+  })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿 梅普斯旋转亮片' })
+  let player = (await readGroup(root, 'g1')).players['20000']
+  const duration = new Date(player.fishing.cast.readyAt).getTime() - new Date(player.fishing.cast.startedAt).getTime()
+  assert.ok(duration > 3000 && duration < 3500)
+  clock.at = new Date(new Date(player.fishing.cast.readyAt).getTime() + 1000)
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.fishWarehouse.length, 1)
+  assert.equal(player.fishing.fishWarehouse[0].id, 1)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('hemingway every 20th cast forces lv5', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-hemingway-'))
+  const clock = { at: new Date('2026-11-04T11:00:00+08:00') }
+  const game = new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.store.mutate('g1', (state) => {
+    const p = state.players['20000']
+    p.fishing = { rods: { owned: ['hemingway'], equipped: 'hemingway' }, baits: { counts: { dough: 1 } }, castCount: 19 }
+  })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿 面团饵' })
+  clock.at = new Date('2026-11-04T11:00:06+08:00')
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.match(result.replies[0], /Lv\.5/u)
   await rm(root, { recursive: true, force: true })
 })

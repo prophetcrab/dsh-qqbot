@@ -156,7 +156,6 @@ export class FishingCastService {
       if (bait !== null && LEGENDARY_BAIT_EFFECTS.includes(bait.id)) effects.push(bait.id)
       if (taigongFree) effects.push(pick(LEGENDARY_BAIT_EFFECTS, random))
       const waltonFirst = rod.id === 'walton' && fishing.rodDaily.walton !== date
-      if (waltonFirst) fishing.rodDaily.walton = date
       const forceFive = rod.id === 'hemingway' && fishing.castCount % 20 === 0
       const duration = effects.includes('mepps_aglia') ? this.castDurationMs / 1.5 : this.castDurationMs
       fishing.cast = {
@@ -245,7 +244,10 @@ export class FishingCastService {
     if (stats === undefined) throw new Error(`missing fish stats: ${fish.id}`)
     let weightKg = stats.minKg + rand(random) * (stats.maxKg - stats.minKg)
     if (cast.rodId === 'ziling') weightKg *= 1.15
-    if (cast.waltonFirst) weightKg *= 2
+    if (cast.waltonFirst && fishing.rodDaily.walton !== shanghaiDate(now)) {
+      weightKg *= 2
+      fishing.rodDaily.walton = shanghaiDate(now)
+    }
     weightKg = round(weightKg, 2)
     const ratio = Math.max(0, Math.min(1, (weightKg - stats.minKg) / (stats.maxKg - stats.minKg)))
     const pricePerKg = Math.round(stats.basePricePerKg * (1 + ratio * stats.weightBonus))
