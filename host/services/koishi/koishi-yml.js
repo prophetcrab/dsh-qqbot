@@ -5,6 +5,10 @@
  * `help:ss74sj: {}` or `~market:jgwg4c:` (indent 4); the `~` prefix means
  * disabled and the part after the last `:` is a per-instance id. This module
  * understands exactly that shape and never rewrites unrelated lines.
+ *
+ * Invariants: block mappings only; no flow arrays/objects as plugin entries, no
+ * anchors/aliases, no multi-line scalars. Keep the supported grammar in sync
+ * with `template/koishi.yml` and the tests when adding new syntax.
  */
 
 import { join } from 'node:path'
