@@ -1,7 +1,7 @@
 {
   "name": "dsh-qqbot",
   "version": "0.7.0",
-  "description": "macOS-only, plugin-based QQ bot control center for DeepSeek Harness.",
+  "description": "Cross-platform (macOS/Windows) plugin-based QQ bot control center for DeepSeek Harness.",
   "license": "MIT",
   "author": "prophetcrab",
   "homepage": "https://github.com/prophetcrab/dsh-qqbot#readme",
@@ -68,5 +68,8 @@
     "test:client": "node --test test/client/*.test.js",
     "sync:template": "node scripts/sync-template.mjs",
     "check:template": "node scripts/sync-template.mjs --check"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

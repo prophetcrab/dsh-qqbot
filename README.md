@@ -385,13 +385,11 @@ Windows 的默认 NapCat 后端是 **`docker`**（`host/platform/win/capabilitie
 `DEFAULT_SETTINGS.napcatBackend`），因为本机 patched QQ 客户端只支持 macOS。
 Windows 运行前提是 Docker Desktop + WSL2；无需在主机上安装/启动 QQ。
 
-当前 Windows 侧还有一个已知缺口：
-
-- 小游戏卡片渲染（SVG → PNG）依赖 `sips`（macOS）或 `rsvg-convert`；Windows 需自行安装
-  librsvg 才会出图，相关测试在 Windows 上跳过。
-
 Windows 的离线依赖包已随仓库提供（`template/runtime-bundles/node_modules-win32-x64.tar.gz`），
 首次安装不需要 npm/网络；缺失时才回退 `npm install`。
+
+小游戏图片（SVG → PNG）不再依赖系统工具：优先使用 `sips` / `rsvg-convert`，
+两者都不可用时回退到随插件安装的 `@resvg/resvg-js`（Windows 默认走这条路径）。
 
 ## 安装
 
