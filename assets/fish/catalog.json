@@ -5,121 +5,121 @@
       "id": "crucian",
       "name": "鲫鱼",
       "tier": 1,
-      "asset": "t1/crucian.png"
+      "asset": "fish_t1_01_crucian.png"
     },
     {
       "id": "whitebait",
       "name": "白条",
       "tier": 1,
-      "asset": "t1/whitebait.png"
+      "asset": "fish_t1_02_whitebait.png"
     },
     {
       "id": "loach",
       "name": "泥鳅",
       "tier": 1,
-      "asset": "t1/loach.png"
+      "asset": "fish_t1_03_loach.png"
     },
     {
       "id": "small_carp",
       "name": "小鲤鱼",
       "tier": 1,
-      "asset": "t1/small_carp.png"
+      "asset": "fish_t1_04_small_carp.png"
     },
     {
       "id": "bass",
       "name": "鲈鱼",
       "tier": 2,
-      "asset": "t2/bass.png"
+      "asset": "fish_t2_01_bass.png"
     },
     {
       "id": "bream",
       "name": "鳊鱼",
       "tier": 2,
-      "asset": "t2/bream.png"
+      "asset": "fish_t2_02_bream.png"
     },
     {
       "id": "yellow_catfish",
       "name": "黄颡鱼",
       "tier": 2,
-      "asset": "t2/yellow_catfish.png"
+      "asset": "fish_t2_03_yellow_catfish.png"
     },
     {
       "id": "grass_carp",
       "name": "草鱼",
       "tier": 2,
-      "asset": "t2/grass_carp.png"
+      "asset": "fish_t2_04_grass_carp.png"
     },
     {
       "id": "mandarin_fish",
       "name": "鳜鱼",
       "tier": 3,
-      "asset": "t3/mandarin_fish.png"
+      "asset": "fish_t3_01_mandarin_fish.png"
     },
     {
       "id": "snakehead",
       "name": "黑鱼",
       "tier": 3,
-      "asset": "t3/snakehead.png"
+      "asset": "fish_t3_02_snakehead.png"
     },
     {
       "id": "black_carp",
       "name": "青鱼",
       "tier": 3,
-      "asset": "t3/black_carp.png"
+      "asset": "fish_t3_03_black_carp.png"
     },
     {
       "id": "koi",
       "name": "锦鲤",
       "tier": 3,
-      "asset": "t3/koi.png"
+      "asset": "fish_t3_04_koi.png"
     },
     {
       "id": "golden_scale_carp",
       "name": "金鳞鲤",
       "tier": 4,
-      "asset": "t4/golden_scale_carp.png"
+      "asset": "fish_t4_01_golden_scale_carp.png"
     },
     {
       "id": "moon_shade_mandarin",
       "name": "月影鳜",
       "tier": 4,
-      "asset": "t4/moon_shade_mandarin.png"
+      "asset": "fish_t4_02_moon_shade_mandarin.png"
     },
     {
       "id": "red_fin_sturgeon",
       "name": "赤鳍鲟",
       "tier": 4,
-      "asset": "t4/red_fin_sturgeon.png"
+      "asset": "fish_t4_03_red_fin_sturgeon.png"
     },
     {
       "id": "cloud_eel",
       "name": "云纹鳗",
       "tier": 4,
-      "asset": "t4/cloud_eel.png"
+      "asset": "fish_t4_04_cloud_eel.png"
     },
     {
       "id": "dragon_scale_koi",
       "name": "龙鳞锦鲤",
       "tier": 5,
-      "asset": "t5/dragon_scale_koi.png"
+      "asset": "fish_t5_01_dragon_scale_koi.png"
     },
     {
       "id": "star_river_mandarin",
       "name": "星河鳜",
       "tier": 5,
-      "asset": "t5/star_river_mandarin.png"
+      "asset": "fish_t5_02_star_river_mandarin.png"
     },
     {
       "id": "void_kun",
       "name": "太虚鲲",
       "tier": 5,
-      "asset": "t5/void_kun.png"
+      "asset": "fish_t5_03_void_kun.png"
     },
     {
       "id": "glazed_dragonfish",
       "name": "琉璃龙鱼",
       "tier": 5,
-      "asset": "t5/glazed_dragonfish.png"
+      "asset": "fish_t5_04_glazed_dragonfish.png"
     }
   ]
 }
