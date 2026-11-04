@@ -1,5 +1,6 @@
 /** LLM-backed analyze / compose / state-update loop for group chat. */
 import { buildCharacterPrompt } from '../persona/index.js'
+import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
 import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
@@ -18,13 +19,6 @@ function needsWebSearch(material) {
 function bubbleBudget(random) {
   const roll = random()
   return roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3
-}
-
-function applyBubbleBudget(parts, budget) {
-  if (!Array.isArray(parts) || parts.length <= budget) return parts
-  const kept = parts.slice(0, Math.max(0, budget - 1))
-  const tail = parts.slice(Math.max(0, budget - 1)).filter(Boolean).join(' ').trim()
-  return tail === '' ? kept : [...kept, tail]
 }
 
 function object(value) { return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {} }
@@ -94,15 +88,7 @@ function normalizeParts(value, fallback = '') {
   if (list.length === 0) {
     try { list = collectParts(JSON.parse(fallback)) } catch { list = collectParts(parseJson(fallback)) }
   }
-  const parts = []
-  for (const item of list) {
-    for (const line of item.split(/\n+/u)) {
-      const part = line.trim().slice(0, 300)
-      if (part !== '') parts.push(part)
-      if (parts.length >= 3) break
-    }
-    if (parts.length >= 3) break
-  }
+  const parts = shapeBubbleParts(list)
   if (parts.length > 0) return parts
   const fallbackText = text(fallback)
   if (fallbackText === '') return []
@@ -114,7 +100,7 @@ function normalizeParts(value, fallback = '') {
     } catch { /* fall through */ }
   }
   if (/^\s*[\[{]/u.test(fallbackText) || fallbackText.includes('"type":"final"')) return []
-  return fallbackText.split(/\n+/u).map((part) => part.trim()).filter(Boolean).slice(0, 3).map((part) => part.slice(0, 300))
+  return shapeBubbleParts(fallbackText.split(/\n+/u))
 }
 
 function knownParticipants(participants) {
@@ -248,7 +234,7 @@ export class GroupLoopService {
     if (this.settings.webSearchEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
     try {
       const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images })
-      const parts = applyBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
+      const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
       return { ok: true, text: parts.join(''), parts, speak, toolCalls: [], bubbleBudget: budget }
     } catch (error) {
       this.logger.warn?.('group-loop compose failed: %s', String(error?.message ?? error))
@@ -300,7 +286,7 @@ export class GroupLoopService {
         observations += '\n\n【工具观察】工具调用格式无法解析，请重新调用 web_search，或直接给 final parts。'
         continue
       }
-      const parts = applyBubbleBudget(normalizeParts(parsed, raw), budget)
+      const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
       if (parts.length > 0) {
         if (searchIntent && toolCalls.length === 0 && !nudged) {
           nudged = true
