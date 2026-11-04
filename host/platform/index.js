@@ -20,6 +20,7 @@ export const resolveSettings = impl.resolveSettings
 export const hostPlatform = impl.hostPlatform
 export const platformInfo = impl.platformInfo
 export const macInfo = impl.macInfo
+export const hostInfo = impl.hostInfo
 export const detectQq = impl.detectQq
 export const detectNapcat = impl.detectNapcat
 export const detectKoishiProject = impl.detectKoishiProject
