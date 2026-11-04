@@ -301,6 +301,23 @@ specialRate 特殊物品概率
 Lv.1 鱼 / Lv.2 鱼 / Lv.3 鱼 / Lv.4 鱼 / Lv.5 鱼
 ```
 
+鱼档权重是**未触发特殊物品时的条件权重**，五档合计 100。
+
+最终整体概率：
+
+```text
+P(特殊物品) = specialRate
+P(鱼 i) = (1 - specialRate) * fishWeight[i] / sum(fishWeight)
+```
+
+五档鱼概率与特殊物品概率合计：
+
+```text
+specialRate + (1 - specialRate) * 100% = 100%
+```
+
+鱼档权重不会被 specialRate 再次压缩。
+
 ### Lv.1
 
 | 名称 | Lv.1 | Lv.2 | Lv.3 | Lv.4 | Lv.5 |
@@ -459,6 +476,15 @@ specialRate 保持鱼竿上的原值不变。
 1. 先按 specialRate 判定特殊物品
 2. 未触发时，再用修正后的五档鱼权重抽鱼
 ```
+
+鱼饵只改变「未触发特殊物品时」的五档鱼条件分布：
+
+```text
+P(特殊物品) = rod.specialRate
+P(鱼 i) = (1 - rod.specialRate) * baitAdjustedWeight[i]
+```
+
+所以鱼饵不会改变特殊物品的总概率，整体仍然归一化到 100%。
 
 ### Lv.1
 
