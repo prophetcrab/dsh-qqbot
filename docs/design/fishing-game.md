@@ -477,7 +477,7 @@ probability[tier] = raw[tier] / total
 每个玩家在每个群独立记录保底进度。
 
 ```text
-每 10 抽    保底一个鱼竿
+每 10 抽    保底一个 Lv.1 或 Lv.2 鱼竿
 每 30 抽    保底一个传奇鱼饵
 每 50 抽    保底一个 Lv.3 鱼竿
 每 100 抽   保底一个传奇鱼竿
@@ -501,21 +501,23 @@ legendaryRodPity
 多重保底同时到期时，优先级：
 
 ```text
-传奇鱼竿 > Lv.3 鱼竿 > 传奇鱼饵 > 任意鱼竿
+传奇鱼竿 > Lv.3 鱼竿 > 传奇鱼饵 > Lv.1/Lv.2 鱼竿
 ```
 
 触发后只重置触发的那一类保底：
 
 ```text
-任意鱼竿       重置 rodPity
-Lv.3 鱼竿      重置 lv3RodPity
-传奇鱼竿       重置 legendaryRodPity
-传奇鱼饵       重置 legendaryBaitPity
+Lv.1/Lv.2 鱼竿 重置 rodPity
+Lv.3 鱼竿       重置 lv3RodPity
+传奇鱼竿        重置 legendaryRodPity
+传奇鱼饵        重置 legendaryBaitPity
 ```
 
 未触发的其他保底计数保留，可以下一抽继续触发。
 
 自然抽中不重置任何保底计数。
+
+10 抽保底的鱼竿只从 Lv.1 和 Lv.2 鱼竿中抽取，按这两级的基础权重重新归一化。
 
 ### 十连
 
