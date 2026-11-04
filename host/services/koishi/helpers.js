@@ -331,3 +331,24 @@ export async function syncKoishiPort(manager, projectDir = manager.projectDir) {
   await writeFileAtomic(file, next)
   return true
 }
+
+/**
+ * Drop a managed PID that already exited. A launcher/worker pair can leave the
+ * manager pointing at a dead worker after a crash; the port owner, if any, is
+ * the authoritative replacement.
+ */
+export async function refreshManagedPid(manager) {
+  if (manager.managedPid === null) return null
+  if (manager.isAlive(manager.managedPid)) return manager.managedPid
+  const health = await manager.health().catch(() => null)
+  if (health?.reachable === true) {
+    // The endpoint is up; prefer the real port owner when it is known.
+    const owner = await manager.findPortPid(manager.port).catch(() => null)
+    if (owner !== null) manager.managedPid = owner
+    return manager.managedPid
+  }
+  const owner = await manager.findPortPid(manager.port).catch(() => null)
+  manager.clearManaged()
+  if (owner !== null) manager.managedPid = owner
+  return manager.managedPid
+}

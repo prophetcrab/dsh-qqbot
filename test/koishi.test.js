@@ -326,7 +326,7 @@ test('stop uses the managed PID and never a broad process match', async (t) => {
   assert.equal(manager.isManaged(), false)
   assert.equal(manager.managedPid, null)
   assert.deepEqual(manager.logs(10), [])
-  assert.deepEqual(kill.state.calls[0], { pid: 4321, signal: 'SIGTERM' })
+  assert.deepEqual(kill.state.calls.filter((call) => call.signal !== 0)[0], { pid: 4321, signal: 'SIGTERM' })
   assert.ok(kill.state.calls.some((call) => call.signal === 0))
 })
 

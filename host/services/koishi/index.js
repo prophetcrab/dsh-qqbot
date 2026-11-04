@@ -49,6 +49,7 @@ import {
   numberOr,
   pickBot,
   probePort,
+  refreshManagedPid,
   requestJson,
   serviceStillListening,
   syncKoishiPort,
@@ -162,6 +163,7 @@ export class KoishiManager {
 
   async status() {
     const project = detectKoishiProject(this.settings)
+    await refreshManagedPid(this)
     const base = {
       projectDir: project.projectDir,
       exists: project.exists,
@@ -239,6 +241,7 @@ export class KoishiManager {
       return { ok: false, error: `Koishi 项目缺少 package.json：${project.projectDir}` }
     }
     await syncKoishiPort(this, project.projectDir)
+    await refreshManagedPid(this)
 
     const current = await this.health()
     if (current.reachable) {
@@ -331,6 +334,7 @@ export class KoishiManager {
   }
 
   async stop({ gracefulTimeoutMs = this.stopTimeoutMs, killTimeoutMs = this.killTimeoutMs } = {}) {
+    await refreshManagedPid(this)
     let pid = this.managedPid
     if (pid === null) {
       const externalPid = await this.findPortPid(this.port)
