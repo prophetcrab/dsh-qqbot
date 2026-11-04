@@ -8,6 +8,8 @@ import { FishingStorageService, storageHelp } from './modules/fishing-storage.js
 import { FishingPoolService, poolHelp } from './modules/fishing-pool.js'
 import { FishingRodService, rodHelp } from './modules/fishing-rod.js'
 import { GachaService, gachaHelp } from './modules/gacha.js'
+import { GameAdminService } from './admin.js'
+import { UpStore } from './up-store.js'
 import { playersModule } from './modules/players.js'
 
 const GROUP_ID = /^[0-9A-Za-z_-]{1,64}$/u
@@ -21,12 +23,14 @@ export class GameCore {
     this.now = now
     this.store = new PlayerStore({ projectDir, logger })
     this.registry = new GameRegistry([playersModule])
-    this.gacha = new GachaService({ projectDir, assetsDir, logger })
+    this.up = new UpStore({ projectDir, logger })
+    this.gacha = new GachaService({ projectDir, assetsDir, logger, upStore: this.up })
     this.bag = new FishingBagService({ projectDir, assetsDir, logger })
     this.rod = new FishingRodService({ projectDir, assetsDir, logger })
-    this.pool = new FishingPoolService({ projectDir, assetsDir, logger })
+    this.pool = new FishingPoolService({ projectDir, assetsDir, logger, upStore: this.up })
     this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs })
     this.storage = new FishingStorageService({ projectDir, assetsDir, logger })
+    this.admin = new GameAdminService({ projectDir, assetsDir, logger, store: this.store, upStore: this.up })
   }
 
   async command(input) {

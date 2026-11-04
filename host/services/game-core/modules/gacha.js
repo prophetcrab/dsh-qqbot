@@ -143,10 +143,10 @@ function pay(fishing, coins, payment) {
   return coins - payment.coins
 }
 
-function pityDraw(gacha, rods, baits, random) {
+function pityDraw(gacha, rods, baits, random, up) {
   if (gacha.legendaryRodPity >= PITY.legendaryRod) {
     gacha.legendaryRodPity = 0
-    return { kind: 'rod', tier: 4, item: pickLegendary(rods[4], CURRENT_UP.rod, random), pityTriggered: 'legendaryRod' }
+    return { kind: 'rod', tier: 4, item: pickLegendary(rods[4], up.rod, random), pityTriggered: 'legendaryRod' }
   }
   if (gacha.lv3RodPity >= PITY.lv3Rod) {
     gacha.lv3RodPity = 0
@@ -154,7 +154,7 @@ function pityDraw(gacha, rods, baits, random) {
   }
   if (gacha.legendaryBaitPity >= PITY.legendaryBait) {
     gacha.legendaryBaitPity = 0
-    return { kind: 'bait', tier: 4, item: pickLegendary(baits[4], CURRENT_UP.bait, random), pityTriggered: 'legendaryBait' }
+    return { kind: 'bait', tier: 4, item: pickLegendary(baits[4], up.bait, random), pityTriggered: 'legendaryBait' }
   }
   if (gacha.rodPity >= PITY.rod) {
     gacha.rodPity = 0
@@ -164,11 +164,11 @@ function pityDraw(gacha, rods, baits, random) {
   return null
 }
 
-function baseDraw(rods, baits, random) {
+function baseDraw(rods, baits, random, up) {
   const entry = weightedPick(CATEGORY_WEIGHTS, random)
   const pool = entry.kind === 'rod' ? rods[entry.tier] : baits[entry.tier]
   const item = entry.tier === 4
-    ? pickLegendary(pool, entry.kind === 'rod' ? CURRENT_UP.rod : CURRENT_UP.bait, random)
+    ? pickLegendary(pool, entry.kind === 'rod' ? up.rod : up.bait, random)
     : pick(pool, random)
   return { kind: entry.kind, tier: entry.tier, item, pityTriggered: null }
 }
@@ -235,8 +235,9 @@ function formatCost(payment, size) {
 }
 
 export class GachaService {
-  constructor({ projectDir, logger, assetsDir }) {
+  constructor({ projectDir, logger, assetsDir, upStore }) {
     this.logger = logger
+    this.upStore = upStore
     this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
     this.rods = { 1: [], 2: [], 3: [], 4: [] }
     this.baits = { 1: [], 2: [], 3: [], 4: [] }
@@ -265,6 +266,7 @@ export class GachaService {
     try {
       try { this.load() } catch (error) { this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error)); return { ok: false, error: 'gacha catalog unavailable' } }
       const size = parts[1] === '十连' ? 10 : 1
+      const up = this.upStore === undefined ? CURRENT_UP : await this.upStore.get(groupId)
 
       return await store.mutate(groupId, async (state) => {
       const player = state.players[userId]
@@ -281,8 +283,8 @@ export class GachaService {
         fishing.gacha.lv3RodPity += 1
         fishing.gacha.legendaryBaitPity += 1
         fishing.gacha.legendaryRodPity += 1
-        const forced = pityDraw(fishing.gacha, this.rods, this.baits, random)
-        const result = forced ?? baseDraw(this.rods, this.baits, random)
+        const forced = pityDraw(fishing.gacha, this.rods, this.baits, random, up)
+        const result = forced ?? baseDraw(this.rods, this.baits, random, up)
         if (forced === null) applyNaturalReset(fishing.gacha, result)
         results.push(storeResult(player, fishing, result, fishing.gacha.totalDraws + 1, payment.sources[index], now))
       }

@@ -458,4 +458,20 @@ export const CSS = `
 .qqbot-ai-settings-group p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 @media (max-width: 900px) { .qqbot-ai-settings-grid, .qqbot-ai-settings-bottom { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .qqbot-ai-settings-hero { align-items: flex-start; flex-direction: column; } .qqbot-ai-info-grid { grid-template-columns: 1fr; } .qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: auto; } }
+.qqbot-game-card { appearance: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.qqbot-game-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l1)); }
+.qqbot-admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.qqbot-admin-stats-wide { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.qqbot-admin-stat { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 11px;
+  background: var(--dsw-alias-bg-layer-2); border: 0.5px solid var(--dsw-alias-border-l1); min-width: 0; }
+.qqbot-admin-stat-label { font-size: 10px; color: var(--dsw-alias-label-tertiary); }
+.qqbot-admin-stat-value { font-size: 15px; font-weight: 500; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.qqbot-admin-up { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.qqbot-table-wrap { overflow-x: auto; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; }
+.qqbot-table-wrap .qqbot-table { min-width: 820px; }
+@media (max-width: 900px) {
+  .qqbot-admin-stats-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qqbot-admin-up { grid-template-columns: minmax(0, 1fr); }
+}
+
 `

@@ -153,6 +153,45 @@ const FEATURES = [
   },
 ]
 
+
+const ADMIN_GAME_USERS = [
+  {
+    qq: '20000', nickname: '小明', registeredAt: '2026-10-30T00:00:00.000Z', coins: 12, fishingCoins: 88,
+    rods: [{ id: 'taigong', name: '太公竿' }], equippedRod: 'taigong',
+    baits: [{ id: 'dough', name: '面团饵', count: 3 }], selectedBait: 'dough',
+    singleTickets: 2, tenTickets: 1,
+    gacha: { rodPity: 4, lv3RodPity: 5, legendaryBaitPity: 6, legendaryRodPity: 7 },
+    fishCount: 1, fishValue: 20, cast: null,
+  },
+]
+const ADMIN_GAME = {
+  groupId: '1026855069',
+  game: { id: 'fishing', name: { zh: '钓鱼', en: 'Fishing' }, description: { zh: '抛竿与收竿。', en: 'Cast and collect.' } },
+  updatedAt: '2026-10-30T00:00:00.000Z',
+  users: ADMIN_GAME_USERS,
+  summary: { userCount: 1, activeCasts: 0, totalFishingCoins: 88, totalFish: 1, totalFishValue: 20 },
+  up: {
+    rodId: 'taigong', baitId: 'rapala_floater', rod: '太公竿', bait: '拉帕拉原版浮水米诺',
+    options: {
+      rods: [{ id: 'taigong', name: '太公竿' }, { id: 'ziling', name: '子陵竿' }],
+      baits: [{ id: 'rapala_floater', name: '拉帕拉原版浮水米诺' }, { id: 'mepps_aglia', name: '梅普斯旋转亮片' }],
+    },
+  },
+}
+const ADMIN_GROUPS = {
+  groups: [{
+    groupId: '1026855069', userCount: 1, totalCoins: 12, totalFishingCoins: 88,
+    updatedAt: '2026-10-30T00:00:00.000Z',
+    games: [{ id: 'fishing', name: { zh: '钓鱼', en: 'Fishing' }, playerCount: 1 }],
+  }],
+  games: [{ id: 'fishing', name: { zh: '钓鱼', en: 'Fishing' } }],
+}
+const ADMIN_GROUP = {
+  groupId: '1026855069', updatedAt: '2026-10-30T00:00:00.000Z',
+  users: [{ qq: '20000', nickname: '小明', coins: 12, fishingCoins: 88, fishCount: 1, registeredAt: '2026-10-30T00:00:00.000Z' }],
+  games: [{ id: 'fishing', name: { zh: '钓鱼', en: 'Fishing' }, description: { zh: '抛竿与收竿。', en: 'Cast and collect.' }, playerCount: 1 }],
+}
+
 const LOG_LINES = ['[koishi] ready', '[koishi] bot online']
 
 const CONTACTS = {
@@ -549,6 +588,10 @@ globalThis.fetch = async (url, init) => {
     return json(CONTACTS)
   }
   if (path.startsWith('/qqbot/koishi/plugins')) return json({ ok: true, data: PLUGINS })
+  if (path === '/qqbot/game/admin/groups') return json({ ok: true, data: ADMIN_GROUPS })
+  if (path.startsWith('/qqbot/game/admin/group?')) return json({ ok: true, data: ADMIN_GROUP })
+  if (path.startsWith('/qqbot/game/admin/game?')) return json({ ok: true, data: ADMIN_GAME })
+  if (path === '/qqbot/game/admin/up') return json({ ok: true, data: ADMIN_GAME })
   if (path.startsWith('/qqbot/features')) return json({ ok: true, data: FEATURES })
   if (path.startsWith('/qqbot/logs')) return json({ ok: true, lines: LOG_LINES })
   return json({ ok: true })
@@ -717,6 +760,7 @@ for (const id of [
   'qqbot-tab-plugins',
   'qqbot-tab-features',
   'qqbot-tab-logs',
+  'qqbot-tab-games',
 ]) {
   expectTestId(tree, id)
 }
@@ -1240,6 +1284,31 @@ const retry = findAll(tree, (node) => node.props && node.props['aria-label'] ===
 if (retry === undefined) throw new Error('retry button missing in the error state')
 console.log('status error state: ok')
 failStatus = false
+
+// ---- games tab --------------------------------------------------------------
+clickTestId(tree, 'qqbot-tab-games')
+tree = await settle()
+expectTestId(tree, 'qqbot-games-title')
+expectTestId(tree, 'qqbot-game-group-1026855069')
+clickTestId(tree, 'qqbot-game-group-1026855069')
+tree = await settle()
+expectTestId(tree, 'qqbot-game-open-fishing')
+clickTestId(tree, 'qqbot-game-open-fishing')
+tree = await settle()
+expectTestId(tree, 'qqbot-games-up-rod')
+expectTestId(tree, 'qqbot-games-up-bait')
+expectTestId(tree, 'qqbot-games-up-save')
+changeSelect(tree, 'qqbot-games-up-rod', 'ziling')
+tree = await settle()
+clickTestId(tree, 'qqbot-games-up-save')
+tree = await settle()
+const upPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/game/admin/up')
+if (upPosts.length !== 1) throw new Error(`expected one UP POST, got ${upPosts.length}`)
+const upBody = JSON.parse(String(upPosts[0].body))
+if (upBody.rodId !== 'ziling' || upBody.baitId !== 'rapala_floater') throw new Error(`unexpected UP body: ${JSON.stringify(upBody)}`)
+console.log('games tab: ok')
+
+
 
 console.log('\nclient smoke: ok')
 process.exit(0)

@@ -292,6 +292,7 @@ window.__ModuleLoader__.load({
       __require("client/plugins/plugins/index.js")
       __require("client/plugins/features/index.js")
       __require("client/plugins/logs/index.js")
+      __require("client/plugins/games/index.js")
 
       const h = React.createElement
 
@@ -1241,6 +1242,362 @@ window.__ModuleLoader__.load({
           loadFeatures,
           runFeatureAction,
         },
+      })
+
+      return {  }
+    },
+    "client/plugins/games/GamesTab.js": (__require) => {
+      const React = __require("react")
+      const { formatTime, messageOf, requestJson } = __require("client/runtime/api.js")
+
+      const h = React.createElement
+
+      function row(panel, label, value, mono) {
+        return h('div', { className: 'qqbot-row-item', key: label },
+          h('span', { className: 'qqbot-row-label' }, label),
+          h('span', { className: `qqbot-row-value${mono ? ' qqbot-mono' : ''}` }, value))
+      }
+
+      function stat(panel, label, value) {
+        return h('div', { className: 'qqbot-admin-stat', key: label },
+          h('span', { className: 'qqbot-admin-stat-label' }, label),
+          h('span', { className: 'qqbot-admin-stat-value' }, value))
+      }
+
+      function table(panel, columns, rows) {
+        return h('div', { className: 'qqbot-table-wrap' },
+          h('table', { className: 'qqbot-table' },
+            h('thead', null, h('tr', null, ...columns.map((column) => h('th', { key: column.key }, column.label)))),
+            h('tbody', null, ...rows)))
+      }
+
+      function useGames(panel) {
+        const { t } = panel
+        const [groups, setGroups] = React.useState(null)
+        const [groupsPhase, setGroupsPhase] = React.useState('idle')
+        const [groupsError, setGroupsError] = React.useState(null)
+        const [selectedGroupId, setSelectedGroupId] = React.useState(null)
+        const [group, setGroup] = React.useState(null)
+        const [groupPhase, setGroupPhase] = React.useState('idle')
+        const [groupError, setGroupError] = React.useState(null)
+        const [selectedGameId, setSelectedGameId] = React.useState(null)
+        const [game, setGame] = React.useState(null)
+        const [gamePhase, setGamePhase] = React.useState('idle')
+        const [gameError, setGameError] = React.useState(null)
+        const [upDraft, setUpDraft] = React.useState(null)
+        const [savingUp, setSavingUp] = React.useState(false)
+        const [notice, setNotice] = React.useState(null)
+
+        const loadGroups = async () => {
+          setGroupsPhase('loading')
+          try {
+            const payload = await requestJson('/qqbot/game/admin/groups')
+            setGroups(payload && payload.data ? payload.data : { groups: [], games: [] })
+            setGroupsError(null)
+            setGroupsPhase('ready')
+          } catch (error) {
+            setGroupsError(messageOf(error))
+            setGroupsPhase('error')
+          }
+        }
+
+        const loadGroup = async (groupId) => {
+          setGroupPhase('loading')
+          setGroupError(null)
+          try {
+            const payload = await requestJson(`/qqbot/game/admin/group?groupId=${encodeURIComponent(groupId)}`)
+            setGroup(payload && payload.data ? payload.data : null)
+            setGroupPhase('ready')
+          } catch (error) {
+            setGroupError(messageOf(error))
+            setGroupPhase('error')
+          }
+        }
+
+        const loadGame = async (groupId, gameId) => {
+          setGamePhase('loading')
+          setGameError(null)
+          try {
+            const payload = await requestJson(`/qqbot/game/admin/game?groupId=${encodeURIComponent(groupId)}&gameId=${encodeURIComponent(gameId)}`)
+            const data = payload && payload.data ? payload.data : null
+            setGame(data)
+            setUpDraft(data ? { rodId: data.up.rodId, baitId: data.up.baitId } : null)
+            setGamePhase('ready')
+          } catch (error) {
+            setGameError(messageOf(error))
+            setGamePhase('error')
+          }
+        }
+
+        React.useEffect(() => { void loadGroups() }, [])
+        React.useEffect(() => {
+          if (selectedGroupId === null) return
+          void loadGroup(selectedGroupId)
+        }, [selectedGroupId])
+        React.useEffect(() => {
+          if (selectedGroupId === null || selectedGameId === null) return
+          void loadGame(selectedGroupId, selectedGameId)
+        }, [selectedGroupId, selectedGameId])
+
+        const openGroup = (groupId) => {
+          setSelectedGroupId(groupId)
+          setSelectedGameId(null)
+          setGroup(null)
+          setGame(null)
+          setNotice(null)
+        }
+        const openGame = (gameId) => {
+          setSelectedGameId(gameId)
+          setGame(null)
+          setUpDraft(null)
+          setNotice(null)
+        }
+        const backGroups = () => {
+          setSelectedGroupId(null)
+          setSelectedGameId(null)
+          setGroup(null)
+          setGame(null)
+          setNotice(null)
+        }
+        const backGroup = () => {
+          setSelectedGameId(null)
+          setGame(null)
+          setUpDraft(null)
+          setNotice(null)
+        }
+        const saveUp = async () => {
+          if (selectedGroupId === null || selectedGameId === null || upDraft === null || savingUp) return
+          setSavingUp(true)
+          setNotice(null)
+          try {
+            const payload = await requestJson('/qqbot/game/admin/up', {
+              method: 'POST',
+              body: {
+                groupId: selectedGroupId,
+                gameId: selectedGameId,
+                rodId: upDraft.rodId,
+                baitId: upDraft.baitId,
+              },
+            })
+            if (payload && payload.data) {
+              setGame(payload.data)
+              setUpDraft({ rodId: payload.data.up.rodId, baitId: payload.data.up.baitId })
+            }
+            setNotice({ kind: 'ok', text: t('gamesUpSaved') })
+          } catch (error) {
+            setNotice({ kind: 'error', text: `${t('gamesUpFailed')}: ${messageOf(error)}` })
+          } finally {
+            setSavingUp(false)
+          }
+        }
+
+        return {
+          t, groups, groupsPhase, groupsError, selectedGroupId, group, groupPhase, groupError,
+          selectedGameId, game, gamePhase, gameError, upDraft, setUpDraft, savingUp, notice,
+          loadGroups, loadGroup, loadGame, openGroup, openGame, backGroups, backGroup, saveUp,
+        }
+      }
+
+      function renderGroups(panel, state) {
+        const { t } = state
+        const data = state.groups
+        const items = data && Array.isArray(data.groups) ? data.groups : []
+        return h('div', { className: 'qqbot-stack' },
+          h('div', { className: 'qqbot-toolbar' },
+            h('div', { className: 'qqbot-toolbar-left' },
+              h('h2', { className: 'qqbot-card-title', 'data-testid': 'qqbot-games-title' }, t('gamesTitle')),
+              h('span', { className: 'qqbot-card-sub' }, t('gamesSubtitle'))),
+            h('div', { className: 'qqbot-toolbar-right' },
+              h('button', {
+                type: 'button', className: 'qqbot-btn', 'data-testid': 'qqbot-games-refresh',
+                disabled: state.groupsPhase === 'loading', onClick: () => { void state.loadGroups() },
+              }, t('gamesRefresh')))),
+          state.groupsPhase === 'loading' && data === null ? h('div', { className: 'qqbot-empty' }, t('gamesLoading')) : null,
+          state.groupsError !== null ? h('div', { className: 'qqbot-banner qqbot-banner-error' }, `${t('gamesLoadFail')}: ${state.groupsError}`) : null,
+          data !== null && items.length === 0 ? h('div', { className: 'qqbot-empty' }, t('gamesEmpty')) : null,
+          h('div', { className: 'qqbot-grid' }, ...items.map((entry) => h('button', {
+            type: 'button',
+            key: entry.groupId,
+            className: 'qqbot-card qqbot-game-card',
+            'data-testid': `qqbot-game-group-${entry.groupId}`,
+            onClick: () => { state.openGroup(entry.groupId) },
+          },
+            h('div', { className: 'qqbot-card-head' },
+              h('div', null,
+                h('h2', { className: 'qqbot-card-title' }, `${t('gamesGroup')} ${entry.groupId}`),
+                h('p', { className: 'qqbot-card-sub' }, `${t('gamesLastUpdated')} ${formatTime(entry.updatedAt) || '—'}`)),
+              h('span', { className: 'qqbot-badge' }, t('gamesOpen'))),
+            h('div', { className: 'qqbot-admin-stats' },
+              stat(panel, t('gamesUserCount'), entry.userCount),
+              stat(panel, t('gamesTotalCoins'), entry.totalCoins),
+              stat(panel, t('gamesTotalFishingCoins'), entry.totalFishingCoins)),
+            h('div', { className: 'qqbot-actions-row' }, ...(entry.games || []).map((game) => h('span', {
+              key: game.id,
+              className: 'qqbot-badge',
+            }, `${game.name && (game.name.zh || game.name.en) ? (game.name.zh || game.name.en) : game.id} · ${game.playerCount}`)))))))
+      }
+
+      function renderGroup(panel, state) {
+        const { t } = state
+        const data = state.group
+        return h('div', { className: 'qqbot-stack' },
+          h('div', { className: 'qqbot-toolbar' },
+            h('div', { className: 'qqbot-toolbar-left' },
+              h('button', {
+                type: 'button', className: 'qqbot-btn', 'data-testid': 'qqbot-games-back',
+                onClick: () => { state.backGroups() },
+              }, t('gamesBackGroups')),
+              h('h2', { className: 'qqbot-card-title' }, `${t('gamesGroup')} ${state.selectedGroupId}`)),
+            h('div', { className: 'qqbot-toolbar-right' },
+              h('button', {
+                type: 'button', className: 'qqbot-btn', onClick: () => { void state.loadGroup(state.selectedGroupId) },
+              }, t('gamesRefresh')))),
+          state.groupPhase === 'loading' && data === null ? h('div', { className: 'qqbot-empty' }, t('gamesLoading')) : null,
+          state.groupError !== null ? h('div', { className: 'qqbot-banner qqbot-banner-error' }, `${t('gamesLoadFail')}: ${state.groupError}`) : null,
+          data === null ? null : h('div', { className: 'qqbot-stack' },
+            h('div', { className: 'qqbot-admin-stats qqbot-admin-stats-wide' },
+              stat(panel, t('gamesGroupId'), data.groupId),
+              stat(panel, t('gamesUserCount'), data.users.length),
+              stat(panel, t('gamesLastUpdated'), formatTime(data.updatedAt) || '—')),
+            h('h3', { className: 'qqbot-card-title' }, t('gamesGames')),
+            h('div', { className: 'qqbot-grid' }, ...(data.games || []).map((game) => h('button', {
+              type: 'button',
+              key: game.id,
+              className: 'qqbot-card qqbot-game-card',
+              'data-testid': `qqbot-game-open-${game.id}`,
+              onClick: () => { state.openGame(game.id) },
+            },
+              h('div', { className: 'qqbot-card-head' },
+                h('div', null,
+                  h('h2', { className: 'qqbot-card-title' }, game.name && (game.name.zh || game.name.en) || game.id),
+                  h('p', { className: 'qqbot-card-sub' }, game.description && (game.description.zh || game.description.en) || '')),
+                h('span', { className: 'qqbot-badge' }, `${t('gamesPlayerCount')} ${game.playerCount}`)),
+              h('span', { className: 'qqbot-btn' }, t('gamesOpen'))))),
+            h('h3', { className: 'qqbot-card-title' }, t('gamesUsers')),
+            data.users.length === 0 ? h('div', { className: 'qqbot-empty' }, t('gamesNoUsers')) : table(panel,
+              [
+                { key: 'qq', label: t('gamesQQ') },
+                { key: 'nickname', label: t('gamesNickname') },
+                { key: 'coins', label: t('gamesAccountCoins') },
+                { key: 'fishingCoins', label: t('gamesFishingCoins') },
+                { key: 'fishCount', label: t('gamesFishCount') },
+                { key: 'registeredAt', label: t('gamesRegisteredAt') },
+              ],
+              data.users.map((user) => h('tr', { key: user.qq },
+                h('td', { className: 'qqbot-mono' }, user.qq),
+                h('td', null, user.nickname),
+                h('td', null, user.coins),
+                h('td', null, user.fishingCoins),
+                h('td', null, user.fishCount),
+                h('td', { className: 'qqbot-card-sub' }, formatTime(user.registeredAt) || '—'))))) )
+      }
+
+      function renderGame(panel, state) {
+        const { t, game, upDraft } = state
+        if (state.gamePhase === 'loading' && game === null) return h('div', { className: 'qqbot-empty' }, t('gamesLoading'))
+        if (state.gameError !== null) return h('div', { className: 'qqbot-empty' }, h('p', { className: 'qqbot-error' }, `${t('gamesLoadFail')}: ${state.gameError}`))
+        if (game === null) return h('div', { className: 'qqbot-empty' }, t('gamesLoading'))
+        const up = game.up
+        const rodOptions = up.options && Array.isArray(up.options.rods) ? up.options.rods : []
+        const baitOptions = up.options && Array.isArray(up.options.baits) ? up.options.baits : []
+        const update = (key, value) => {
+          state.setUpDraft((previous) => (previous === null ? previous : { ...previous, [key]: value }))
+        }
+        return h('div', { className: 'qqbot-stack' },
+          h('div', { className: 'qqbot-toolbar' },
+            h('div', { className: 'qqbot-toolbar-left' },
+              h('button', { type: 'button', className: 'qqbot-btn', 'data-testid': 'qqbot-games-back', onClick: () => { state.backGroup() } }, t('gamesBackGroup')),
+              h('h2', { className: 'qqbot-card-title' }, `${game.game.name && (game.game.name.zh || game.game.name.en) || game.game.id} · ${game.groupId}`)),
+            h('div', { className: 'qqbot-toolbar-right' },
+              h('button', { type: 'button', className: 'qqbot-btn', onClick: () => { void state.loadGame(state.selectedGroupId, state.selectedGameId) } }, t('gamesRefresh')))),
+          state.notice !== null ? h('div', { className: `qqbot-banner qqbot-banner-${state.notice.kind}` }, state.notice.text) : null,
+          h('div', { className: 'qqbot-admin-stats qqbot-admin-stats-wide' },
+            stat(panel, t('gamesUserCount'), game.summary.userCount),
+            stat(panel, t('gamesActiveCasts'), game.summary.activeCasts),
+            stat(panel, t('gamesTotalFishingCoins'), game.summary.totalFishingCoins),
+            stat(panel, t('gamesTotalFish'), game.summary.totalFish),
+            stat(panel, t('gamesTotalFishValue'), game.summary.totalFishValue)),
+          h('div', { className: 'qqbot-card' },
+            h('div', { className: 'qqbot-card-head' },
+              h('h2', { className: 'qqbot-card-title' }, t('gamesCurrentUp')),
+              h('span', { className: 'qqbot-badge' }, `${up.rod} / ${up.bait}`)),
+            h('div', { className: 'qqbot-admin-up' },
+              h('label', { className: 'qqbot-field' },
+                h('span', { className: 'qqbot-field-label' }, t('gamesUpRod')),
+                h('select', {
+                  className: 'qqbot-select', 'data-testid': 'qqbot-games-up-rod',
+                  value: upDraft ? upDraft.rodId : up.rodId,
+                  disabled: state.savingUp,
+                  onChange: (event) => { update('rodId', event.currentTarget.value) },
+                }, ...rodOptions.map((item) => h('option', { key: item.id, value: item.id }, item.name)))),
+              h('label', { className: 'qqbot-field' },
+                h('span', { className: 'qqbot-field-label' }, t('gamesUpBait')),
+                h('select', {
+                  className: 'qqbot-select', 'data-testid': 'qqbot-games-up-bait',
+                  value: upDraft ? upDraft.baitId : up.baitId,
+                  disabled: state.savingUp,
+                  onChange: (event) => { update('baitId', event.currentTarget.value) },
+                }, ...baitOptions.map((item) => h('option', { key: item.id, value: item.id }, item.name)))),
+              h('button', {
+                type: 'button', className: 'qqbot-btn qqbot-btn-primary', 'data-testid': 'qqbot-games-up-save',
+                disabled: state.savingUp || upDraft === null, onClick: () => { void state.saveUp() },
+              }, state.savingUp ? t('gamesSaving') : t('gamesSaveUp')))),
+          h('h3', { className: 'qqbot-card-title' }, t('gamesPlayers')),
+          game.users.length === 0 ? h('div', { className: 'qqbot-empty' }, t('gamesNoUsers')) : table(panel,
+            [
+              { key: 'qq', label: t('gamesPlayer') },
+              { key: 'fishingCoins', label: t('gamesFishingCoins') },
+              { key: 'rods', label: t('gamesRods') },
+              { key: 'baits', label: t('gamesBaits') },
+              { key: 'tickets', label: t('gamesTickets') },
+              { key: 'fish', label: t('gamesFishCount') },
+              { key: 'pity', label: t('gamesPity') },
+              { key: 'cast', label: t('gamesCast') },
+            ],
+            game.users.map((user) => {
+              const equipped = user.rods.find((rod) => rod.id === user.equippedRod)
+              const selected = user.baits.find((bait) => bait.id === user.selectedBait)
+              const rods = user.rods.length === 0 ? '—' : `${user.rods.length} ${t('gamesRodsOwned')}${equipped ? ` · ${equipped.name}` : ''}`
+              const baits = user.baits.length === 0 ? '—' : `${user.baits.length} ${t('gamesBaitsOwned')}${selected ? ` · ${selected.name}` : ''}`
+              const pity = `竿 ${user.gacha.rodPity} · Lv3 ${user.gacha.lv3RodPity} · 饵 ${user.gacha.legendaryBaitPity} · 传奇 ${user.gacha.legendaryRodPity}`
+              const cast = user.cast === null ? t('gamesCastIdle') : `${t('gamesCastActive')} · ${formatTime(user.cast.readyAt) || ''}`
+              return h('tr', { key: user.qq },
+                h('td', null,
+                  h('div', { className: 'qqbot-plugin-name' }, user.nickname),
+                  h('span', { className: 'qqbot-card-sub qqbot-mono' }, user.qq)),
+                h('td', null, user.fishingCoins),
+                h('td', null, rods),
+                h('td', null, baits),
+                h('td', null, `单 ${user.singleTickets} / 十 ${user.tenTickets}`),
+                h('td', null, `${user.fishCount} · ${user.fishValue}`),
+                h('td', { className: 'qqbot-card-sub' }, pity),
+                h('td', null, cast))
+            })))
+      }
+
+      function useGamesTab(panel) {
+        const state = useGames(panel)
+        return () => {
+          if (state.selectedGameId !== null) return renderGame(panel, state)
+          if (state.selectedGroupId !== null) return renderGroup(panel, state)
+          return renderGroups(panel, state)
+        }
+      }
+
+      return { useGamesTab }
+    },
+    "client/plugins/games/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
+      const { useGamesTab } = __require("client/plugins/games/GamesTab.js")
+
+      registerTab({
+        id: 'games',
+        labelKey: 'tabGames',
+        order: 7,
+        use(panel) {
+          return useGamesTab(panel)
+        },
+        handlers: {},
       })
 
       return {  }
@@ -2891,6 +3248,68 @@ window.__ModuleLoader__.load({
         actionDone: 'Done.',
         actionFailed: 'Action failed',
         working: 'Working…',
+        tabGames: 'Mini Games',
+        gamesTitle: 'Mini Game Console',
+        gamesSubtitle: 'Browse groups, registered players, game state and the current UP.',
+        gamesRefresh: 'Refresh',
+        gamesLoading: 'Reading mini-game data…',
+        gamesLoadFail: 'Could not load mini-game data',
+        gamesEmpty: 'No group player data yet.',
+        gamesGroups: 'Groups',
+        gamesGroup: 'Group',
+        gamesUsers: 'Registered users',
+        gamesGames: 'Mini games',
+        gamesOpen: 'Open',
+        gamesBack: 'Back',
+        gamesBackGroups: 'Back to groups',
+        gamesBackGroup: 'Back to group',
+        gamesNoUsers: 'No registered users in this group.',
+        gamesNoGames: 'No mini games available.',
+        gamesUserCount: 'Users',
+        gamesTotalCoins: 'Total gold',
+        gamesTotalFishingCoins: 'Total fishing coins',
+        gamesLastUpdated: 'Updated',
+        gamesQQ: 'QQ',
+        gamesGroupId: 'Group ID',
+        gamesNickname: 'Nickname',
+        gamesAccountCoins: 'Gold',
+        gamesFishingCoins: 'Fishing coins',
+        gamesFishCount: 'Fish',
+        gamesRegisteredAt: 'Registered',
+        gamesGame: 'Game',
+        gamesPlayerCount: 'Players',
+        gamesCurrentUp: 'Current UP',
+        gamesUpRod: 'Legendary rod',
+        gamesUpBait: 'Legendary bait',
+        gamesSaveUp: 'Save UP',
+        gamesUpSaved: 'UP updated.',
+        gamesUpFailed: 'Could not update UP',
+        gamesPlayers: 'Player game state',
+        gamesPlayer: 'Player',
+        gamesRods: 'Rods',
+        gamesBaits: 'Baits',
+        gamesTickets: 'Tickets',
+        gamesCast: 'State',
+        gamesCastIdle: 'Idle',
+        gamesCastActive: 'Fishing',
+        gamesPity: 'Pity',
+        gamesSummary: 'Game summary',
+        gamesActiveCasts: 'Fishing now',
+        gamesTotalFish: 'Fish stored',
+        gamesTotalFishValue: 'Fish value',
+        gamesEquipped: 'Equipped',
+        gamesSelected: 'Selected',
+        gamesSingle: 'Single',
+        gamesTen: 'Ten',
+        gamesNoUp: 'No UP',
+        gamesSave: 'Save',
+        gamesSaving: 'Saving…',
+        gamesSelectedCount: 'Selected',
+        gamesCount: 'Count',
+        gamesCastReady: 'Ready at',
+        gamesRodsOwned: 'rods',
+        gamesBaitsOwned: 'baits',
+
       }
 
       return { en }
@@ -3223,6 +3642,68 @@ window.__ModuleLoader__.load({
         actionDone: '操作完成。',
         actionFailed: '操作失败',
         working: '处理中…',
+        tabGames: '小游戏',
+        gamesTitle: '小游戏管理台',
+        gamesSubtitle: '按群查看注册玩家、游戏状态和当期 UP。',
+        gamesRefresh: '刷新',
+        gamesLoading: '正在读取小游戏数据…',
+        gamesLoadFail: '小游戏数据读取失败',
+        gamesEmpty: '还没有任何群的玩家数据。',
+        gamesGroups: '群列表',
+        gamesGroup: '群',
+        gamesUsers: '注册用户',
+        gamesGames: '小游戏',
+        gamesOpen: '进入',
+        gamesBack: '返回',
+        gamesBackGroups: '返回群列表',
+        gamesBackGroup: '返回群详情',
+        gamesNoUsers: '本群还没有注册用户。',
+        gamesNoGames: '暂无可用小游戏。',
+        gamesUserCount: '注册用户',
+        gamesTotalCoins: '总金币',
+        gamesTotalFishingCoins: '总钓鱼币',
+        gamesLastUpdated: '更新于',
+        gamesQQ: 'QQ号',
+        gamesGroupId: '群号',
+        gamesNickname: '昵称',
+        gamesAccountCoins: '金币',
+        gamesFishingCoins: '钓鱼币',
+        gamesFishCount: '鱼仓',
+        gamesRegisteredAt: '注册时间',
+        gamesGame: '游戏',
+        gamesPlayerCount: '玩家数',
+        gamesCurrentUp: '当期 UP',
+        gamesUpRod: '传奇鱼竿',
+        gamesUpBait: '传奇鱼饵',
+        gamesSaveUp: '保存 UP',
+        gamesUpSaved: 'UP 已更新。',
+        gamesUpFailed: 'UP 更新失败',
+        gamesPlayers: '玩家游戏信息',
+        gamesPlayer: '玩家',
+        gamesRods: '鱼竿',
+        gamesBaits: '鱼饵',
+        gamesTickets: '抽卡券',
+        gamesCast: '状态',
+        gamesCastIdle: '空闲',
+        gamesCastActive: '钓鱼中',
+        gamesPity: '保底',
+        gamesSummary: '游戏概况',
+        gamesActiveCasts: '钓鱼中',
+        gamesTotalFish: '鱼仓总数',
+        gamesTotalFishValue: '鱼仓总价值',
+        gamesEquipped: '装备中',
+        gamesSelected: '已选',
+        gamesSingle: '单抽',
+        gamesTen: '十连',
+        gamesNoUp: '暂无 UP',
+        gamesSave: '保存',
+        gamesSaving: '保存中…',
+        gamesSelectedCount: '已选',
+        gamesCount: '数量',
+        gamesCastReady: '预计收竿',
+        gamesRodsOwned: '把鱼竿',
+        gamesBaitsOwned: '种鱼饵',
+
       }
 
       return { zh }
@@ -3969,6 +4450,22 @@ window.__ModuleLoader__.load({
       .qqbot-ai-settings-group p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 9.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       @media (max-width: 900px) { .qqbot-ai-settings-grid, .qqbot-ai-settings-bottom { grid-template-columns: 1fr; } }
       @media (max-width: 640px) { .qqbot-ai-settings-hero { align-items: flex-start; flex-direction: column; } .qqbot-ai-info-grid { grid-template-columns: 1fr; } .qqbot-ai-info.is-wide, .qqbot-ai-info.is-full { grid-column: auto; } }
+      .qqbot-game-card { appearance: none; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+      .qqbot-game-card:hover { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 45%, var(--dsw-alias-border-l1)); }
+      .qqbot-admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .qqbot-admin-stats-wide { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .qqbot-admin-stat { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 11px;
+        background: var(--dsw-alias-bg-layer-2); border: 0.5px solid var(--dsw-alias-border-l1); min-width: 0; }
+      .qqbot-admin-stat-label { font-size: 10px; color: var(--dsw-alias-label-tertiary); }
+      .qqbot-admin-stat-value { font-size: 15px; font-weight: 500; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+      .qqbot-admin-up { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+      .qqbot-table-wrap { overflow-x: auto; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: 12px; }
+      .qqbot-table-wrap .qqbot-table { min-width: 820px; }
+      @media (max-width: 900px) {
+        .qqbot-admin-stats-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .qqbot-admin-up { grid-template-columns: minmax(0, 1fr); }
+      }
+
       `
 
       return { CSS }
