@@ -2,15 +2,22 @@
 
 ## 交互方式
 
-QQ 中发送的是静态截图，不能点击 HTML。
+QQ 中发送的是静态图片，不能点击。
+
+抽卡结果当前实现：
 
 ```text
-用户发送命令
+用户发送 /钓鱼 抽卡 或 /钓鱼 十连
 → DSH 处理游戏状态
-→ DSH 渲染 HTML
-→ headless browser 截图
-→ Koishi 发送图片
+→ DSH 用 SVG 模板渲染结果卡
+→ macOS sips 转 1080×1440 PNG
+→ base64 返回 Koishi
+→ Koishi h.image 发送
 ```
+
+图片渲染失败时回退文本结果。
+
+后续鱼仓、道具库页面可以复用同一套 SVG/PNG 渲染流程，或改用 HTML 截图。
 
 HTML 只负责展示，所有操作仍然由 `/` 命令触发。
 

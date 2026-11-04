@@ -159,6 +159,8 @@ test('single draw consumes a single ticket before coins', async () => {
   await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 1, tenTickets: 1 } } })
   const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
   assert.match(result.replies[0], /单抽结果/u)
+  assert.equal(result.image?.mime, 'image/png')
+  assert.equal(result.image?.width, 1080)
   const player = (await readGroup(root, 'g1')).players['20000']
   assert.equal(player.fishing.tickets.singleTickets, 0)
   assert.equal(player.fishing.tickets.tenTickets, 1)

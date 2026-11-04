@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { renderGachaCard } from '../render/gacha-card.js'
 
 export const gachaHelp = Object.freeze([
   ['/钓鱼 抽卡', '单抽，优先消耗单抽券，否则 10 钓鱼币'],
@@ -249,7 +250,7 @@ export class GachaService {
     try { this.load() } catch (error) { this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error)); return { ok: false, error: 'gacha catalog unavailable' } }
     const size = parts[1] === '十连' ? 10 : 1
 
-    return store.mutate(groupId, (state) => {
+    return store.mutate(groupId, async (state) => {
       const player = state.players[userId]
       if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
       const coins = Number.isSafeInteger(player.fishingCoins) ? player.fishingCoins : 0
@@ -274,12 +275,22 @@ export class GachaService {
         ? [formatDraw(results[0])]
         : results.map((result, index) => formatDraw(result, index))
       const header = size === 1 ? '单抽结果：' : '十连结果：'
-      return {
-        ok: true,
-        replies: [
-          `${header}\n${lines.join('\n')}\n消耗：${formatCost(payment, size)}\n当前：钓鱼币 ${player.fishingCoins}，单抽券 ${fishing.tickets.singleTickets}，十连券 ${fishing.tickets.tenTickets}\n保底进度：${formatPity(fishing.gacha)}`,
-        ],
+      const text = `${header}\n${lines.join('\n')}\n消耗：${formatCost(payment, size)}\n当前：钓鱼币 ${player.fishingCoins}，单抽券 ${fishing.tickets.singleTickets}，十连券 ${fishing.tickets.tenTickets}\n保底进度：${formatPity(fishing.gacha)}`
+      let image
+      try {
+        image = await renderGachaCard({
+          results,
+          nickname: player.nickname || userId,
+          title: size === 1 ? '单抽结果' : '十连结果',
+          cost: formatCost(payment, size),
+          player,
+          fishing,
+          assetsDir: this.assetsDir,
+        })
+      } catch (error) {
+        this.logger?.warn?.('gacha image render failed: %s', String(error?.message ?? error))
       }
+      return { ok: true, replies: [text], ...(image === undefined ? {} : { image }) }
     })
   }
 }
