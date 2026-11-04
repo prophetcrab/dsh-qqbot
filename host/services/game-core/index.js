@@ -2,6 +2,7 @@
 import { PlayerStore } from './player-store.js'
 import { GameRegistry } from './registry.js'
 import { exchangeHelp, executeExchange } from './modules/exchange.js'
+import { FishingBagService, bagHelp } from './modules/fishing-bag.js'
 import { GachaService, gachaHelp } from './modules/gacha.js'
 import { playersModule } from './modules/players.js'
 
@@ -17,6 +18,7 @@ export class GameCore {
     this.store = new PlayerStore({ projectDir, logger })
     this.registry = new GameRegistry([playersModule])
     this.gacha = new GachaService({ projectDir, assetsDir, logger })
+    this.bag = new FishingBagService({ projectDir, assetsDir, logger })
   }
 
   async command(input) {
@@ -28,7 +30,7 @@ export class GameCore {
     }
     try {
       if (rawCommand === '/help' || rawCommand === '/帮助') {
-        const extras = [...exchangeHelp, ...gachaHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
+        const extras = [...exchangeHelp, ...gachaHelp, ...bagHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
         return { ok: true, replies: [`${this.registry.helpText()}\n${extras}\n/help  查看所有命令（等同 /帮助）`] }
       }
       const exchange = await executeExchange({
@@ -39,8 +41,10 @@ export class GameCore {
         rawCommand, groupId, userId, store: this.store, random: this.random, now: this.now(),
       })
       if (gacha !== null) return gacha
+      const bag = await this.bag.execute({ rawCommand, groupId, userId, store: this.store })
+      if (bag !== null) return bag
       if (rawCommand === '/钓鱼' || rawCommand.startsWith('/钓鱼 ')) {
-        return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 兑换金币 数量'] }
+        return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 道具库\n/钓鱼 兑换金币 数量'] }
       }
       if (!COMMAND.test(rawCommand)) return { ok: false, error: 'invalid command' }
       return await this.registry.dispatch(rawCommand, {
