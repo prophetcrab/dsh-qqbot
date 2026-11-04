@@ -43,7 +43,9 @@ async function hrefFor(assetsDir, folder, asset) {
   } catch { return '' }
 }
 
-function background() {
+function background(height) {
+  const waveA = height - 390
+  const waveB = height - 330
   return `<defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKY_TOP}"/><stop offset="0.58" stop-color="${SKY_BOTTOM}"/><stop offset="1" stop-color="#f7fbf3"/></linearGradient>
     <radialGradient id="sun" cx="0.2" cy="0.1" r="0.5"><stop offset="0" stop-color="#fff1ad" stop-opacity="0.9"/><stop offset="1" stop-color="#fff1ad" stop-opacity="0"/></radialGradient>
@@ -51,17 +53,16 @@ function background() {
   <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#sky)"/><rect width="${WIDTH}" height="${HEIGHT}" fill="url(#sun)"/>
   <circle cx="900" cy="120" r="68" fill="#ffe89a" opacity="0.7"/>
   <g fill="#ffffff" opacity="0.58"><ellipse cx="160" cy="115" rx="105" ry="34"/><ellipse cx="220" cy="95" rx="65" ry="28"/><ellipse cx="850" cy="250" rx="80" ry="24"/><ellipse cx="890" cy="236" rx="45" ry="18"/></g>
-  <path d="M0 1050 Q150 1000 300 1040 T600 1035 T900 1045 T1080 1030 V1440 H0 Z" fill="${POND}" opacity="0.95"/>
-  <path d="M0 1110 Q170 1070 330 1108 T660 1100 T960 1110 T1080 1098 V1440 H0 Z" fill="${POND_DARK}" opacity="0.72"/>
-  <g fill="#ffffff" opacity="0.32"><circle cx="110" cy="1180" r="10"/><circle cx="150" cy="1210" r="5"/><circle cx="930" cy="1160" r="8"/><circle cx="970" cy="1200" r="4"/></g>`
+  <path d="M0 ${waveA} Q150 ${waveA - 50} 300 ${waveA - 10} T600 ${waveA - 15} T900 ${waveA - 5} T1080 ${waveA - 20} V${height} H0 Z" fill="${POND}" opacity="0.95"/>
+  <path d="M0 ${waveB} Q170 ${waveB - 40} 330 ${waveB - 2} T660 ${waveB - 10} T960 ${waveB} T1080 ${waveB - 12} V${height} H0 Z" fill="${POND_DARK}" opacity="0.72"/>
+  <g fill="#ffffff" opacity="0.32"><circle cx="110" cy="${height - 260}" r="10"/><circle cx="150" cy="${height - 230}" r="5"/><circle cx="930" cy="${height - 280}" r="8"/><circle cx="970" cy="${height - 240}" r="4"/></g>`
 }
 
-function header(nickname, page, totalPages) {
-  const pageText = totalPages > 1 ? ` · ${page}/${totalPages} 页` : ''
+function header(nickname) {
   return `<rect x="56" y="46" width="164" height="34" rx="17" fill="#ffffff" opacity="0.58"/>
   <text x="80" y="69" fill="${CORAL}" font-size="15" font-weight="700" font-family="${FONT}" letter-spacing="2">MY TACKLE</text>
   <text x="56" y="142" fill="${INK}" font-size="46" font-weight="700" font-family="${FONT}">钓鱼道具库</text>
-  <text x="58" y="178" fill="${MUTED}" font-size="19" font-family="${FONT}">${esc(nickname)} · 旧河鱼谱${esc(pageText)}</text>
+  <text x="58" y="178" fill="${MUTED}" font-size="19" font-family="${FONT}">${esc(nickname)} · 旧河鱼谱</text>
   <line x1="56" y1="200" x2="1024" y2="200" stroke="${INK}" stroke-opacity="0.12" stroke-dasharray="3 8"/>`
 }
 
@@ -117,11 +118,11 @@ function ticketTile(ticket, x, y, href) {
   </g>`
 }
 
-function footer(data) {
-  return `<rect x="56" y="1200" width="968" height="146" rx="24" fill="#ffffff" opacity="0.88"/>
-  <text x="80" y="1244" fill="${INK}" font-size="19" font-weight="700" font-family="${FONT}">钓鱼币 ${data.fishingCoins}</text>
-  <text x="80" y="1278" fill="${INK}" font-size="17" font-family="${FONT}">装备：${esc(data.equippedName || '未装备')} · 鱼饵已选：${esc(data.selectedName || '未选择')}</text>
-  <text x="80" y="1312" fill="${MUTED}" font-size="15" font-family="${FONT}">抽卡券和鱼饵可直接在 /钓鱼 抽卡、/钓鱼 十连 中使用 · 第 ${data.page}/${data.totalPages} 页</text>`
+function footer(data, y) {
+  return `<rect x="56" y="${y}" width="968" height="146" rx="24" fill="#ffffff" opacity="0.88"/>
+  <text x="80" y="${y + 44}" fill="${INK}" font-size="19" font-weight="700" font-family="${FONT}">钓鱼币 ${data.fishingCoins}</text>
+  <text x="80" y="${y + 78}" fill="${INK}" font-size="17" font-family="${FONT}">装备：${esc(data.equippedName || '未装备')} · 鱼饵已选：${esc(data.selectedName || '未选择')}</text>
+  <text x="80" y="${y + 112}" fill="${MUTED}" font-size="15" font-family="${FONT}">抽卡券和鱼饵可直接在 /钓鱼 抽卡、/钓鱼 十连 中使用</text>`
 }
 
 export async function renderBagCard({ nickname, data, assetsDir }) {
@@ -144,10 +145,12 @@ export async function renderBagCard({ nickname, data, assetsDir }) {
   const baitHeight = baits.length === 0 ? 60 : baitRows * 154
   const ticketTitleY = baitGridY + baitHeight + 34
   const ticketY = ticketTitleY + 16
+  const footerY = ticketY + 104 + 40
+  const height = Math.max(1200, footerY + 146 + 48)
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
-  ${background()}
-  ${header(nickname, data.page, data.totalPages)}
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">
+  ${background(height)}
+  ${header(nickname)}
   ${summary({ ...data, rods, baits })}
   ${sectionTitle('鱼竿', 298)}
   ${grid(rods, rodGridY, assetsDir, 'rods')}
@@ -156,7 +159,7 @@ export async function renderBagCard({ nickname, data, assetsDir }) {
   ${sectionTitle('抽卡券', ticketTitleY)}
   ${ticketTile({ name: '钓鱼单抽券', count: data.tickets.singleTickets }, 56, ticketY, singleHref)}
   ${ticketTile({ name: '钓鱼十连券', count: data.tickets.tenTickets }, 556, ticketY, tenHref)}
-  ${footer(data)}
+  ${footer(data, footerY)}
 </svg>`
   const dir = await mkdtemp(join(tmpdir(), 'dsh-bag-card-'))
   const input = join(dir, 'bag.svg')
@@ -165,7 +168,7 @@ export async function renderBagCard({ nickname, data, assetsDir }) {
     await writeFile(input, svg, 'utf8')
     await run('/usr/bin/sips', ['-s', 'format', 'png', input, '--out', output], { timeout: 15000 })
     const png = await readFile(output)
-    return { data: png.toString('base64'), mime: 'image/png', width: WIDTH, height: HEIGHT }
+    return { data: png.toString('base64'), mime: 'image/png', width: WIDTH, height }
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
