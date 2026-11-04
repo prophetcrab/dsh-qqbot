@@ -34,7 +34,6 @@ import {
   DEFAULT_PORT,
   DEFAULT_START_TIMEOUT_MS,
   DEFAULT_STOP_TIMEOUT_MS,
-  HEALTH_PATH,
   LSOF,
   QUIET_LOGGER,
   boundLines,
@@ -47,10 +46,8 @@ import {
   normalizeHostPlatform,
   normalizeLogger,
   numberOr,
-  pickBot,
   probePort,
   refreshManagedPid,
-  requestJson,
   serviceStillListening,
   syncKoishiPort,
   syncManagedPid,
@@ -59,6 +56,7 @@ import {
   trackChild,
   truncateOutput,
 } from './helpers.js'
+import { koishiHealth, koishiStatus } from './status.js'
 export class KoishiManager {
   constructor(options = {}) {
     const settings = options.settings ?? {}
@@ -162,74 +160,11 @@ export class KoishiManager {
   }
 
   async status() {
-    const project = detectKoishiProject(this.settings)
-    await refreshManagedPid(this)
-    const base = {
-      projectDir: project.projectDir,
-      exists: project.exists,
-      hasPackageJson: project.hasPackageJson,
-      depsInstalled: project.hasNodeModules,
-      running: false,
-      managed: this.isManaged(),
-      pid: this.managedPid,
-      port: this.port,
-      online: false,
-      selfId: null,
-      platform: null,
-      stats: null,
-      logs: this.logs(30),
-    }
-    if (!project.exists) {
-      return { ...base, logs: [], error: `Koishi 项目不存在：${project.projectDir}` }
-    }
-
-    const health = await this.health()
-    const bot = pickBot(health.bots)
-    let running = health.reachable === true
-    let pid = this.managedPid
-    if (pid === null) {
-      const found = await this.findPortPid(this.port)
-      if (found !== null) {
-        pid = found
-        running = true
-      }
-    } else {
-      running = true
-    }
-
-    return {
-      ...base,
-      running,
-      managed: this.isManaged(),
-      pid,
-      online: health.ok,
-      selfId: bot.selfId,
-      platform: bot.platform,
-      stats: health.stats,
-      logs: this.logs(30),
-    }
+    return koishiStatus(this)
   }
 
-  async health({ timeoutMs = this.healthTimeoutMs } = {}) {
-    const url = `http://127.0.0.1:${this.port}${HEALTH_PATH}`
-    const result = await this.requestJson(url, { timeoutMs })
-    if (result.ok !== true) {
-      return {
-        ok: false,
-        reachable: false,
-        bots: null,
-        stats: null,
-        error: result.error ?? `健康检查失败（HTTP ${result.status}）`,
-      }
-    }
-    const data = result.data
-    const isObject = data !== null && typeof data === 'object'
-    return {
-      ok: isObject && data.ok === true,
-      reachable: true,
-      bots: isObject && Array.isArray(data.bots) ? data.bots : null,
-      stats: isObject && data.stats !== null && typeof data.stats === 'object' ? data.stats : null,
-    }
+  async health(options = {}) {
+    return koishiHealth(this, options)
   }
 
   async start({ timeoutMs = this.startTimeoutMs } = {}) {
@@ -487,10 +422,6 @@ export class KoishiManager {
   clearManaged() {
     this.managedChild = null
     this.managedPid = null
-  }
-
-  async requestJson(url, options = {}) {
-    return requestJson(this, url, options)
   }
 
 }
