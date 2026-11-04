@@ -234,3 +234,18 @@ test('duplicate rods are auto-sold during ten draw', async () => {
   assert.equal(player.fishing.gacha.history.length, 10)
   await rm(root, { recursive: true, force: true })
 })
+
+test('same player gacha requests are serialized', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 0, tenTickets: 1 } } })
+  const first = game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 十连' })
+  const second = game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
+  const results = await Promise.all([first, second])
+  const busy = results.filter((result) => String(result.replies?.[0] ?? '').includes('正在抽卡'))
+  assert.equal(busy.length, 1)
+  assert.ok(results.some((result) => result.ok === true && result.image))
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.gacha.history.length, 10)
+  await rm(root, { recursive: true, force: true })
+})
