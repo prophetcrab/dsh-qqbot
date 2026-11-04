@@ -14,13 +14,13 @@ main     guidance-only   导航、决策、发布元数据
 
 - 以 macOS 分支作为功能上游，持续开发群聊、AI、小游戏和工具能力；
 - Windows 分支按需同步共享功能，并保持 Docker/NapCat 平台适配；
-- 先行把 Windows v0.7.0 之后的共享修复 cherry-pick 回 macOS 分支，减少分叉（见 [0009](decisions/0009-feature-flow-and-release-convention.md)）；
+- 先行把 Windows v0.7.0 之后的共享修复 cherry-pick 回 macOS 分支，减少分叉（见 [0009](../decisions/0009-feature-flow-and-release-convention.md)）；
 - 维持 Windows 分支不包含 macOS 平台代码、payload 和 darwin 运行时资源；
 - 发布保持平台独立，版本号按各自节奏推进。
 
 ## 服务器版本
 
-规划两个形态，共用一个服务器端运行时，详见 [0010-server-editions](decisions/0010-server-editions.md)：
+规划两个形态，共用一个服务器端运行时，详见 [0010-server-editions](../decisions/0010-server-editions.md)：
 
 ### A. 全量服务器版
 
