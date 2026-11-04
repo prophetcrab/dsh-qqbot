@@ -325,13 +325,15 @@ probability[tier] = raw[tier] / total
 
 传奇鱼饵以现实中的经典鱼饵和毛钩命名。
 
+传奇鱼饵不修改鱼的稀有度概率、不提供保底、不修改鱼获重量，避免和鱼竿效果冲突。
+
 | 名称 | 致敬对象 | 单次效果 |
 |---|---|---|
-| 拉帕拉原版浮水米诺 | Rapala Original Floater，Lauri Rapala，1936，芬兰 | 本次保底 Lv.4+ 鱼 |
-| 梅普斯旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次鱼获重量 +30% |
+| 拉帕拉原版浮水米诺 | Rapala Original Floater，Lauri Rapala，1936，芬兰 | 本次鱼获复制一份，复制体拥有相同重量和估值，一起进入鱼仓 |
+| 梅普斯旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次钓鱼不进入冷却 |
 | 达德维尔红白汤匙 | Dardevle，Lou Eppinger，1906，美国 | 本次额外获得一个特殊物品 |
-| 亚当斯干蝇 | Adams Dry Fly，Leonard Halladay，1922，美国 | 本次保底 Lv.3+ 鱼 |
-| 皇家教练羽饵 | Royal Coachman，John Hilyard，1878，美国 | 本次鱼获等级 +1，最高 Lv.5 |
+| 亚当斯干蝇 | Adams Dry Fly，Leonard Halladay，1922，美国 | 本次额外获得一次抛竿机会，额外抛竿不再次消耗鱼饵 |
+| 皇家教练羽饵 | Royal Coachman，John Hilyard，1878，美国 | 本次鱼获价值 +50% |
 
 太公竿随机获得其中一种传奇鱼饵效果。
 
