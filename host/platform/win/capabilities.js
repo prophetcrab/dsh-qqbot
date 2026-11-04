@@ -37,6 +37,12 @@ export const DEFAULT_SETTINGS = {
   dockerNapcatHost: 'host.docker.internal',
   /** Empty means generate and persist a random WebUI token in the data dir. */
   dockerNapcatToken: '',
+  /** Start Docker Desktop automatically when the engine is not running. */
+  dockerAutoStart: true,
+  /** Optional Docker Desktop executable/app path; empty means auto-detect. */
+  dockerDesktopPath: '',
+  /** How long to wait for the Docker engine after launching Docker Desktop. */
+  dockerEngineTimeoutMs: 180000,
   /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
@@ -119,6 +125,9 @@ export function resolveSettings(raw = {}) {
       ? source.dockerNapcatHost.trim()
       : DEFAULT_SETTINGS.dockerNapcatHost,
     dockerNapcatToken: typeof source.dockerNapcatToken === 'string' ? source.dockerNapcatToken.trim() : '',
+    dockerAutoStart: source.dockerAutoStart === undefined ? DEFAULT_SETTINGS.dockerAutoStart : source.dockerAutoStart === true,
+    dockerDesktopPath: typeof source.dockerDesktopPath === 'string' ? expandHome(source.dockerDesktopPath) : '',
+    dockerEngineTimeoutMs: toBoundedInt(source.dockerEngineTimeoutMs, DEFAULT_SETTINGS.dockerEngineTimeoutMs, 10_000, 600_000),
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',

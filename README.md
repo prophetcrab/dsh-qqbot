@@ -325,6 +325,9 @@ dockerNapcatContainer dsh-qqbot-napcat
 dockerNapcatDataDir  空（默认 <projectDir>/runtime/napcat-docker）
 dockerNapcatHost     host.docker.internal
 dockerNapcatToken    空（自动生成并持久化 WebUI token）
+dockerAutoStart      true（引擎未运行时自动拉起 Docker Desktop）
+dockerDesktopPath    空（自动探测；Docker Desktop 可执行文件/应用路径）
+dockerEngineTimeoutMs 180000（等待 Docker 引擎就绪）
 ```
 
 | 项 | 值 |
@@ -340,7 +343,8 @@ dockerNapcatToken    空（自动生成并持久化 WebUI token）
 - Docker Desktop（Windows/macOS）或 Docker Engine（Linux）需要在外部安装一次；Windows 需要 WSL2/Hyper-V。国内网络拉取 Docker Hub 镜像时需要在 Docker Desktop 配置代理或镜像源；
 - 容器内是 **Linux 版 QQ**，登录仍需手机扫码一次；二维码在面板「概览」或 `http://127.0.0.1:<napcatPort>/webui` 获取；
 - 建议使用机器人小号，并把本机旧 NapCat 停掉，避免同一 QQ 多端同时在线；
-- 插件生成的 compose 位于数据目录，可用 `docker compose -f <dataDir>/compose.yaml logs/stop` 排查。
+- 插件生成的 compose 位于数据目录，可用 `docker compose -f <dataDir>/compose.yaml logs/stop` 排查；
+- 启动时如果 Docker 引擎未运行，会按 `dockerAutoStart` 自动拉起 Docker Desktop 并等待就绪；引擎已运行则只启动容器。停止只会 `docker compose stop` NapCat 容器，不会关闭 Docker Desktop/Engine。
 
 ### Koishi
 

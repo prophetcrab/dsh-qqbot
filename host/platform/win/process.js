@@ -6,7 +6,7 @@
  * service and plugin layers never touch `child_process` directly.
  */
 
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 
 /**
  * Run a file without a shell. Never throws for a non-zero exit; resolves with
@@ -134,6 +134,25 @@ export async function killPid(pid, { force = false } = {}) {
 /** npm executable name on Windows. */
 export function npmExecutable() {
   return 'npm.cmd'
+}
+
+/**
+ * Launch a detached GUI/background process (Docker Desktop, ...) and return
+ * immediately. Never throws.
+ *
+ * @param {string} file
+ * @param {string[]} [args]
+ * @param {object} [options]
+ * @returns {boolean} whether the process was spawned
+ */
+export function launchDetached(file, args = [], options = {}) {
+  try {
+    const child = spawn(file, args, { detached: true, stdio: 'ignore', windowsHide: true, ...options })
+    if (typeof child.unref === 'function') child.unref()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

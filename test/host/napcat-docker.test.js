@@ -35,10 +35,10 @@ function makeSettings(dir, overrides = {}) {
  * Create a manager with a scripted `docker` executor.
  * `handler(file, args, options)` returns the execFile-style result.
  */
-async function makeManager(t, handler, { http, settings } = {}) {
+async function makeManager(t, handler, { http, settings, settingsOverrides, launch, sleep } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-docker-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
-  const resolved = settings ?? makeSettings(dir)
+  const resolved = settings ?? makeSettings(dir, settingsOverrides)
   const calls = []
   const run = async (file, args, options) => {
     calls.push([file, ...args])
@@ -47,7 +47,12 @@ async function makeManager(t, handler, { http, settings } = {}) {
   const manager = new DockerNapcatManager({
     settings: resolved,
     logger: noopLogger,
-    deps: { run, http: http ?? (async () => ({ ok: false, status: 0, data: null })) },
+    deps: {
+      run,
+      http: http ?? (async () => ({ ok: false, status: 0, data: null })),
+      ...(typeof launch === 'function' ? { launch } : {}),
+      ...(typeof sleep === 'function' ? { sleep } : {}),
+    },
   })
   return { manager, calls, dir, settings: resolved }
 }
@@ -97,6 +102,7 @@ test('docker backend: configure writes the container-to-host OneBot URL', async 
 test('docker backend: start runs compose up and reports the login state', async (t) => {
   let running = false
   const handler = (file, args) => {
+    if (args[0] === 'info') return { code: 0, stdout: '29.6.2\n', stderr: '' }
     if (args[0] === 'image') return { code: 1, stdout: '', stderr: 'no image' }
     if (args[0] === 'inspect') {
       return running
@@ -166,6 +172,7 @@ test('docker backend: stop succeeds when compose exits non-zero but the containe
 test('docker backend: install pulls the image when it is missing', async (t) => {
   const pulled = []
   const handler = (file, args) => {
+    if (args[0] === 'info') return { code: 0, stdout: '29.6.2\n', stderr: '' }
     if (args[0] === 'image') return { code: 1, stdout: '', stderr: 'no image' }
     if (args.includes('pull')) {
       pulled.push(args)
@@ -183,10 +190,54 @@ test('docker backend: install pulls the image when it is missing', async (t) => 
 
 test('docker backend: missing docker surfaces an actionable error', async (t) => {
   const handler = () => ({ code: 1, stdout: '', stderr: 'docker: command not found', error: 'spawn docker ENOENT' })
-  const { manager } = await makeManager(t, handler)
+  const { manager } = await makeManager(t, handler, { settingsOverrides: { dockerAutoStart: false } })
   const result = await manager.start({ timeoutMs: 1000 })
   assert.equal(result.ok, false)
-  assert.match(result.message, /docker/iu)
+  assert.match(result.message, /Docker 引擎未运行/u)
+})
+
+test('docker backend: engine already running skips the Docker Desktop launch', async (t) => {
+  const handler = (file, args) => (args[0] === 'info'
+    ? { code: 0, stdout: '29.6.2\n', stderr: '' }
+    : { code: 1, stdout: '', stderr: 'unexpected' })
+  let launches = 0
+  const { manager } = await makeManager(t, handler, {
+    launch: () => { launches += 1; return true },
+  })
+  const result = await manager.ensureEngine()
+  assert.equal(result.ok, true)
+  assert.equal(result.started, false)
+  assert.equal(launches, 0)
+})
+
+test('docker backend: engine down launches Docker Desktop and waits for readiness', async (t) => {
+  let engine = false
+  let launches = 0
+  const handler = (file, args) => (args[0] === 'info'
+    ? (engine ? { code: 0, stdout: '29.6.2\n', stderr: '' } : { code: 1, stdout: '', stderr: 'engine down' })
+    : { code: 1, stdout: '', stderr: 'unexpected' })
+  const { manager } = await makeManager(t, handler, {
+    settingsOverrides: { dockerDesktopPath: process.execPath },
+    launch: () => { launches += 1; engine = true; return true },
+    sleep: async () => {},
+  })
+  const result = await manager.ensureEngine()
+  assert.equal(result.ok, true)
+  assert.equal(result.started, true)
+  assert.equal(launches, 1)
+})
+
+test('docker backend: engine down with dockerAutoStart=false fails without launching', async (t) => {
+  let launches = 0
+  const handler = () => ({ code: 1, stdout: '', stderr: 'engine down' })
+  const { manager } = await makeManager(t, handler, {
+    settingsOverrides: { dockerAutoStart: false },
+    launch: () => { launches += 1; return true },
+  })
+  const result = await manager.ensureEngine()
+  assert.equal(result.ok, false)
+  assert.equal(launches, 0)
+  assert.match(result.message, /Docker 引擎未运行/u)
 })
 
 test('docker settings resolve data dir, image and host defaults', () => {
@@ -196,6 +247,8 @@ test('docker settings resolve data dir, image and host defaults', () => {
   assert.equal(settings.dockerNapcatDataDir, join(dir, 'napcat-docker'))
   assert.equal(settings.dockerNapcatImage, 'mlikiowa/napcat-docker:latest')
   assert.equal(settings.dockerNapcatHost, 'host.docker.internal')
+  assert.equal(settings.dockerAutoStart, true)
+  assert.equal(settings.dockerEngineTimeoutMs, 180000)
   const custom = resolveSettings({
     projectDir: dir,
     napcatBackend: 'docker',

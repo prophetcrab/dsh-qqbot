@@ -45,6 +45,8 @@ test('windows platform: settings defaults and Docker settings', () => {
   assert.equal(settings.reversePath, '/onebot')
   assert.equal(settings.napcatBackend, 'docker')
   assert.equal(settings.dockerNapcatImage, 'mlikiowa/napcat-docker:latest')
+  assert.equal(settings.dockerAutoStart, true)
+  assert.equal(settings.dockerEngineTimeoutMs, 180000)
   const custom = resolveSettings({ napcatBackend: 'docker', dockerNapcatHost: 'gateway.local' })
   assert.equal(custom.napcatBackend, 'docker')
   assert.equal(custom.dockerNapcatHost, 'gateway.local')
