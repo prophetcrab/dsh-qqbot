@@ -1,10 +1,11 @@
 # ADR-0001: 事件驱动的多群机器人运行时
 
 ```text
-状态：Proposed
+状态：Historical
 日期：2026-11-02
 适用：dsh-qqbot / qq-bot
-范围：macOS Apple Silicon，当前单机器人账号
+范围：早期 macOS 单机器人设计
+说明：当前实现以 host/kernel、group-loop 和 services 为准；本文仅作历史设计参考
 ```
 
 ## 1. 背景

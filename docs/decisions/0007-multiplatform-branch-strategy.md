@@ -1,5 +1,10 @@
 # 0007 - Multi-platform Branch Strategy
 
+> **Superseded by [0008](0008-main-guidance-only.md) and
+> [0009](0009-feature-flow-and-release-convention.md).** `main` is now a
+> guidance-only branch; platform branches no longer merge `main` wholesale.
+> The platform-isolation principles below remain valid.
+
 ## Decision
 
 `main` 是唯一的稳定/发布分支。平台开发放在长期平台分支：

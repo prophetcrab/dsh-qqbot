@@ -1,9 +1,10 @@
 # 0003 小核心人格 + 记忆驱动 + 情绪微调
 
 ```text
-状态：设计稿，未实现
+状态：Current（已落地并演进）
 适用：dsh-qqbot
-关联：persona / profiles / ai-chat
+关联：persona / profiles / group-loop
+说明：设计已进入实现；具体字段和行为以当前代码为准
 ```
 
 ## 1. 要解决的问题

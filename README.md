@@ -2,6 +2,8 @@
 
 DeepSeek Harness 的 **macOS-only** QQ 机器人控制中心。
 
+> 项目级架构、分支策略和发布记录以 `main` 为权威：<https://github.com/prophetcrab/dsh-qqbot/tree/main>。本文件只描述 macOS 平台运行方式。
+
 当前分支：`dshbot-mac`。项目已按 plugin-based 架构重写：
 
 ```text

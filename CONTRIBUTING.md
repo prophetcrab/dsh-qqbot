@@ -1,5 +1,7 @@
 # dsh-qqbot 长期开发约定
 
+> 平台分支文档：项目级分支/发布约定以 `main` 的 [0008](docs/decisions/0008-main-guidance-only.md) 和 [0009](docs/decisions/0009-feature-flow-and-release-convention.md) 为准；本文保留 macOS 平台开发细节。
+
 > 这份文档约束未来的分支、目录、插件、配置、契约、测试和发布流程。  
 > 目标：长期加功能后，仍然能一眼看懂代码归属，不重新变成单体项目。
 
@@ -10,7 +12,7 @@
 ```text
 /Users/crab/project/dsh-qqbot       DSH 插件（主开发）
   branch: dshbot-mac
-  version: 0.6.1
+  version: 0.7.0
 
 /Users/crab/project/qq-bot          Koishi 实际运行时（模板来源）
   branch: main
