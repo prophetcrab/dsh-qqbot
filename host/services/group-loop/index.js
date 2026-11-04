@@ -24,16 +24,6 @@ function mergeUsage(left, right) {
   }
 }
 
-function needsWeather(material) {
-  return /(天气|气温|温度|下雨|降雨|雨势|冷不冷|热不热|穿什么|weather)/iu.test(String(material ?? '').slice(-1600))
-}
-
-function needsWebSearch(material) {
-  const source = String(material ?? '')
-  const focus = source.lastIndexOf('【当前触发消息】')
-  const recent = focus >= 0 ? source.slice(focus) : source.slice(-1200)
-  return /(收盘|点位|报价|涨跌|行情|指数|美股|A股|期货|黄金|原油|汇率|财报|新闻|最新|昨天|查一?下|搜一?下|多少)/u.test(recent.slice(-1600))
-}
 
 function bubbleBudget(random) {
   const roll = random()
@@ -284,10 +274,7 @@ export class GroupLoopService {
   async composeWithTools({ input, speak, character, baseUser, images, budget }) {
     const toolCalls = []
     let observations = ''
-    let nudged = false
     let composeUsage = null
-    const searchIntent = needsWebSearch(input.material)
-    const weatherIntent = needsWeather(input.material)
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
     for (let step = 0; step < 4; step += 1) {
       let raw = ''
@@ -299,7 +286,12 @@ export class GroupLoopService {
       }
       const parsed = parseJson(raw)
       const requestedWeather = parseWeatherCall(raw, parsed)
-      if (requestedWeather !== null && toolCalls.length < 2) {
+      const requestedCall = parseWebSearchCall(raw, parsed)
+      if ((requestedWeather !== null || requestedCall !== null) && toolCalls.length >= 2) {
+        observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        continue
+      }
+      if (requestedWeather !== null) {
         const location = text(requestedWeather.location).slice(0, 80)
         if (location === '') {
           observations += '\n\n【工具观察】天气地点为空，请补充 location，或直接给 final parts。'
@@ -319,8 +311,7 @@ export class GroupLoopService {
         if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
         continue
       }
-      const requestedCall = parseWebSearchCall(raw, parsed)
-      if (requestedCall !== null && toolCalls.length < 2) {
+      if (requestedCall !== null) {
         const query = text(requestedCall.query).slice(0, 160)
         if (query === '') {
           observations += '\n\n【工具观察】检索词为空，请直接给 final parts。'
@@ -350,15 +341,6 @@ export class GroupLoopService {
       }
       const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
       if (parts.length > 0) {
-        if ((searchIntent && toolCalls.length === 0) || (weatherIntent && !toolCalls.some((call) => call.tool === 'weather'))) {
-          if (!nudged) {
-            nudged = true
-            observations += weatherIntent && !toolCalls.some((call) => call.tool === 'weather')
-              ? '\n\n【工具观察】这条消息在问天气，请先调用 weather，再给 final parts。'
-              : '\n\n【工具观察】这条消息在问最近行情/点位/新闻/具体数字，请先调用 web_search，再给 final parts。'
-            continue
-          }
-        }
         await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
         return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
       }

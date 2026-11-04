@@ -283,3 +283,23 @@ test('weather tool is called before a weather answer and its observation is reus
   assert.match(result.text, /多云/u)
   await rm(root, { recursive: true, force: true })
 })
+
+test('the model may answer directly without using a tool when information is sufficient', async () => {
+  let calls = 0
+  const stream = async function* () {
+    calls += 1
+    yield { type: 'text-delta', text: '{"type":"final","parts":["这个我记得，不用查。"]}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, {
+    settings: { webSearchEnabled: true, weatherEnabled: true },
+    weather: async () => { throw new Error('weather should not be forced') },
+    webSearch: async () => { throw new Error('search should not be forced') },
+  })
+  const result = await service.compose({ groupId: 'g1', loopId: 'direct-tool', material: '上海今天天气怎么样', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['这个我记得，不用查。'])
+  assert.deepEqual(result.toolCalls, [])
+  assert.equal(calls, 1)
+  await rm(root, { recursive: true, force: true })
+})

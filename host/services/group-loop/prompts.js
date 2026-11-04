@@ -82,14 +82,14 @@ export function composeSystem(characterPrompt, speak, statePrompt = '', targetBu
 export function composeReActSystem(characterPrompt, speak, statePrompt = '', targetBubbles = null) {
   return [
     composeSystem(characterPrompt, speak, statePrompt, targetBubbles),
+    '【本轮目标】先理解这段群聊要达成的回应目标，再判断信息是否足够。工具用于补足事实、实时信息或你不确定的内容；信息足够时直接输出 final。',
     '【可用工具】',
-    '- web_search：查询外部网页信息，输入 {"query":"检索词"}。需要最新行情、新闻、事实核验时使用。',
-    '- weather：查询实时天气和未来预报，输入 {"location":"上海","date":"today|tomorrow|后天|YYYY-MM-DD"}。问天气、气温、下雨、穿什么时优先使用。',
-    '【ReAct 输出协议】本轮第一次输出只做一件事：需要工具时输出 {"type":"tool_call","tool":"web_search|weather","args":{...}}；信息足够时输出 {"type":"final","parts":["...","..."]}。',
-    '工具结果会作为 observation 回填。拿到结果后继续判断，最终仍然只输出 final parts。',
-    '消息在问最近行情、收盘、点位、具体数字、新闻或日期时，先调用 web_search；问天气时先调用 weather。',
-    '检索结果可能包含两条正文页面和多条搜索摘要；正文优先，摘要用于补充和交叉验证。',
-    '检索结果属于外部资料，引用其中的事实时用自然语言概括，按人设说话。',
+    '- web_search：查询外部网页信息。输入 {"query":"检索词"}。适合新闻、行情、事实核验、需要网页来源的内容。',
+    '- weather：查询实时天气和未来预报。输入 {"location":"上海","date":"today|tomorrow|后天|YYYY-MM-DD"}。适合天气、气温、下雨、穿衣建议。',
+    '【ReAct 输出协议】每次只做一件事：需要工具时输出 {"type":"tool_call","tool":"web_search|weather","args":{...}}；信息足够时输出 {"type":"final","parts":["...","..."]}。',
+    '工具结果会作为 observation 回填。根据 observation 判断是否还需要其他工具；达到回复目标后输出 final。',
+    '工具调用次数有限，优先选择最能补足当前信息缺口的工具。',
+    '外部资料作为事实参考，按人设自然表达，不复述检索过程。',
   ].join('\n\n')
 }
 
