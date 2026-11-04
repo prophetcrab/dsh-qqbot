@@ -1,10 +1,11 @@
 # ADR-0002: 运行时内核 v1 详细设计
 
 ```text
-状态：Accepted for implementation
+状态：Historical
 日期：2026-11-02
-范围：qq-bot / plugins/runtime
+范围：早期 runtime 设计（qq-bot / plugins/runtime）
 对应：ADR-0001
+说明：当前 Host 已按 v2 kernel/contracts/services/plugins 重写；本文仅作设计参考
 ```
 
 ## 1. 本阶段目标

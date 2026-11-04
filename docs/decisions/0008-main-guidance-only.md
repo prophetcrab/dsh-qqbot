@@ -80,8 +80,13 @@ focused shared change, never by importing code from `main`.
 
 ## Migration
 
-1. Freeze code changes on `main` once platform branches are independent.
-2. Remove the plugin body from `main` in one dedicated commit.
-3. Never merge that removal commit back into a platform branch.
-4. From then on, only documentation/governance PRs target `main`.
-5. Platform branches record guidance references and keep their own code history.
+Completed on 2026-11-05:
+
+1. `main` was reconstructed as a guidance-only branch with no plugin body.
+2. The previous `main` tip is preserved by the `archive/main-pre-guidance` tag.
+3. Platform branches keep the code history and continue as `dshbot-mac` /
+   `dshbot-win64`.
+4. From now on, only documentation/governance PRs target `main`; never merge
+   `main` into a platform branch.
+5. Platform branches record guidance references and keep their own release tags
+   and artifacts.

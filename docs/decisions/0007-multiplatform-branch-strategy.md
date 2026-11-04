@@ -1,8 +1,9 @@
 # 0007 - Multi-platform Branch Strategy
 
-> **Superseded in part by [0008](0008-main-guidance-only.md).** `main` will become
-> a guidance-only branch; platform branches no longer merge `main` wholesale.
-> The branch names and platform-isolation principles below remain valid.
+> **Superseded by [0008](0008-main-guidance-only.md) and
+> [0009](0009-feature-flow-and-release-convention.md).** `main` is now a
+> guidance-only branch; platform branches no longer merge `main` wholesale.
+> The platform-isolation principles below remain valid.
 
 ## Decision
 

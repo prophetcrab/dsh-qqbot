@@ -2,7 +2,7 @@
 
 DeepSeek Harness 的 Windows QQ 机器人控制中心：Linux QQ/NapCat 运行在 Docker 容器中，Koishi 运行在宿主机。
 
-当前开发分支：`dshbot-win64`（只包含 Windows 代码与资源；macOS 代码在 `dshbot-mac`）。功能开发在 `dshbot-mac` 进行，Windows 分支同步功能并做平台适配；两个平台独立发布，版本号不要求同步。`main` 只保留导向与发布管理，见 [0008](docs/decisions/0008-main-guidance-only.md) 和 [0009](docs/decisions/0009-feature-flow-and-release-convention.md)。项目已按 plugin-based 架构重写：
+当前开发分支：`dshbot-win64`（只包含 Windows 代码与资源；macOS 代码在 `dshbot-mac`）。功能开发在 `dshbot-mac` 进行，Windows 分支同步功能并做平台适配；两个平台独立发布，版本号不要求同步。`main` 只保留导向与发布管理，见 [0008](docs/decisions/0008-main-guidance-only.md)、[0009](docs/decisions/0009-feature-flow-and-release-convention.md) 和 [项目架构](docs/architecture/README.md)。项目已按 plugin-based 架构重写：
 
 ```text
 QQ ↔ NapCat ↔ OneBot 11 ↔ Koishi ↔ DSH Host ↔ 面板 / LLM
