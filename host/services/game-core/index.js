@@ -1,6 +1,7 @@
 /** Deterministic game command service. Commands never enter the LLM loop. */
 import { PlayerStore } from './player-store.js'
 import { GameRegistry } from './registry.js'
+import { exchangeHelp, executeExchange } from './modules/exchange.js'
 import { playersModule } from './modules/players.js'
 
 const GROUP_ID = /^[0-9A-Za-z_-]{1,64}$/u
@@ -19,14 +20,20 @@ export class GameCore {
   async command(input) {
     const groupId = String(input?.groupId ?? '')
     const userId = String(input?.userId ?? '')
-    const rawCommand = String(input?.command ?? '').trim()
-    if (!GROUP_ID.test(groupId) || !PLAYER_ID.test(userId) || !COMMAND.test(rawCommand)) {
+    const rawCommand = String(input?.command ?? '').slice(0, 120).trim()
+    if (!GROUP_ID.test(groupId) || !PLAYER_ID.test(userId)) {
       return { ok: false, error: 'invalid command' }
     }
     try {
       if (rawCommand === '/help' || rawCommand === '/帮助') {
-        return { ok: true, replies: [`${this.registry.helpText()}\n/help  查看所有命令（等同 /帮助）`] }
+        const extras = exchangeHelp.map(([command, description]) => `${command}  ${description}`).join('\n')
+        return { ok: true, replies: [`${this.registry.helpText()}\n${extras}\n/help  查看所有命令（等同 /帮助）`] }
       }
+      const exchange = await executeExchange({
+        rawCommand, groupId, userId, nickname: String(input?.nickname ?? ''), store: this.store,
+      })
+      if (exchange !== null) return exchange
+      if (!COMMAND.test(rawCommand)) return { ok: false, error: 'invalid command' }
       return await this.registry.dispatch(rawCommand, {
         groupId,
         userId,
