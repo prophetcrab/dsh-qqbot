@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { frameHref } from './frames.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -90,7 +91,7 @@ function badge(x, y, tier) {
   <text x="${x + w / 2}" y="${y + 19}" text-anchor="middle" fill="${tierColor(tier)}" font-size="14" font-weight="700" font-family="${FONT}">${label}</text>`
 }
 
-function itemCard(result, index, x, y, width, height, href) {
+function itemCard(result, index, x, y, width, height, href, frame) {
   const color = tierColor(result.tier)
   const duplicate = result.duplicateSold > 0 ? `重复 +${result.duplicateSold} 钓鱼币` : (result.pityTriggered ? '保底获得' : '已收入道具库')
   const iconSize = 92
@@ -102,13 +103,14 @@ function itemCard(result, index, x, y, width, height, href) {
     <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="20" fill="${CARD}" stroke="${color}" stroke-width="2"/>
     <rect x="${x + 8}" y="${y + 8}" width="${width - 16}" height="${height - 16}" rx="14" fill="none" stroke="${color}" stroke-opacity="0.22"/>
     ${href === '' ? '' : `<image x="${iconX}" y="${iconY}" width="${iconSize}" height="${iconSize}" href="${href}"/>`}
+    ${frame === '' ? '' : `<image x="${iconX - 8}" y="${iconY - 8}" width="${iconSize + 16}" height="${iconSize + 16}" href="${frame}"/>`}
     <text x="${textX}" y="${y + 44}" fill="${INK}" font-size="22" font-weight="700" font-family="${FONT}">${esc(cut(`${index + 1}. ${result.item.name}`, 10))}</text>
     ${badge(textX, y + 60, result.tier)}
     <text x="${textX}" y="${y + 122}" fill="${MUTED}" font-size="15" font-family="${FONT}">${esc(cut(duplicate, 18))}</text>
   </g>`
 }
 
-function singleCard(result, href) {
+function singleCard(result, href, frame) {
   const color = tierColor(result.tier)
   const duplicate = result.duplicateSold > 0 ? `重复 · +${result.duplicateSold} 钓鱼币` : (result.pityTriggered ? '保底获得' : '已收入钓鱼道具库')
   return `<g>
@@ -116,6 +118,7 @@ function singleCard(result, href) {
     <rect x="110" y="236" width="860" height="700" rx="32" fill="${CARD}" stroke="${color}" stroke-width="3"/>
     <rect x="126" y="252" width="828" height="668" rx="24" fill="none" stroke="${color}" stroke-opacity="0.24"/>
     ${href === '' ? '' : `<image x="390" y="292" width="300" height="300" href="${href}"/>`}
+    ${frame === '' ? '' : `<image x="378" y="280" width="324" height="324" href="${frame}"/>`}
     <text x="540" y="664" text-anchor="middle" fill="${INK}" font-size="44" font-weight="700" font-family="${FONT}">${esc(cut(result.item.name, 18))}</text>
     ${badge(486, 688, result.tier)}
     <text x="540" y="780" text-anchor="middle" fill="${MUTED}" font-size="22" font-family="${FONT}">${esc(duplicate)}</text>
@@ -142,11 +145,12 @@ async function buildCardSvg({ results, nickname, title, cost, player, fishing, a
   const single = results.length === 1
   let cards = ''
   if (single) {
-    cards = singleCard(results[0], await assetHref(results[0], assetsDir))
+    cards = singleCard(results[0], await assetHref(results[0], assetsDir), frameHref(assetsDir, { kind: results[0].kind, item: results[0].item }))
   } else {
     for (let index = 0; index < results.length; index += 1) {
       const href = await assetHref(results[index], assetsDir)
-      cards += itemCard(results[index], index, 56 + (index % 2) * 500, 224 + Math.floor(index / 2) * 196, 468, 178, href)
+      const frame = frameHref(assetsDir, { kind: results[index].kind, item: results[index].item })
+      cards += itemCard(results[index], index, 56 + (index % 2) * 500, 224 + Math.floor(index / 2) * 196, 468, 178, href, frame)
     }
   }
   return `<?xml version="1.0" encoding="UTF-8"?>

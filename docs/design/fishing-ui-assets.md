@@ -304,7 +304,7 @@ assets/
   currency/
     gold.png
     fishing_coin.png
-  frames/               当前只有 catalog，CSS 方案不使用
+  frames/               18 张边框，抽卡/道具库/卡池/鱼竿共用
   ui/
     empty_state.png       可选
     stamps/               可选

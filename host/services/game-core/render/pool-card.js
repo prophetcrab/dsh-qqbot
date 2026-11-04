@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { frameHref } from './frames.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -120,10 +121,11 @@ function pityPanel(pity) {
   }).join('')}`
 }
 
-function itemTile(item, x, y, href) {
+function itemTile(item, x, y, href, frame) {
   return `<g>
     <rect x="${x}" y="${y}" width="128" height="144" rx="16" fill="${CARD}" stroke="${color(item.tier)}" stroke-width="1.5"/>
     ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
+    ${frame === '' ? '' : `<image x="${x + 12}" y="${y - 2}" width="104" height="104" href="${frame}"/>`}
     <text x="${x + 64}" y="${y + 111}" text-anchor="middle" fill="${INK}" font-size="13" font-weight="700" font-family="${FONT}">${esc(cut(item.name, 7))}</text>
     <text x="${x + 64}" y="${y + 131}" text-anchor="middle" fill="${color(item.tier)}" font-size="11" font-weight="700" font-family="${FONT}">${esc(item.rate)}%</text>
   </g>`
@@ -155,7 +157,7 @@ function grid(items, startY) {
   return items.map((item, index) => {
     const x = 56 + (index % 7) * 140
     const y = startY + Math.floor(index / 7) * 154
-    return itemTile(item, x, y, item.href)
+    return itemTile(item, x, y, item.href, item.frame)
   }).join('')
 }
 
@@ -166,8 +168,8 @@ function footer(height) {
 }
 
 export async function renderPoolCard({ nickname, pool, assetsDir }) {
-  const rods = await Promise.all(pool.rods.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'rods', item.asset) })))
-  const baits = await Promise.all(pool.baits.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'baits', item.asset) })))
+  const rods = await Promise.all(pool.rods.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'rods', item.asset), frame: frameHref(assetsDir, { kind: 'rod', item }) })))
+  const baits = await Promise.all(pool.baits.map(async (item) => ({ ...item, href: await hrefFor(assetsDir, 'baits', item.asset), frame: frameHref(assetsDir, { kind: 'bait', item }) })))
   const up = pool.up
   const upRodHref = up?.rod === undefined ? '' : await hrefFor(assetsDir, 'rods', up.rod.asset)
   const upBaitHref = up?.bait === undefined ? '' : await hrefFor(assetsDir, 'baits', up.bait.asset)
