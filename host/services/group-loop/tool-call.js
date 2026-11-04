@@ -11,22 +11,56 @@ function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {}
 }
 
-export function parseToolCall(raw, parsed = null) {
-  if (parsed?.type === 'tool_call' && TOOL_NAMES.has(parsed.tool)) {
-    return { tool: parsed.tool, args: object(parsed.args) }
+function normalizeCall(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
+  const functionValue = object(value.function)
+  const tool = String(value.tool ?? value.name ?? functionValue.name ?? '').trim()
+  if (!TOOL_NAMES.has(tool)) return null
+  let args = value.args ?? value.arguments ?? functionValue.arguments ?? {}
+  if (typeof args === 'string') {
+    try { args = JSON.parse(args) } catch { args = {} }
   }
-  const source = String(raw ?? '')
-  if (!/tool_call|<\|\|DSML|DSML/iu.test(source)) return null
-  const start = source.indexOf('{')
-  const end = source.lastIndexOf('}')
-  if (start < 0 || end <= start) return null
+  return { tool, args: object(args) }
+}
+
+function parseEmbedded(source) {
+  const text = String(source ?? '')
+  const calls = []
+  for (const match of text.matchAll(/<(?:toolcall|tool_call)>([\s\S]*?)<\/(?:toolcall|tool_call)>/giu)) {
+    try {
+      const call = normalizeCall(JSON.parse(match[1]))
+      if (call !== null) calls.push(call)
+    } catch { /* ignore malformed embedded call */ }
+  }
+  if (calls.length > 0) return calls
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start < 0 || end <= start) return []
   try {
-    const value = JSON.parse(source.slice(start, end + 1))
-    if (value?.type !== 'tool_call' || !TOOL_NAMES.has(value.tool)) return null
-    return { tool: value.tool, args: object(value.args) }
+    const value = JSON.parse(text.slice(start, end + 1))
+    if (Array.isArray(value?.tool_calls)) return value.tool_calls.map(normalizeCall).filter(Boolean)
+    if (value?.type === 'tool_call') {
+      const call = normalizeCall(value)
+      return call === null ? [] : [call]
+    }
+    const call = normalizeCall(value)
+    return call === null ? [] : [call]
   } catch {
-    return null
+    return []
   }
+}
+
+export function parseToolCalls(raw, parsed = null) {
+  if (parsed?.type === 'tool_call') {
+    const call = normalizeCall(parsed)
+    if (call !== null) return [call]
+  }
+  if (Array.isArray(parsed?.tool_calls)) return parsed.tool_calls.map(normalizeCall).filter(Boolean)
+  return parseEmbedded(raw)
+}
+
+export function parseToolCall(raw, parsed = null) {
+  return parseToolCalls(raw, parsed)[0] ?? null
 }
 
 export function toolSignature(call) {

@@ -9,7 +9,7 @@ import { searchWeb } from './web-search.js'
 import { evaluateExpression } from './calculator.js'
 import { getMarketQuote } from './market-quote.js'
 import { readUrl } from './read-url.js'
-import { parseToolCall, renderObservation, toolQuery, toolSignature } from './tool-call.js'
+import { parseToolCalls, renderObservation, toolQuery, toolSignature } from './tool-call.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
@@ -293,38 +293,41 @@ export class GroupLoopService {
         return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
       }
       const parsed = parseJson(raw)
-      const call = parseToolCall(raw, parsed)
-      if (call !== null) {
-        if (toolCalls.length >= 2) {
+      const calls = parseToolCalls(raw, parsed)
+      if (calls.length > 0) {
+        const available = Math.max(0, 2 - toolCalls.length)
+        if (available === 0) {
           observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
           continue
         }
-        const signature = toolSignature(call)
-        if (executed.has(signature)) {
-          observations += '\n\n【工具观察】这个工具参数已经执行过，请直接基于已有 observation 给 final parts。'
-          continue
+        for (const call of calls.slice(0, available)) {
+          const signature = toolSignature(call)
+          if (executed.has(signature)) {
+            observations += '\n\n【工具观察】这个工具参数已经执行过，请直接基于已有 observation 给 final parts。'
+            continue
+          }
+          const started = Date.now()
+          let result
+          try {
+            result = await this.runTool(call, input.groupId)
+          } catch (error) {
+            result = { ok: false, error: String(error?.message ?? error) }
+          }
+          executed.add(signature)
+          const query = toolQuery(call)
+          const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
+          toolCalls.push({
+            tool: call.tool,
+            query,
+            source: result?.source ?? (call.tool === 'group_search' ? 'local' : call.tool === 'calculator' ? 'local' : 'unknown'),
+            ok: result?.ok === true,
+            results: count,
+            latencyMs: Date.now() - started,
+            ...(result?.ok === true ? {} : { error: String(result?.error ?? 'tool failed') }),
+          })
+          observations += `\n\n${renderObservation(call.tool, result).slice(0, 14000)}`
         }
-        const started = Date.now()
-        let result
-        try {
-          result = await this.runTool(call, input.groupId)
-        } catch (error) {
-          result = { ok: false, error: String(error?.message ?? error) }
-        }
-        executed.add(signature)
-        const query = toolQuery(call)
-        const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
-        toolCalls.push({
-          tool: call.tool,
-          query,
-          source: result?.source ?? (call.tool === 'group_search' ? 'local' : call.tool === 'calculator' ? 'local' : 'unknown'),
-          ok: result?.ok === true,
-          results: count,
-          latencyMs: Date.now() - started,
-          ...(result?.ok === true ? {} : { error: String(result?.error ?? 'tool failed') }),
-        })
-        observations += `\n\n${renderObservation(call.tool, result).slice(0, 14000)}`
-        if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        if (calls.length > available) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
         continue
       }
       if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {

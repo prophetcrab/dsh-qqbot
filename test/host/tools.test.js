@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { evaluateExpression } from '../../host/services/group-loop/calculator.js'
 import { getMarketQuote, parseTencentQuotes, tencentCode } from '../../host/services/group-loop/market-quote.js'
 import { parseReadUrlCall, renderReadUrl } from '../../host/services/group-loop/read-url.js'
-import { parseToolCall, renderObservation, toolQuery } from '../../host/services/group-loop/tool-call.js'
+import { parseToolCall, parseToolCalls, renderObservation, toolQuery } from '../../host/services/group-loop/tool-call.js'
 
 test('calculator evaluates arithmetic without eval', () => {
   assert.deepEqual(evaluateExpression('(5000*0.18)+12'), { ok: true, expression: '(5000*0.18)+12', value: 912 })
@@ -48,6 +48,9 @@ test('tool call parser handles all six tools and rejects unknown tools', () => {
     assert.ok(toolQuery(call) !== '')
   }
   assert.equal(parseToolCall('{"type":"tool_call","tool":"unknown","args":{}}'), null)
+  const embedded = parseToolCalls('<toolcall>{"name":"calculator","arguments":{"expression":"(5000*0.18)+12"}}</toolcall><toolcall>{"name":"market_quote","arguments":{"symbol":"sh000001"}}</toolcall>')
+  assert.deepEqual(embedded.map((call) => call.tool), ['calculator', 'market_quote'])
+  assert.deepEqual(embedded[0].args, { expression: '(5000*0.18)+12' })
   assert.equal(parseReadUrlCall('{"type":"tool_call","tool":"read_url","args":{"url":"https://example.com"}}').url, 'https://example.com')
   assert.match(renderReadUrl({ ok: false, error: 'bad' }), /读取失败/u)
 })
