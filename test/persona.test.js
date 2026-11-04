@@ -5,6 +5,13 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEFAULT_PERSONA, buildCharacterPrompt, buildPersonaPrompt, normalizePersona, readPersonaFile, writePersonaFile } from '../host/services/persona/index.js'
 
+
+test('default persona uses the real name 天青色瞪眼鱼', () => {
+  assert.equal(DEFAULT_PERSONA.name, '天青色瞪眼鱼')
+  assert.match(DEFAULT_PERSONA.role, /^天青色瞪眼鱼，28 岁/u)
+  assert.doesNotMatch(DEFAULT_PERSONA.role, /林见夏/u)
+})
+
 test('normalizePersona: trims fields, drops empty examples, caps lengths', () => {
   const card = normalizePersona({
     name: '  小助手 ',
