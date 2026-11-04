@@ -95,3 +95,44 @@ test('help is generated from the command registry', async () => {
   assert.match(alias.replies[0], /\/注册/u)
   await rm(root, { recursive: true, force: true })
 })
+
+test('gold and fishing coins exchange both directions with correct rounding', async () => {
+  const { root, game } = await workspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
+  const buy = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/兑换钓鱼币 5' })
+  assert.match(buy.replies[0], /-5 金币/u)
+  assert.match(buy.replies[0], /\+50 钓鱼币/u)
+  let player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.coins, 5)
+  assert.equal(player.fishingCoins, 50)
+
+  const sell = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 兑换金币 25' })
+  assert.match(sell.replies[0], /-20 钓鱼币/u)
+  assert.match(sell.replies[0], /\+2 金币/u)
+  player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.coins, 7)
+  assert.equal(player.fishingCoins, 30)
+
+  const capped = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 兑换金币 999' })
+  assert.match(capped.replies[0], /-30 钓鱼币/u)
+  assert.match(capped.replies[0], /\+3 金币/u)
+  player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.coins, 10)
+  assert.equal(player.fishingCoins, 0)
+
+  const empty = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 兑换金币 10' })
+  assert.match(empty.replies[0], /钓鱼币不足 10/u)
+  const invalid = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/兑换钓鱼币 1.5' })
+  assert.match(invalid.replies[0], /正整数/u)
+  assert.equal((await readGroup(root, 'g1')).players['20000'].coins, 10)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('help includes fishing exchange commands', async () => {
+  const { root, game } = await workspace()
+  const help = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/help' })
+  assert.match(help.replies[0], /兑换钓鱼币/u)
+  assert.match(help.replies[0], /兑换金币/u)
+  await rm(root, { recursive: true, force: true })
+})

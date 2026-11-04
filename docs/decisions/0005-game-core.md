@@ -57,9 +57,11 @@ Player record:
 ## Commands
 
 ```text
-/注册      register the sender in the current group
-/签到      once per group per Asia/Shanghai day, random 10-30 coins
-/账号背包  show this group's bag for the sender (coins and future items)
+/注册                    register the sender in the current group
+/签到                    once per group per Asia/Shanghai day, random 10-30 coins
+/账号背包                show this group's bag for the sender
+/兑换钓鱼币 <金币数量>    金币兑换钓鱼币，1 金币 = 10 钓鱼币
+/钓鱼 兑换金币 <数量>     钓鱼币兑换金币，不足整十向下取整
 ```
 
 ## Group bag
