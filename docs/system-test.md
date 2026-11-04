@@ -25,15 +25,15 @@
 ### A. DSH 插件
 
 ```text
-[ ] 面板可打开，7 个 Tab 正常
+[ ] 面板可打开，9 个 Tab 正常
 [ ] 刷新页面后 Client bundle 正常
 [ ] 概览状态与进程实际状态一致
-[ ] 全部停止：Koishi、NapCat、QQ 进程结束
+[ ] 全部停止：Koishi 停止，NapCat 容器停止；Docker Engine 保持运行
 [ ] 全部启动：Koishi 先就绪，再出现 NapCat 二维码
-[ ] NapCat 安装/版本检测正常
+[ ] NapCat Docker 镜像/容器状态检测正常
 [ ] QR 刷新按钮可用
 [ ] 插件页读取 17 个 Koishi 插件，启停操作正常
-[ ] 功能页 5 个 Feature 可见
+[ ] 功能页 3 个 Feature 可见
 [ ] 日志页能读到 Koishi 日志
 [ ] 权限页读写 policy 正常
 ```
