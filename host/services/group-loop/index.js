@@ -2,7 +2,7 @@
 import { buildCharacterPrompt } from '../persona/index.js'
 import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
-import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
+import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, memoryPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
 import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
@@ -194,6 +194,10 @@ export class GroupLoopService {
     return this.store.profilesFor(groupId, qqs)
   }
 
+  async memoryContext(groupId) {
+    return memoryPrompt(await this.store.memories(100), groupId)
+  }
+
   async groupBackground(groupId) {
     const state = await this.store.groupState(groupId)
     const lines = []
@@ -212,7 +216,7 @@ export class GroupLoopService {
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId)), { maxTokens: 420, temperature: 0.25, images })
+      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId), await this.memoryContext(groupId)), { maxTokens: 420, temperature: 0.25, images })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -230,7 +234,7 @@ export class GroupLoopService {
     const profiles = await this.profileContext(input.groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
-    const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId))
+    const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId), await this.memoryContext(input.groupId))
     if (this.settings.webSearchEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
     try {
       const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images })

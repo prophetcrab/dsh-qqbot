@@ -16,6 +16,11 @@ function time(value) {
   return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
 }
 function percent(value) { return Math.round(Math.max(0, Math.min(1, num(value))) * 100) }
+function memoryMeta(memory, selectedId) {
+  const groupId = text(memory?.groupId)
+  const group = groupId === '' ? '群未知' : String(groupId) === String(selectedId) ? '本群' : `群 ${groupId}`
+  return `${time(memory?.at)} · ${text(memory?.kind) || 'event'} · ${group}`
+}
 
 function profilesBlock(h, selectedId, profiles) {
   return h('div', { className: 'qqbot-ai-profile-block', 'data-testid': 'qqbot-ai-profiles' },
@@ -214,7 +219,7 @@ function renderAiSettings(panel, view) {
   const groups = Object.keys({ ...listenerGroups, ...groupsState }).map((id) => [id, { ...obj(listenerGroups[id]), ...obj(groupsState[id]) }])
   const selectedId = view.selected ?? groups[0]?.[0] ?? null
   const profiles = arr(data.profiles).filter((profile) => selectedId === null || String(profile.groupId) === String(selectedId))
-  const memories = arr(data.memories).slice(-12).reverse()
+  const memories = arr(data.memories).slice(-100).reverse()
   const name = text(persona.name) || text(core.name) || '未命名角色'
   const role = text(persona.role) || text(core.identity)
   const tone = text(persona.tone) || text(core.voice)
@@ -261,7 +266,7 @@ function renderAiSettings(panel, view) {
     h('div', { className: 'qqbot-ai-settings-memories', 'data-testid': 'qqbot-ai-settings-memories' },
       memories.length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '还没有长期记忆') : memories.map((memory) => h('div', { key: memory.id || memory.summary, className: 'qqbot-ai-memory' },
         h('span', { className: `qqbot-ai-memory-dot is-${memory.importance || 'medium'}` }),
-        h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, `${time(memory.at)} · ${text(memory.kind) || 'event'}`))))))
+        h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, memoryMeta(memory, view.selected)))))))
   const groupsCard = h('section', { className: 'qqbot-ai-card' },
     settingsCardHead(h, 'GROUPS', '群聊状态', `${groups.length} 个群`),
     h('div', { className: 'qqbot-ai-settings-groups', 'data-testid': 'qqbot-ai-settings-groups' },
@@ -389,9 +394,9 @@ export function renderAiTab(panel, view) {
         h('div', null, h('span', { className: 'qqbot-ai-card-kicker' }, 'MEMORY'), h('h2', null, '最近记忆')),
         h('span', { className: 'qqbot-ai-card-sub' }, `${arr(data.memories).length} 条`)),
       h('div', { className: 'qqbot-ai-memories', 'data-testid': 'qqbot-ai-memories' },
-        arr(data.memories).length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '每次分析后这里会出现状态更新记录') : arr(data.memories).slice(-8).reverse().map((memory) => h('div', { key: memory.id || memory.summary, className: 'qqbot-ai-memory' },
+        arr(data.memories).length === 0 ? h('p', { className: 'qqbot-ai-empty-line' }, '每次分析后这里会出现状态更新记录') : arr(data.memories).slice(-20).reverse().map((memory) => h('div', { key: memory.id || memory.summary, className: 'qqbot-ai-memory' },
           h('span', { className: `qqbot-ai-memory-dot is-${memory.importance || 'medium'}` }),
-          h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, `${time(memory.at)} · ${text(memory.kind) || 'event'}`)))))),
+          h('div', null, h('p', null, text(memory.summary) || '—'), h('span', null, memoryMeta(memory, view.selected))))))),
     h('footer', { className: 'qqbot-ai-footer' },
       h('span', null, `监听器 ${data.listener?.updatedAt ? `更新于 ${time(data.listener.updatedAt)}` : '等待数据'}`),
       h('span', null, '群间并发 · 群内串行 · 每轮 state_update 一次')))

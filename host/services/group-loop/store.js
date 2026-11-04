@@ -1,8 +1,8 @@
 /** Durable state for the group-listener loop: character, groups, memory. */
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ensureProfile, loadProfileStore, mergeProfile, saveProfileStore } from '../profiles/index.js'
-import { readJsonFile, SerialQueue, writeJsonAtomic } from './atomic.js'
+import { readJsonFile, SerialQueue, writeJsonAtomic, writeTextAtomic } from './atomic.js'
 
 const DEFAULTS = () => ({
   emotion: { valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 },
@@ -10,6 +10,8 @@ const DEFAULTS = () => ({
 })
 
 const PROCESSED_LIMIT = 500
+const MEMORY_LIMIT = 100
+const MEMORY_WRITE_LIMIT = 20
 const EMOTION_BASELINE = Object.freeze({ valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 })
 const EMOTION_DELTA_LIMIT = 0.03
 const ENERGY_RECOVERY_MINUTES = 90
@@ -110,7 +112,7 @@ export class GroupLoopStore {
     return processed.loops[loopId] ?? null
   }
 
-  async memories(limit = 30) {
+  async memories(limit = 100) {
     try {
       const text = await readFile(this.memoryPath, 'utf8')
       return text.split('\n').filter(Boolean).slice(-limit).map((line) => {
@@ -130,17 +132,18 @@ export class GroupLoopStore {
     } catch { return false }
   }
 
-  async appendMemory(entries, loopId = '') {
+  async appendMemory(entries, loopId = '', groupId = '') {
     if (!Array.isArray(entries) || entries.length === 0) return []
     if (await this.hasMemoryForLoop(loopId)) return []
     await this.ensure()
     const written = []
     const now = new Date().toISOString()
-    for (const entry of entries.slice(0, 8)) {
+    for (const entry of entries.slice(0, MEMORY_WRITE_LIMIT)) {
       if (entry === null || typeof entry !== 'object' || typeof entry.summary !== 'string' || entry.summary.trim() === '') continue
       const memory = {
         id: `mem_${loopId || Date.now()}_${written.length}`,
         loopId,
+        groupId: String(groupId ?? ''),
         at: now,
         summary: entry.summary.trim().slice(0, 500),
         kind: entry.kind === 'relationship' || entry.kind === 'reflection' ? entry.kind : 'event',
@@ -148,9 +151,15 @@ export class GroupLoopStore {
         tags: Array.isArray(entry.tags) ? entry.tags.filter((tag) => typeof tag === 'string').slice(0, 6) : [],
         participants: Array.isArray(entry.participants) ? entry.participants.filter((id) => typeof id === 'string').slice(0, 12) : [],
       }
-      await appendFile(this.memoryPath, `${JSON.stringify(memory)}\n`, 'utf8')
       written.push(memory)
     }
+    if (written.length === 0) return []
+    let existing = []
+    try {
+      existing = (await readFile(this.memoryPath, 'utf8')).split('\n').filter(Boolean)
+    } catch { /* first memory */ }
+    const kept = [...existing, ...written.map((memory) => JSON.stringify(memory))].slice(-MEMORY_LIMIT)
+    await writeTextAtomic(this.memoryPath, `${kept.join('\n')}\n`)
     return written
   }
 
@@ -225,7 +234,7 @@ export class GroupLoopStore {
         emotion[key] = Math.min(bounds[1], Math.max(bounds[0], Number.isFinite(emotion[key]) ? emotion[key] : EMOTION_BASELINE[key]))
       }
       const saved = await this.saveCharacter({ ...character, emotion })
-      const members = await this.appendMemory(patches.memory, loopId)
+      const members = await this.appendMemory(patches.memory, loopId, groupId)
       const profileCount = await this.applyProfilesUnlocked(groupId, patches.userProfiles, participants)
       const groups = await this.loadGroups()
       const previous = groups.groups[groupId] !== null && typeof groups.groups[groupId] === 'object' ? groups.groups[groupId] : {}
@@ -261,7 +270,7 @@ export class GroupLoopStore {
   }
 
   async dashboard(listenerPath, groupId = null) {
-    const [character, groups, memories, persona] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(40), this.loadPersona()])
+    const [character, groups, memories, persona] = await Promise.all([this.loadCharacter(), this.loadGroups(), this.memories(100), this.loadPersona()])
     const profiles = groupId === null || groupId === '' ? [] : await this.profilesFor(groupId)
     const listener = await this.readJson(listenerPath, null)
     return { character, persona, groups: groups.groups ?? {}, memories, profiles, listener, updatedAt: new Date().toISOString() }

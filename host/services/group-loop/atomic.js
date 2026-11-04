@@ -13,6 +13,17 @@ export async function readJsonFile(path, fallback) {
 }
 
 /** Write JSON through a temporary file and rename, never exposing a partial file. */
+export async function writeTextAtomic(path, text) {
+  await mkdir(dirname(path), { recursive: true })
+  const temp = `${path}.${basename(path)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`
+  try {
+    await writeFile(temp, text, 'utf8')
+    await rename(temp, path)
+  } finally {
+    await unlink(temp).catch(() => {})
+  }
+}
+
 export async function writeJsonAtomic(path, value) {
   await mkdir(dirname(path), { recursive: true })
   const temp = `${path}.${basename(path)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 7)}.tmp`

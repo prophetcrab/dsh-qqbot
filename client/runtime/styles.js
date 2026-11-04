@@ -449,7 +449,7 @@ export const CSS = `
 .qqbot-ai-profile-full p { -webkit-line-clamp: 4; font-size: 10px; }
 .qqbot-ai-profile-facts { display: flex; gap: 5px; flex-wrap: wrap; }
 .qqbot-ai-profile-facts span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; }
-.qqbot-ai-settings-memories { display: flex; flex-direction: column; gap: 8px; }
+.qqbot-ai-settings-memories { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
 .qqbot-ai-settings-groups { display: flex; flex-direction: column; gap: 7px; }
 .qqbot-ai-settings-group { padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 4px; }
 .qqbot-ai-settings-group-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }

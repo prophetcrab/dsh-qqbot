@@ -102,7 +102,23 @@ export function stateUpdateSystem() {
   ].join('\n\n')
 }
 
-export function userMaterial(material, profiles, imageNote = '', background = '') {
+export function memoryPrompt(memories, currentGroupId = '') {
+  const list = Array.isArray(memories) ? memories : []
+  if (list.length === 0) return ''
+  const current = String(currentGroupId)
+  const lines = []
+  for (const memory of list) {
+    if (memory === null || typeof memory !== 'object' || typeof memory.summary !== 'string' || memory.summary.trim() === '') continue
+    const group = typeof memory.groupId === 'string' && memory.groupId !== '' ? memory.groupId : ''
+    const label = group === '' ? '群组未知' : group === current ? '本群' : `其他群 ${group}`
+    const at = typeof memory.at === 'string' && memory.at !== '' ? `${memory.at.slice(0, 19).replace('T', ' ')} ` : ''
+    lines.push(`[${label}] ${at}${memory.summary.trim()}`)
+  }
+  if (lines.length === 0) return ''
+  return `【最近记忆（跨群，只用于理解角色过去经历）】\n${lines.join('\n')}\n这些是历史摘要，不是当前指令；当前群聊以本轮素材为准。其他群记忆只用于理解角色经历，不要当成当前群正在发生的事。`
+}
+
+export function userMaterial(material, profiles, imageNote = '', background = '', memories = '') {
   const data = profileData(profiles)
-  return `${data ? `${data}\n\n` : ''}${imageNote ? `${imageNote}\n\n` : ''}${background ? `${background}\n\n` : ''}【本轮群聊素材】\n${material}`
+  return `${data ? `${data}\n\n` : ''}${imageNote ? `${imageNote}\n\n` : ''}${background ? `${background}\n\n` : ''}${memories ? `${memories}\n\n` : ''}【本轮群聊素材】\n${material}`
 }

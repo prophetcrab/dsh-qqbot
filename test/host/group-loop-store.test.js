@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { GroupLoopStore } from '../../host/services/group-loop/store.js'
+import { memoryPrompt } from '../../host/services/group-loop/prompts.js'
 import { validateAnalyze, validateCompose, validateStateUpdate } from '../../host/services/group-loop/contracts.js'
 
 const logger = { warn() {} }
@@ -167,4 +168,31 @@ test('social stress also lowers valence when the model omits a negative valence 
   assert.ok(after.emotion.stress > 0.2, `stress=${after.emotion.stress}`)
   assert.ok(after.emotion.valence < 0.5, `valence=${after.emotion.valence}`)
   await rm(root, { recursive: true, force: true })
+})
+
+test('memories carry group ids, write at most 20 per loop and retain the latest 100', async () => {
+  const { root, store } = await workspace()
+  const written = await store.appendMemory(Array.from({ length: 25 }, (_, index) => ({ summary: `memory-${index}` })), 'loop-cap', 'g1')
+  assert.equal(written.length, 20)
+  assert.equal(written[0].groupId, 'g1')
+  for (let index = 0; index < 6; index += 1) {
+    await store.appendMemory(Array.from({ length: 20 }, (_, item) => ({ summary: `batch-${index}-${item}` })), `loop-${index}`, index % 2 ? 'g1' : 'g2')
+  }
+  const rows = await store.memories(500)
+  assert.equal(rows.length, 100)
+  assert.equal(rows.at(-1).summary, 'batch-5-19')
+  assert.ok(rows.every((row) => typeof row.groupId === 'string' && row.groupId !== ''))
+  await rm(root, { recursive: true, force: true })
+})
+
+test('memory prompt marks the current group and other groups', () => {
+  const prompt = memoryPrompt([
+    { groupId: 'g1', summary: '本群发生的事', at: '2026-11-04T10:00:00.000Z' },
+    { groupId: 'g2', summary: '别群发生的事', at: '2026-11-04T10:01:00.000Z' },
+    { summary: '旧记忆没有群号' },
+  ], 'g1')
+  assert.match(prompt, /\[本群\].*本群发生的事/u)
+  assert.match(prompt, /\[其他群 g2\].*别群发生的事/u)
+  assert.match(prompt, /\[群组未知\]/u)
+  assert.match(prompt, /跨群/u)
 })
