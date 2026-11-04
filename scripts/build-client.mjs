@@ -204,7 +204,7 @@ if (isMain) {
   const check = process.argv.includes('--check')
   const code = buildClient()
   if (check) {
-    const current = readFileSync(OUTPUT, 'utf8')
+    const current = readFileSync(OUTPUT, 'utf8').replace(/\r\n/g, '\n')
     if (current !== code) {
       console.error('client.js is stale: run `node scripts/build-client.mjs`')
       process.exit(1)
