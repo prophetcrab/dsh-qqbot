@@ -3,6 +3,7 @@ import { PlayerStore } from './player-store.js'
 import { GameRegistry } from './registry.js'
 import { exchangeHelp, executeExchange } from './modules/exchange.js'
 import { FishingBagService, bagHelp } from './modules/fishing-bag.js'
+import { FishingRodService, rodHelp } from './modules/fishing-rod.js'
 import { GachaService, gachaHelp } from './modules/gacha.js'
 import { playersModule } from './modules/players.js'
 
@@ -19,6 +20,7 @@ export class GameCore {
     this.registry = new GameRegistry([playersModule])
     this.gacha = new GachaService({ projectDir, assetsDir, logger })
     this.bag = new FishingBagService({ projectDir, assetsDir, logger })
+    this.rod = new FishingRodService({ projectDir, assetsDir, logger })
   }
 
   async command(input) {
@@ -30,7 +32,7 @@ export class GameCore {
     }
     try {
       if (rawCommand === '/help' || rawCommand === '/帮助') {
-        const extras = [...exchangeHelp, ...gachaHelp, ...bagHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
+        const extras = [...exchangeHelp, ...gachaHelp, ...bagHelp, ...rodHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
         return { ok: true, replies: [`${this.registry.helpText()}\n${extras}\n/help  查看所有命令（等同 /帮助）`] }
       }
       const exchange = await executeExchange({
@@ -43,8 +45,10 @@ export class GameCore {
       if (gacha !== null) return gacha
       const bag = await this.bag.execute({ rawCommand, groupId, userId, store: this.store })
       if (bag !== null) return bag
+      const rod = await this.rod.execute({ rawCommand, groupId, userId, store: this.store })
+      if (rod !== null) return rod
       if (rawCommand === '/钓鱼' || rawCommand.startsWith('/钓鱼 ')) {
-        return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 道具库\n/钓鱼 兑换金币 数量'] }
+        return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 道具库\n/钓鱼 查看鱼竿\n/钓鱼 更换鱼竿 鱼竿名\n/钓鱼 兑换金币 数量'] }
       }
       if (!COMMAND.test(rawCommand)) return { ok: false, error: 'invalid command' }
       return await this.registry.dispatch(rawCommand, {
