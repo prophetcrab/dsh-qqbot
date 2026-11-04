@@ -59,6 +59,7 @@
   "scripts": {
     "test": "node --test test/*.test.js test/host/*.test.js test/client/*.test.js",
     "test:host": "node --test test/host/*.test.js",
+    "test:template": "npm --prefix template test",
     "build:client": "node scripts/build-client.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "smoke:host": "node scripts/smoke-host.mjs",
