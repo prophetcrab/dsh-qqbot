@@ -70,7 +70,7 @@ export function toolSignature(call) {
 
 export function toolQuery(call) {
   const args = call.args ?? {}
-  return String(args.query ?? args.location ?? args.url ?? args.symbol ?? args.expression ?? '').slice(0, 200)
+  return String(args.query ?? args.location ?? args.url ?? args.symbol ?? args.expression ?? args.date ?? '').slice(0, 200)
 }
 
 export function renderObservation(tool, result) {

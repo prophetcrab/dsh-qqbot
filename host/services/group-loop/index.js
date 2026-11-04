@@ -317,7 +317,7 @@ export class GroupLoopService {
           }
           executed.add(signature)
           const query = toolQuery(call)
-          const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
+          const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.events) ? result.events.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
           toolCalls.push({
             tool: call.tool,
             query,
