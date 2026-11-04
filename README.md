@@ -328,6 +328,7 @@ dockerNapcatToken    空（自动生成并持久化 WebUI token）
 dockerAutoStart      true（引擎未运行时自动拉起 Docker Desktop）
 dockerDesktopPath    空（自动探测；Docker Desktop 可执行文件/应用路径）
 dockerEngineTimeoutMs 180000（等待 Docker 引擎就绪）
+lifecycleGuard      true（DSH 退出时停止 Koishi 与 NapCat 容器）
 ```
 
 | 项 | 值 |
@@ -345,6 +346,7 @@ dockerEngineTimeoutMs 180000（等待 Docker 引擎就绪）
 - 建议使用机器人小号，并把本机旧 NapCat 停掉，避免同一 QQ 多端同时在线；
 - 插件生成的 compose 位于数据目录，可用 `docker compose -f <dataDir>/compose.yaml logs/stop` 排查；
 - 启动时如果 Docker 引擎未运行，会按 `dockerAutoStart` 自动拉起 Docker Desktop 并等待就绪；引擎已运行则只启动容器。停止只会 `docker compose stop` NapCat 容器，不会关闭 Docker Desktop/Engine。
+- `lifecycleGuard=true`（默认）时插件会启动一个脱离 DSH 的 watchdog：DSH 进程退出（包括崩溃/被杀）后自动停止 Koishi 进程与 NapCat 容器，容器 restart policy 为 `no`，不会被 Docker 重新拉起；Docker Engine 本身保持运行。
 
 ### Koishi
 

@@ -66,6 +66,7 @@ test('docker backend: compose file pins image, ports, volumes and reverse-WS URL
   const compose = await readFile(composePath, 'utf8')
   assert.match(compose, /image: "mlikiowa\/napcat-docker:latest"/u)
   assert.match(compose, /container_name: "dsh-qqbot-napcat"/u)
+  assert.match(compose, /restart: "no"/u)
   assert.match(compose, /ONEBOT_URL: "ws:\/\/host\.docker\.internal:5140\/onebot"/u)
   assert.match(compose, /"127\.0\.0\.1:6099:6099"/u)
   assert.match(compose, /data\/napcat-config:\/app\/napcat\/config/u)
@@ -270,10 +271,10 @@ test('host wires the backend selected by napcatBackend', async (t) => {
   })
 
   const docker = createFakeContext()
-  await apply(docker.ctx, { projectDir: dockerDir, bootstrap: false, napcatBackend: 'docker' })
+  await apply(docker.ctx, { projectDir: dockerDir, bootstrap: false, lifecycleGuard: false, napcatBackend: 'docker' })
   assert.ok(docker.getService().kernel.get('napcat') instanceof DockerNapcatManager)
 
   const local = createFakeContext()
-  await apply(local.ctx, { projectDir: localDir, bootstrap: false, napcatBackend: 'local' })
+  await apply(local.ctx, { projectDir: localDir, bootstrap: false, lifecycleGuard: false, napcatBackend: 'local' })
   assert.ok(local.getService().kernel.get('napcat') instanceof NapcatManager)
 })

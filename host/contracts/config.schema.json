@@ -21,6 +21,7 @@
     "dockerAutoStart": { "type": "boolean" },
     "dockerDesktopPath": { "type": "string" },
     "dockerEngineTimeoutMs": { "type": "integer", "minimum": 10000, "maximum": 600000 },
+    "lifecycleGuard": { "type": "boolean" },
     "offlineVendorDir": { "type": "string" },
     "offlineNapcatVersion": { "type": "string" },
     "aiProvider": { "type": "string" },

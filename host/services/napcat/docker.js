@@ -462,7 +462,7 @@ export class DockerNapcatManager {
       '  napcat:',
       `    image: ${JSON.stringify(this.image)}`,
       `    container_name: ${JSON.stringify(this.container)}`,
-      '    restart: unless-stopped',
+      '    restart: "no"',
       '    environment:',
       '      MODE: "reverse_ws"',
       `      ONEBOT_URL: ${JSON.stringify(this.reverseUrl)}`,

@@ -43,6 +43,8 @@ export const DEFAULT_SETTINGS = {
   dockerDesktopPath: '',
   /** How long to wait for the Docker engine after launching Docker Desktop. */
   dockerEngineTimeoutMs: 180000,
+  /** Stop Koishi/NapCat when the DSH host process exits (detached watchdog). */
+  lifecycleGuard: true,
   /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
@@ -128,6 +130,7 @@ export function resolveSettings(raw = {}) {
     dockerAutoStart: source.dockerAutoStart === undefined ? DEFAULT_SETTINGS.dockerAutoStart : source.dockerAutoStart === true,
     dockerDesktopPath: typeof source.dockerDesktopPath === 'string' ? expandHome(source.dockerDesktopPath) : '',
     dockerEngineTimeoutMs: toBoundedInt(source.dockerEngineTimeoutMs, DEFAULT_SETTINGS.dockerEngineTimeoutMs, 10_000, 600_000),
+    lifecycleGuard: source.lifecycleGuard === undefined ? DEFAULT_SETTINGS.lifecycleGuard : source.lifecycleGuard === true,
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',
