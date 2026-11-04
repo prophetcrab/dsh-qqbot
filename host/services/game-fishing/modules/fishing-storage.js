@@ -10,7 +10,7 @@ export const storageHelp = Object.freeze([
   ['/钓鱼 卖鱼 编号', '按编号出售鱼获'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 
 function readCatalog(assetsDir) {
   const parsed = JSON.parse(readFileSync(join(assetsDir, 'fish', 'catalog.json'), 'utf8'))

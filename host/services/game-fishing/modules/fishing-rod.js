@@ -9,7 +9,7 @@ export const rodHelp = Object.freeze([
   ['/钓鱼 更换鱼竿 <鱼竿名>', '更换为已拥有的鱼竿'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 
 export const ROD_INFO = Object.freeze({
   bamboo_hand: { weights: [60, 30, 8, 2, 0], sellPrice: 3, effect: '无特殊效果' },
