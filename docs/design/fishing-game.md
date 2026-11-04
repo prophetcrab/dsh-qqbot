@@ -328,7 +328,7 @@ probability[tier] = raw[tier] / total
 | 名称 | 致敬对象 | 单次效果 |
 |---|---|---|
 | 拉帕拉原版浮水米诺 | Rapala Original Floater，Lauri Rapala，1936，芬兰 | 本次保底 Lv.4+ 鱼 |
-| Mepps Aglia 旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次鱼获重量 +30% |
+| 梅普斯旋转亮片 | Mepps Aglia，André Meulnart，1938，法国 | 本次鱼获重量 +30% |
 | 达德维尔红白汤匙 | Dardevle，Lou Eppinger，1906，美国 | 本次额外获得一个特殊物品 |
 | 亚当斯干蝇 | Adams Dry Fly，Leonard Halladay，1922，美国 | 本次保底 Lv.3+ 鱼 |
 | 皇家教练羽饵 | Royal Coachman，John Hilyard，1878，美国 | 本次鱼获等级 +1，最高 Lv.5 |
