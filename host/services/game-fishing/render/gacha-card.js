@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { frameHref } from './frames.js'
+import { convertSvgFile } from './png.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -168,7 +169,7 @@ async function convertSvgToPng(svg) {
   const output = join(dir, 'card.png')
   try {
     await writeFile(input, svg, 'utf8')
-    await run('/usr/bin/sips', ['-s', 'format', 'png', input, '--out', output], { timeout: 15000 })
+    await convertSvgFile(input, output)
     return await readFile(output)
   } finally {
     await rm(dir, { recursive: true, force: true })

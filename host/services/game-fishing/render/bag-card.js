@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { frameHref } from './frames.js'
+import { convertSvgFile } from './png.js'
 
 const run = promisify(execFile)
 const WIDTH = 1080
@@ -170,7 +171,7 @@ export async function renderBagCard({ nickname, data, assetsDir }) {
   const output = join(dir, 'bag.png')
   try {
     await writeFile(input, svg, 'utf8')
-    await run('/usr/bin/sips', ['-s', 'format', 'png', input, '--out', output], { timeout: 15000 })
+    await convertSvgFile(input, output)
     const png = await readFile(output)
     return { data: png.toString('base64'), mime: 'image/png', width: WIDTH, height }
   } finally {
