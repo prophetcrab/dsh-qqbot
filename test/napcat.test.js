@@ -134,6 +134,20 @@ test('upsertWebsocketClient updates the same-name client and keeps other clients
   assert.deepEqual(original, snapshot)
 })
 
+test('upsertWebsocketClient removes duplicate reverse clients targeting the same URL', () => {
+  const original = emptyOnebotConfig()
+  original.network.websocketClients.push(
+    { name: 'rws', enable: true, url: 'ws://127.0.0.1:5140/onebot' },
+    { name: 'koishi', enable: true, url: 'ws://127.0.0.1:5140/onebot' },
+    { name: 'other', enable: true, url: 'ws://127.0.0.1:6000/onebot' },
+  )
+  const { config, changed } = upsertWebsocketClient(original, { url: 'ws://127.0.0.1:5140/onebot' })
+  assert.equal(changed, true)
+  assert.deepEqual(config.network.websocketClients.map((client) => client.name), ['koishi', 'other'])
+  const again = upsertWebsocketClient(config, { url: 'ws://127.0.0.1:5140/onebot' })
+  assert.equal(again.changed, false)
+})
+
 test('upsertWebsocketClient is idempotent on an already-configured file', () => {
   const options = { url: 'ws://127.0.0.1:5140/onebot', token: 'tok-1' }
   const first = upsertWebsocketClient(emptyOnebotConfig(), options)

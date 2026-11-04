@@ -32,6 +32,7 @@ import {
 } from '../../platform/index.js'
 import { failure, isPlainObject, normalizeLogger } from './common.js'
 import { autoConfigure, configure } from './configure.js'
+import { ensureDefaultOnebotConfig } from './default-config.js'
 import { loginState as webuiLoginState, loginStatus as webuiLoginStatus, refreshQr as webuiRefreshQr } from './webui.js'
 import { status as snapshotStatus } from './snapshot.js'
 import { START_TIMEOUT_MS, STOP_TIMEOUT_MS, waitForLogin } from './lifecycle.js'
@@ -421,6 +422,7 @@ export class DockerNapcatManager {
     const compose = this.#composeSource(token)
     const current = await this.fs.readText(this.composePath)
     if (current !== compose) await this.fs.writeFileAtomic(this.composePath, compose)
+    await ensureDefaultOnebotConfig(this)
     return { composePath: this.composePath, token }
   }
 

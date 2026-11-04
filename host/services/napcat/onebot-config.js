@@ -49,7 +49,24 @@ export function upsertWebsocketClient(onebotConfig, options = {}) {
   const config = deepClone(onebotConfig)
   if (!isPlainObject(config.network)) config.network = {}
   if (!Array.isArray(config.network.websocketClients)) config.network.websocketClients = []
-  const clients = config.network.websocketClients
+  // A reverse client pointing at the same Koishi URL is a duplicate: NapCat
+  // opens one WebSocket per client, so keeping them makes Koishi process every
+  // event twice (the bot then replies twice). Keep exactly one managed client.
+  let keptManaged = false
+  const clients = []
+  for (const client of config.network.websocketClients) {
+    if (!isPlainObject(client)) {
+      clients.push(client)
+      continue
+    }
+    if (client.url === url && client.name !== name) continue
+    if (client.name === name) {
+      if (keptManaged) continue
+      keptManaged = true
+    }
+    clients.push(client)
+  }
+  config.network.websocketClients = clients
   const desired = { ...WS_CLIENT_DEFAULTS, name, url, token }
   const index = clients.findIndex((client) => isPlainObject(client) && client.name === name)
   if (index === -1) {

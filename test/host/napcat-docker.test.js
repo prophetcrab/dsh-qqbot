@@ -73,6 +73,9 @@ test('docker backend: compose file pins image, ports, volumes and reverse-WS URL
   assert.match(compose, /data\/qq:\/app\/\.config\/QQ/u)
   assert.match(compose, /data\/napcat-cache:\/app\/napcat\/cache/u)
   assert.match(compose, /MODE: "reverse_ws"/u)
+  const defaultConfig = JSON.parse(await readFile(join(dir, 'napcat-docker', 'data', 'napcat-config', 'onebot11.json'), 'utf8'))
+  assert.deepEqual(defaultConfig.network.websocketClients.map((client) => client.name), ['koishi'])
+  assert.equal(defaultConfig.network.websocketClients[0].url, 'ws://host.docker.internal:5140/onebot')
 
   const token = (await readFile(join(dir, 'napcat-docker', 'webui-token.txt'), 'utf8')).trim()
   assert.match(token, /^[0-9a-f]{36}$/u)
