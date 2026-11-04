@@ -22,7 +22,7 @@ QQ 机器人面板
 fishing
 ```
 
-后续新增小游戏时，在 `GameAdminService` 的 `GAMES` 中增加描述，并在对应服务中提供玩家状态快照。
+后续新增小游戏时，在对应游戏包的 `admin.js` 中增加描述和玩家状态快照，并由游戏门面装配到管理台。当前实现位于 `host/services/game-core/games/fishing/admin.js`。
 
 ## Host API
 
