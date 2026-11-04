@@ -73,7 +73,7 @@ export function composeSystem(characterPrompt, speak, statePrompt = '', targetBu
     speak.replyType === 'at' ? 'replyType=at：发送层插入 @，正文直接写要说的话。' : '',
     speak.replyType === 'quote' ? 'replyType=quote：直接回应被引用的内容。' : '',
     '本轮附带图片时，结合图片内容来写。',
-    '发送层把 parts 作为 1–3 条独立气泡；输出 JSON：{"parts":["第一条","第二条"]}；每个元素是一条气泡，每条尽量短。',
+    '发送层把 parts 作为 1–3 条独立气泡；输出 JSON：{"parts":["第一条","第二条"]}；每个元素只承载一句话，目标不超过 28 字；长句在逗号处换到下一个元素。',
     targetBubbles === null ? '' : `本轮计划 ${targetBubbles} 条短气泡；parts 数量按这个计划来，内容不足时可以少一条。`,
     `target.messageIds=${JSON.stringify(target.messageIds ?? [])}，target.userIds=${JSON.stringify(target.userIds ?? [])}`,
   ].filter(Boolean).join('\n\n')
