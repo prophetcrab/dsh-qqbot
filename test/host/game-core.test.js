@@ -269,3 +269,21 @@ test('fishing item library returns an image and owned items', async () => {
   assert.equal(result.image?.width, 1080)
   await rm(root, { recursive: true, force: true })
 })
+
+test('view and change equipped rod', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishing: { rods: { owned: ['bamboo_hand', 'walton'], equipped: 'bamboo_hand' } },
+  })
+  const current = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 查看鱼竿' })
+  assert.match(current.replies[0], /当前鱼竿：竹制手竿/u)
+  assert.equal(current.image?.width, 1080)
+  const changed = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 更换鱼竿 沃尔顿竿' })
+  assert.match(changed.replies[0], /已更换为「沃尔顿竿」/u)
+  assert.equal((await readGroup(root, 'g1')).players['20000'].fishing.rods.equipped, 'walton')
+  const notOwned = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 更换鱼竿 碳素手竿' })
+  assert.match(notOwned.replies[0], /你还没有「碳素手竿」/u)
+  assert.equal((await readGroup(root, 'g1')).players['20000'].fishing.rods.equipped, 'walton')
+  await rm(root, { recursive: true, force: true })
+})
