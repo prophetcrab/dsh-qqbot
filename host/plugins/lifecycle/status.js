@@ -11,7 +11,7 @@ export function createStatusProvider(api) {
     const platform = api.get('platform') ?? {}
     const settings = api.settings
     const qq = safeDetect(() => platform.detectQq(settings), { installed: false, path: null, version: null })
-    const host = safeDetect(() => platform.macInfo(), { arch: process.arch, release: '', osVersion: null })
+    const host = safeDetect(() => platform.hostInfo(), { arch: process.arch, release: '', osVersion: null })
     const support = safeDetect(() => platform.platformInfo(), {
       id: 'other', label: 'Unsupported', supported: false, napcatSupported: false, koishiSupported: false,
     })

@@ -47,13 +47,13 @@ test('detectNapcat: never throws on a blank settings object', () => {
 
 import { hostPlatform, platformInfo } from '../host/platform/mac/index.js'
 
-test('hostPlatform/platformInfo: only macOS is supported', () => {
+test('hostPlatform/platformInfo: macOS and Windows support NapCat', () => {
   assert.equal(hostPlatform('darwin'), 'macos')
-  assert.equal(hostPlatform('win32'), 'other')
-  assert.equal(hostPlatform('linux'), 'other')
+  assert.equal(hostPlatform('win32'), 'windows')
+  assert.equal(hostPlatform('linux'), 'linux')
   assert.equal(platformInfo('darwin').label, 'macOS')
   assert.equal(platformInfo('darwin').napcatSupported, true)
-  assert.equal(platformInfo('win32').napcatSupported, false)
+  assert.equal(platformInfo('win32').napcatSupported, true)
   assert.equal(platformInfo('linux').napcatSupported, false)
 })
 
