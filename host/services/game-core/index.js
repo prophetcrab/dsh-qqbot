@@ -3,6 +3,7 @@ import { PlayerStore } from './player-store.js'
 import { GameRegistry } from './registry.js'
 import { exchangeHelp, executeExchange } from './modules/exchange.js'
 import { FishingBagService, bagHelp } from './modules/fishing-bag.js'
+import { FishingCastService, castHelp } from './modules/fishing-cast.js'
 import { FishingPoolService, poolHelp } from './modules/fishing-pool.js'
 import { FishingRodService, rodHelp } from './modules/fishing-rod.js'
 import { GachaService, gachaHelp } from './modules/gacha.js'
@@ -23,6 +24,7 @@ export class GameCore {
     this.bag = new FishingBagService({ projectDir, assetsDir, logger })
     this.rod = new FishingRodService({ projectDir, assetsDir, logger })
     this.pool = new FishingPoolService({ projectDir, assetsDir, logger })
+    this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs: 5000 }) // test duration; production 5 minutes
   }
 
   async command(input) {
@@ -34,7 +36,7 @@ export class GameCore {
     }
     try {
       if (rawCommand === '/help' || rawCommand === '/帮助') {
-        const extras = [...exchangeHelp, ...gachaHelp, ...bagHelp, ...rodHelp, ...poolHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
+        const extras = [...exchangeHelp, ...gachaHelp, ...bagHelp, ...rodHelp, ...poolHelp, ...castHelp].map(([command, description]) => `${command}  ${description}`).join('\n')
         return { ok: true, replies: [`${this.registry.helpText()}\n${extras}\n/help  查看所有命令（等同 /帮助）`] }
       }
       const exchange = await executeExchange({
@@ -51,8 +53,10 @@ export class GameCore {
       if (rod !== null) return rod
       const pool = await this.pool.execute({ rawCommand, groupId, userId, store: this.store })
       if (pool !== null) return pool
+      const cast = await this.cast.execute({ rawCommand, groupId, userId, store: this.store, random: this.random, now: this.now() })
+      if (cast !== null) return cast
       if (rawCommand === '/钓鱼' || rawCommand.startsWith('/钓鱼 ')) {
-        return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 卡池\n/钓鱼 道具库\n/钓鱼 查看鱼竿\n/钓鱼 更换鱼竿 鱼竿名\n/钓鱼 兑换金币 数量'] }
+        return { ok: true, replies: ['用法：\n/钓鱼 抛竿 [鱼饵名]\n/钓鱼 收竿\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 卡池\n/钓鱼 道具库\n/钓鱼 查看鱼竿\n/钓鱼 更换鱼竿 鱼竿名\n/钓鱼 兑换金币 数量'] }
       }
       if (!COMMAND.test(rawCommand)) return { ok: false, error: 'invalid command' }
       return await this.registry.dispatch(rawCommand, {

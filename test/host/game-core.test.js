@@ -320,3 +320,68 @@ test('legendary pity uses the current UP selection', async () => {
   assert.match(result.replies[0], /太公竿/u)
   await rm(root, { recursive: true, force: true })
 })
+
+test('cast waits for the ready time, consumes bait and stores a fish', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-cast-'))
+  const clock = { at: new Date('2026-11-04T08:00:00+08:00') }
+  const game = new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.store.mutate('g1', (state) => {
+    const p = state.players['20000']
+    p.fishing = { rods: { owned: ['bamboo_hand'], equipped: 'bamboo_hand' }, baits: { counts: { dough: 2 }, selected: 'dough' } }
+  })
+  const cast = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿 面团饵' })
+  assert.match(cast.replies[0], /正在钓鱼/u)
+  let player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.baits.counts.dough, 1)
+  const early = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.match(early.replies[0], /还需约/u)
+  clock.at = new Date('2026-11-04T08:00:06+08:00')
+  const caught = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.equal(caught.ok, true)
+  assert.match(caught.replies[0], /收竿/u)
+  assert.equal(caught.image?.width, 1080)
+  player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishing.cast, null)
+  assert.equal(player.fishing.fishWarehouse.length, 1)
+  const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.match(again.replies[0], /当前没有在钓鱼/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('cast fails when the player has no bait and no taigong free cast', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishing: { rods: { owned: ['bamboo_hand'], equipped: 'bamboo_hand' }, baits: { counts: {} } } })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿' })
+  assert.match(result.replies[0], /没有鱼饵/u)
+  assert.equal((await readGroup(root, 'g1')).players['20000'].fishing.cast, null)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('legendary rod effects: grey guarantees lv3 and taigong casts without bait', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-cast-effects-'))
+  const clock = { at: new Date('2026-11-04T08:00:00+08:00') }
+  const game = new GameCore({ projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.1, now: () => clock.at })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await game.store.mutate('g1', (state) => {
+    const p = state.players['20000']
+    p.fishing = { rods: { owned: ['grey'], equipped: 'grey' }, baits: { counts: { dough: 1 }, selected: 'dough' } }
+  })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿 面团饵' })
+  clock.at = new Date('2026-11-04T08:00:06+08:00')
+  const grey = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.match(grey.replies[0], /Lv\.[345]/u)
+
+  await game.store.mutate('g1', (state) => {
+    const p = state.players['20000']
+    p.fishing = { rods: { owned: ['taigong'], equipped: 'taigong' }, baits: { counts: {} } }
+  })
+  clock.at = new Date('2026-11-04T08:01:00+08:00')
+  const taigong = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抛竿' })
+  assert.match(taigong.replies[0], /正在钓鱼/u)
+  clock.at = new Date('2026-11-04T08:01:06+08:00')
+  const caught = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
+  assert.equal(caught.ok, true)
+  await rm(root, { recursive: true, force: true })
+})
