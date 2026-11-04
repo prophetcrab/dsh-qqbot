@@ -81,7 +81,7 @@ function addBait(fishing, id) {
 }
 
 export class FishingCastService {
-  constructor({ projectDir, logger, assetsDir, castDurationMs = 5000 }) {
+  constructor({ projectDir, logger, assetsDir, castDurationMs = 300000 }) {
     this.logger = logger
     this.castDurationMs = castDurationMs
     this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
@@ -182,8 +182,11 @@ export class FishingCastService {
       const fishing = ensureFishing(player)
       if (fishing.cast === null) return { ok: true, replies: ['当前没有在钓鱼，先发送 /钓鱼 抛竿。'] }
       const readyAt = new Date(fishing.cast.readyAt).getTime()
-      const remain = Math.ceil((readyAt - now.getTime()) / 1000)
-      if (remain > 0) return { ok: true, replies: [`正在钓鱼，还需约 ${remain} 秒，使用 /钓鱼 收竿 收鱼。`] }
+      const remaining = Math.ceil((readyAt - now.getTime()) / 1000)
+      if (remaining > 0) {
+        const wait = remaining >= 60 ? `${Math.floor(remaining / 60)} 分 ${remaining % 60} 秒` : `${remaining} 秒`
+        return { ok: true, replies: [`正在钓鱼，还需约 ${wait}，使用 /钓鱼 收竿 收鱼。`] }
+      }
       const cast = fishing.cast
       fishing.cast = null
       const result = this.resolve({ fishing, cast, random, now })

@@ -15,7 +15,7 @@ const PLAYER_ID = /^[0-9]{1,20}$/u
 const COMMAND = /^\/(注册|签到|账号背包|help|帮助)$/u
 
 export class GameCore {
-  constructor({ projectDir, assetsDir, logger, random = Math.random, now = () => new Date() }) {
+  constructor({ projectDir, assetsDir, logger, random = Math.random, now = () => new Date(), castDurationMs = 300000 }) {
     this.logger = logger
     this.random = random
     this.now = now
@@ -25,7 +25,7 @@ export class GameCore {
     this.bag = new FishingBagService({ projectDir, assetsDir, logger })
     this.rod = new FishingRodService({ projectDir, assetsDir, logger })
     this.pool = new FishingPoolService({ projectDir, assetsDir, logger })
-    this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs: 5000 }) // test duration; production 5 minutes
+    this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs })
     this.storage = new FishingStorageService({ projectDir, assetsDir, logger })
   }
 
