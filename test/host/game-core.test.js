@@ -287,3 +287,19 @@ test('view and change equipped rod', async () => {
   assert.equal((await readGroup(root, 'g1')).players['20000'].fishing.rods.equipped, 'walton')
   await rm(root, { recursive: true, force: true })
 })
+
+test('fishing pool command renders rates and pity progress', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishing: { gacha: { rodPity: 3, lv3RodPity: 12, legendaryBaitPity: 20, legendaryRodPity: 45 } },
+  })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卡池' })
+  assert.equal(result.ok, true)
+  assert.match(result.replies[0], /钓鱼卡池/u)
+  assert.match(result.replies[0], /鱼竿 3\/10/u)
+  assert.match(result.replies[0], /传奇竿 45\/150/u)
+  assert.equal(result.image?.width, 1080)
+  assert.ok(result.image?.height > 1200)
+  await rm(root, { recursive: true, force: true })
+})
