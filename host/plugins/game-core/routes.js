@@ -1,8 +1,7 @@
 import { only, readBody, sendJson, stringField } from '../../kernel/http.js'
-import { adminRoutes } from './admin-routes.js'
 
 export function routes(api, game) {
-  return [...adminRoutes(api, game), {
+  return [{
     path: '/qqbot/game/command',
     handler: (req, res) => only(req, res, ['POST'], async () => {
       const body = await readBody(req)

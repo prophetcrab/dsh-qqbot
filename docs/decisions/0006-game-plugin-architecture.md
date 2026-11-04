@@ -49,14 +49,31 @@ Koishi 插件不持久化游戏资产。
 DSH:
   qqbot-game-fishing
     provides gameFishing
-    routes /qqbot/games/fishing/*
+    routes /qqbot/games/fishing/command
+    routes /qqbot/game/admin/*
     owns fishing state
 
 Koishi:
-  qqbot-game-fishing
-    commands /钓鱼 单抽 /钓鱼 十连 /鱼仓 /钓鱼 道具库 ...
+  game-fishing
+    commands /钓鱼 ...
+    commands /兑换钓鱼币 ...
     sends commands to DSH
     no persistent state
+```
+
+## Implementation Layout
+
+```text
+DSH:
+  host/plugins/game-core
+  host/plugins/game-fishing
+  host/services/game-core
+  host/services/game-fishing
+
+Koishi:
+  plugins/group-listener        shared account/help commands
+  plugins/game-fishing          fishing commands
+  plugins/shared                DSH transport and result sender
 ```
 
 ## Command Flow

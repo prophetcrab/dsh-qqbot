@@ -11,7 +11,7 @@ export const castHelp = Object.freeze([
   ['/钓鱼 收竿', '收下当前钓到的鱼'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 const SPECIAL_RATE = 0.03
 const SPECIAL_SPLIT = { low: 0.7, high: 0.3 }
 

@@ -16,7 +16,7 @@ const SINGLE_TICKET = 'singleTicket'
 const TEN_TICKET = 'tenTicket'
 const COIN = 'coin'
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../../../assets/', import.meta.url))
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 
 const ROD_SELL_PRICE = Object.freeze({
   bamboo_hand: 3, fiberglass_hand: 4, fiberglass_surf: 3,

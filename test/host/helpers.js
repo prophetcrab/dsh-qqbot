@@ -38,6 +38,7 @@ export const LEGACY_ROUTE_PATHS = [
   '/qqbot/group/state-update',
   '/qqbot/group/dashboard',
   '/qqbot/game/command',
+  '/qqbot/games/fishing/command',
   '/qqbot/game/admin/groups',
   '/qqbot/game/admin/group',
   '/qqbot/game/admin/game',

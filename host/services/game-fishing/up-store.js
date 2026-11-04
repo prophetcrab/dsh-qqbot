@@ -1,6 +1,6 @@
 /** Per-group current gacha UP overrides, persisted outside player state. */
 import { join } from 'node:path'
-import { readJsonFile, SerialQueue, writeJsonAtomic } from '../../../group-loop/atomic.js'
+import { readJsonFile, SerialQueue, writeJsonAtomic } from '../group-loop/atomic.js'
 import { CURRENT_UP } from './gacha-config.js'
 
 const GROUP_ID = /^[0-9A-Za-z_-]{1,64}$/u

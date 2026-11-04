@@ -4,14 +4,14 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { GameCore } from '../../host/services/game-core/index.js'
-import { FISH_STATS } from '../../host/services/game-core/games/fishing/data.js'
+import { FISH_STATS } from '../../host/services/game-fishing/data.js'
+import { createGame } from './game-harness.js'
 
 const NOW = new Date('2026-11-03T08:00:00+08:00')
 
 async function workspace() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-game-core-'))
-  return { root, game: new GameCore({ castDurationMs: 5000, projectDir: root, logger: { warn() {} }, random: () => 0, now: () => NOW }) }
+  return { root, game: createGame({ castDurationMs: 5000, projectDir: root, logger: { warn() {} }, random: () => 0, now: () => NOW }) }
 }
 
 async function readGroup(root, groupId) {
@@ -76,7 +76,7 @@ test('unregistered and unsafe inputs are rejected safely', async () => {
 
 test('check-in gain includes the 30 coin endpoint', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-game-core-max-'))
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, logger: { warn() {} }, random: () => 0.999999, now: () => NOW })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, logger: { warn() {} }, random: () => 0.999999, now: () => NOW })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/签到' })
   assert.match(result.replies[0], /\+30 金币/u)
@@ -144,7 +144,7 @@ const ASSETS_DIR = join(process.cwd(), 'assets')
 
 async function gachaWorkspace(random = () => 0) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-gacha-'))
-  return { root, game: new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random, now: () => NOW }) }
+  return { root, game: createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random, now: () => NOW }) }
 }
 
 async function seedPlayer(game, fields) {
@@ -218,7 +218,7 @@ test('draw fails atomically when resources cannot cover the whole pull', async (
 
 test('duplicate rods are auto-sold during ten draw', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-gacha-dupe-'))
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.95, now: () => NOW })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.95, now: () => NOW })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   const rods = JSON.parse(await readFile(join(ASSETS_DIR, 'rods/catalog.json'), 'utf8')).rods
   await seedPlayer(game, {
@@ -325,7 +325,7 @@ test('legendary pity uses the current UP selection', async () => {
 test('cast waits for the ready time, consumes bait and stores a fish', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-cast-'))
   const clock = { at: new Date('2026-11-04T08:00:00+08:00') }
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await game.store.mutate('g1', (state) => {
     const p = state.players['20000']
@@ -363,7 +363,7 @@ test('cast fails when the player has no bait and no taigong free cast', async ()
 test('legendary rod effects: grey guarantees lv3 and taigong casts without bait', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-cast-effects-'))
   const clock = { at: new Date('2026-11-04T08:00:00+08:00') }
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.1, now: () => clock.at })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.1, now: () => clock.at })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await game.store.mutate('g1', (state) => {
     const p = state.players['20000']
@@ -460,7 +460,7 @@ test('legendary rod and bait effects apply', async () => {
 test('mepps bait shortens the cast and the resulting fish gets a numeric id', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-mepps-'))
   const clock = { at: new Date('2026-11-04T09:00:00+08:00') }
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await game.store.mutate('g1', (state) => {
     const p = state.players['20000']
@@ -481,7 +481,7 @@ test('mepps bait shortens the cast and the resulting fish gets a numeric id', as
 test('hemingway every 20th cast forces lv5', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-hemingway-'))
   const clock = { at: new Date('2026-11-04T11:00:00+08:00') }
-  const game = new GameCore({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
+  const game = createGame({ castDurationMs: 5000, projectDir: root, assetsDir: ASSETS_DIR, logger: { warn() {} }, random: () => 0.5, now: () => clock.at })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await game.store.mutate('g1', (state) => {
     const p = state.players['20000']

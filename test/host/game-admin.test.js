@@ -4,14 +4,14 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { GameCore } from '../../host/services/game-core/index.js'
+import { createGame } from './game-harness.js'
 
 const ASSETS = join(process.cwd(), 'assets')
 const NOW = new Date('2026-11-04T12:00:00+08:00')
 
 async function workspace() {
   const root = await mkdtemp(join(tmpdir(), 'dsh-game-admin-'))
-  const game = new GameCore({ projectDir: root, assetsDir: ASSETS, logger: { warn() {} }, random: () => 0, now: () => NOW })
+  const game = createGame({ projectDir: root, assetsDir: ASSETS, logger: { warn() {} }, random: () => 0, now: () => NOW })
   await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
   await game.command({ groupId: 'g1', userId: '20001', nickname: '小红', command: '/注册' })
   await game.command({ groupId: 'g2', userId: '30000', nickname: '小刚', command: '/注册' })
