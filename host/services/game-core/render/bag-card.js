@@ -94,8 +94,8 @@ function itemTile(item, x, y, href, frame) {
   const c = color(item.tier)
   return `<g>
     <rect x="${x}" y="${y}" width="128" height="142" rx="16" fill="${CARD}" stroke="${c}" stroke-width="2"/>
-    ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
     ${frame === '' ? '' : `<image x="${x + 12}" y="${y - 2}" width="104" height="104" href="${frame}"/>`}
+    ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
     <text x="${x + 64}" y="${y + 112}" text-anchor="middle" fill="${INK}" font-size="14" font-weight="700" font-family="${FONT}">${esc(cut(item.name, 7))}</text>
     <text x="${x + 64}" y="${y + 132}" text-anchor="middle" fill="${c}" font-size="11" font-weight="700" font-family="${FONT}">${tierLabel(item.tier)}</text>
     ${item.badge ? `<rect x="${x + 74}" y="${y + 8}" width="48" height="22" rx="11" fill="${c}"/><text x="${x + 98}" y="${y + 24}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="${FONT}">${esc(item.badge)}</text>` : ''}

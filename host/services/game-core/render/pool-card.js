@@ -124,8 +124,8 @@ function pityPanel(pity) {
 function itemTile(item, x, y, href, frame) {
   return `<g>
     <rect x="${x}" y="${y}" width="128" height="144" rx="16" fill="${CARD}" stroke="${color(item.tier)}" stroke-width="1.5"/>
-    ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
     ${frame === '' ? '' : `<image x="${x + 12}" y="${y - 2}" width="104" height="104" href="${frame}"/>`}
+    ${href === '' ? '' : `<image x="${x + 22}" y="${y + 8}" width="84" height="84" href="${href}"/>`}
     <text x="${x + 64}" y="${y + 111}" text-anchor="middle" fill="${INK}" font-size="13" font-weight="700" font-family="${FONT}">${esc(cut(item.name, 7))}</text>
     <text x="${x + 64}" y="${y + 131}" text-anchor="middle" fill="${color(item.tier)}" font-size="11" font-weight="700" font-family="${FONT}">${esc(item.rate)}%</text>
   </g>`

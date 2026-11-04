@@ -102,8 +102,8 @@ function itemCard(result, index, x, y, width, height, href, frame) {
     ${shadowRect(x, y, width, height, 20)}
     <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="20" fill="${CARD}" stroke="${color}" stroke-width="2"/>
     <rect x="${x + 8}" y="${y + 8}" width="${width - 16}" height="${height - 16}" rx="14" fill="none" stroke="${color}" stroke-opacity="0.22"/>
-    ${href === '' ? '' : `<image x="${iconX}" y="${iconY}" width="${iconSize}" height="${iconSize}" href="${href}"/>`}
     ${frame === '' ? '' : `<image x="${iconX - 8}" y="${iconY - 8}" width="${iconSize + 16}" height="${iconSize + 16}" href="${frame}"/>`}
+    ${href === '' ? '' : `<image x="${iconX}" y="${iconY}" width="${iconSize}" height="${iconSize}" href="${href}"/>`}
     <text x="${textX}" y="${y + 44}" fill="${INK}" font-size="22" font-weight="700" font-family="${FONT}">${esc(cut(`${index + 1}. ${result.item.name}`, 10))}</text>
     ${badge(textX, y + 60, result.tier)}
     <text x="${textX}" y="${y + 122}" fill="${MUTED}" font-size="15" font-family="${FONT}">${esc(cut(duplicate, 18))}</text>
@@ -117,8 +117,8 @@ function singleCard(result, href, frame) {
     ${shadowRect(110, 236, 860, 700, 32)}
     <rect x="110" y="236" width="860" height="700" rx="32" fill="${CARD}" stroke="${color}" stroke-width="3"/>
     <rect x="126" y="252" width="828" height="668" rx="24" fill="none" stroke="${color}" stroke-opacity="0.24"/>
-    ${href === '' ? '' : `<image x="390" y="292" width="300" height="300" href="${href}"/>`}
     ${frame === '' ? '' : `<image x="378" y="280" width="324" height="324" href="${frame}"/>`}
+    ${href === '' ? '' : `<image x="390" y="292" width="300" height="300" href="${href}"/>`}
     <text x="540" y="664" text-anchor="middle" fill="${INK}" font-size="44" font-weight="700" font-family="${FONT}">${esc(cut(result.item.name, 18))}</text>
     ${badge(486, 688, result.tier)}
     <text x="540" y="780" text-anchor="middle" fill="${MUTED}" font-size="22" font-family="${FONT}">${esc(duplicate)}</text>
