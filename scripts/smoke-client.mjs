@@ -78,14 +78,14 @@ if (!definition || definition.id !== 'dsh-qqbot') throw new Error('module loader
 const api = definition.factory(fakeRequire)
 
 // ---- fake Host payload ------------------------------------------------------
-const MACOS_PLATFORM = {
-  id: 'macos', label: 'macOS', supported: true, napcatSupported: true, koishiSupported: true,
-  arch: 'arm64', release: '24.0.0', osVersion: '15.0', node: 'v24.0.0',
+const WINDOWS_PLATFORM = {
+  id: 'windows', label: 'Windows', supported: true, napcatSupported: true, koishiSupported: true,
+  arch: 'x64', release: '10.0.22631', osVersion: '10.0', node: 'v24.0.0',
 }
 const STATUS = {
-  platform: { ...MACOS_PLATFORM },
+  platform: { ...WINDOWS_PLATFORM },
   settings: { projectDir: '~/project/qq-bot', koishiPort: 5140, napcatPort: 6099, reversePath: '/onebot' },
-  qq: { installed: true, path: '/Applications/QQ.app', version: '9.9.9' },
+  qq: { installed: true, path: 'C:\\Program Files\\Tencent\\QQNT\\QQ.exe', version: '9.9.9' },
   napcat: {
     installed: false,
     installDir: null,
@@ -798,14 +798,11 @@ if (!qrSrc.startsWith('/qqbot/napcat/qr?t=')) throw new Error(`login QR src wron
 expectTestId(tree, 'qqbot-login-refresh')
 console.log('login card: ok')
 
-// ---- platform badge + platform-specific copy -------------------------------
-if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('macOS · arm64')) {
-  throw new Error('macOS platform badge missing')
+// ---- platform badge --------------------------------------------------------
+if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('Windows · x64')) {
+  throw new Error('Windows platform badge missing')
 }
-if (!text(expectTestId(tree, 'qqbot-panel')).includes('管理员授权')) {
-  throw new Error('macOS admin authorization hint missing')
-}
-console.log('platform macOS: ok')
+console.log('platform Windows: ok')
 
 STATUS.platform = null
 clickTestId(tree, 'qqbot-status-refresh')
@@ -815,7 +812,7 @@ if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('未知平台')) 
 }
 console.log('platform unknown: ok')
 
-STATUS.platform = { ...MACOS_PLATFORM }
+STATUS.platform = { ...WINDOWS_PLATFORM }
 clickTestId(tree, 'qqbot-status-refresh')
 tree = await settle()
 

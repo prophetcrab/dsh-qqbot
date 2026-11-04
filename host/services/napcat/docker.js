@@ -2,15 +2,12 @@
  * Docker-backed NapCat manager: Linux QQ + NapCat in a container, controlled
  * through `docker compose`.
  *
- * This backend is intentionally separate from the macOS `NapcatManager`: it
- * keeps the same public surface (status/install/configure/start/stop/login*)
- * so plugins, routes and the panel do not need to know which backend is used.
  * The container talks OneBot back to the host through `host.docker.internal`
  * (configurable via `dockerNapcatHost`), so the host's own QQ client is never
  * touched or killed.
  *
- * All commands are argv arrays; every side effect is behind the same injectable
- * `run`/`http`/`fs` seams as the macOS backend, so tests never start Docker.
+ * All commands are argv arrays; every side effect is behind injectable
+ * `run`/`http`/`fs` seams, so tests never start Docker.
  */
 
 import { randomBytes } from 'node:crypto'
@@ -34,9 +31,9 @@ import { failure, isPlainObject, normalizeLogger } from './common.js'
 import { autoConfigure, configure } from './configure.js'
 import { ensureDefaultOnebotConfig } from './default-config.js'
 import { ensureDockerEngine } from './docker-engine.js'
+import { START_TIMEOUT_MS, STOP_TIMEOUT_MS, waitForLogin } from './login.js'
 import { loginState as webuiLoginState, loginStatus as webuiLoginStatus, refreshQr as webuiRefreshQr } from './webui.js'
 import { status as snapshotStatus } from './snapshot.js'
-import { START_TIMEOUT_MS, STOP_TIMEOUT_MS, waitForLogin } from './lifecycle.js'
 
 /** Pulling the NapCat image can take a while on a fresh machine. */
 const COMPOSE_PULL_TIMEOUT_MS = 900_000
@@ -79,7 +76,7 @@ function commandDetail(result) {
 }
 
 /**
- * Owns the NapCat Docker lifecycle. Public methods mirror `NapcatManager`.
+ * Owns the NapCat Docker lifecycle.
  */
 export class DockerNapcatManager {
   /**
@@ -149,7 +146,7 @@ export class DockerNapcatManager {
   }
 
   /**
-   * Make sure the image is available. Unlike the macOS backend this does not
+   * Make sure the image is available. This does not touch a host QQ install.
    * install anything into QQ; it only pulls the pinned Docker image.
    */
   async install() {
@@ -187,7 +184,6 @@ export class DockerNapcatManager {
       logger: this.logger,
       now: this.now,
       sleep: this.sleep,
-      hostOs: this.hostOs,
       launch: this.launch,
       run: (args, options) => this.#docker(args, options),
     })

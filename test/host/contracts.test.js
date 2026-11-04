@@ -72,9 +72,9 @@ test('AI contract: response builder keeps the documented shapes', () => {
 
 test('status contract: validates the stable snapshot shape', () => {
   const snapshot = {
-    platform: { id: 'macos', label: 'macOS', supported: true, napcatSupported: true, koishiSupported: true },
-    settings: { projectDir: '/tmp/qq-bot', koishiPort: 5140, napcatPort: 6099, reversePath: '/onebot' },
-    qq: { installed: true, path: '/Applications/QQ.app', version: '6.9' },
+    platform: { id: 'windows', label: 'Windows', supported: true, napcatSupported: true, koishiSupported: true },
+    settings: { projectDir: 'C:\\Users\\me\\project\\qq-bot', koishiPort: 5140, napcatPort: 6099, reversePath: '/onebot' },
+    qq: { installed: false, path: null, version: null },
     napcat: { installed: true, running: false },
     koishi: { exists: true, running: false },
     bot: { online: false, selfId: null, platform: null },
@@ -106,8 +106,6 @@ test('config contract: resolved settings validate against the schema', () => {
     napcatToken: '',
     qqPath: '',
     napcatDir: '',
-    offlineVendorDir: '',
-    offlineNapcatVersion: '',
     aiProvider: '',
     aiModel: '',
     aiSystemPrompt: 'hi',

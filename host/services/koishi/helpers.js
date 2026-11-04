@@ -17,9 +17,6 @@ import {
 } from '../../platform/index.js'
 import { setServerPort } from './server-port.js'
 
-/** Absolute lsof path on macOS; used by the legacy (injected exec) PID path. */
-export const LSOF = '/usr/sbin/lsof'
-
 /** Fallback Koishi port (`settings.koishiPort` wins). */
 export const DEFAULT_PORT = 5140
 
@@ -123,44 +120,23 @@ export function toPid(value) {
 /**
  * Resolve the listening PID for a TCP port.
  *
- * Priority:
- * 1. an injected `portPid` (tests, custom hosts);
- * 2. an injected `exec`, parsed from legacy `lsof` output (backwards compatible);
- * 3. `platform.portPid` — macOS `lsof`.
- *
+ * Uses an injected `portPid` (tests/custom hosts) or the platform resolver.
  * Kept async because every probe is asynchronous; callers must await.
  *
  * @param {number} port
- * @param {{ exec?: unknown, portPid?: Function }} [options] test seams
+ * @param {{ portPid?: Function }} [options] test seams
  * @returns {Promise<number|null>}
  */
 export async function findPidByPort(port, options = {}) {
   const target = toPort(port, 0)
   if (target === 0) return null
-
   if (typeof options.portPid === 'function') {
     return toPid(await options.portPid(target))
   }
-
-  if (options.exec !== undefined && options.exec !== null) {
-    const exec = normalizeExec(options.exec)
-    const result = await exec(LSOF, ['-nP', `-iTCP:${target}`, '-sTCP:LISTEN'], { timeoutMs: 8000 })
-    if (result === null || result === undefined || result.code !== 0) return null
-    const output = String(result.stdout ?? '')
-    for (const line of output.split(/\r?\n/u)) {
-      if (line.trim() === '') continue
-      const match = /^\s*\S+\s+(\d+)\s/u.exec(line)
-      if (match === null) continue
-      const pid = toPid(match[1])
-      if (pid !== null) return pid
-    }
-    return null
-  }
-
   return toPid(await platformPortPid(target))
 }
 
-/** TCP connect probe used when lsof is unavailable. */
+/** TCP connect probe used for port readiness. */
 export function probePort(port, timeoutMs = 800) {
   return new Promise((resolvePromise) => {
     let settled = false
@@ -300,7 +276,7 @@ export async function serviceStillListening(manager) {
 /**
  * Windows/Electron runs `koishi start` as a supervisor that respawns its worker
  * when only the worker is killed. Tree-kill that supervisor before touching
- * the port owner; macOS/Linux stop the whole process group via signals.
+ * the port owner; Windows stops the managed process tree via taskkill.
  */
 export async function killSupervisor(manager) {
   if (manager.hostPlatform() !== 'windows') return false

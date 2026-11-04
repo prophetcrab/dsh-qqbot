@@ -1,8 +1,8 @@
-name: Architecture and tests
+name: Windows checks
 
 on:
   push:
-    branches: [dshbot-mac, dshbot-win64]
+    branches: [dshbot-win64]
   pull_request:
 
 permissions:
@@ -10,34 +10,21 @@ permissions:
 
 jobs:
   check:
-    runs-on: macos-latest
-    env:
-      QQBOT_SOURCE: ${{ github.workspace }}/qq-bot
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: prophetcrab/qq-bot
-          path: qq-bot
-          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install SVG renderer
-        run: brew install librsvg
       - name: Install host dependencies
         run: npm install --no-audit --no-fund
       - name: Unit and contract tests
         run: npm test
-      - name: Install template dependencies
-        run: npm ci --prefix template --no-audit --no-fund
-      - name: Template tests
-        run: npm run test:template
       - name: Client bundle drift
         run: npm run build:client -- --check
       - name: Architecture guard
         run: npm run check:architecture
-      - name: Template drift
-        run: node scripts/sync-template.mjs --check
-      - name: Offline payload
-        run: npm run offline:verify
+      - name: Install template dependencies
+        run: npm ci --prefix template --no-audit --no-fund
+      - name: Template tests
+        run: npm run test:template

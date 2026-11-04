@@ -1,15 +1,13 @@
 /**
- * One-click environment setup: scaffold Koishi, install dependencies, install
- * NapCat (from the bundled offline payload), apply the OneBot WS config, then
- * start both services. GUI-only steps (macOS App Management and QQ QR scan)
- * stay with the user; everything else is automated.
+ * One-click environment setup: scaffold Koishi, install dependencies, pull the
+ * NapCat Docker image, apply the OneBot WS config, then start both services.
+ * The QQ QR scan stays with the user; everything else is automated.
  */
 
 /**
  * @param {{ api: object, setup: object }} options
  */
 export async function runFullSetup({ api, setup }) {
-  const platform = api.get('platform') ?? {}
   const napcat = api.get('napcat')
   const koishi = api.get('koishi')
   const logger = api.logger
@@ -24,15 +22,8 @@ export async function runFullSetup({ api, setup }) {
   const deps = await setup.installDeps()
   push('koishi-deps', deps)
 
-  const support = typeof platform.platformInfo === 'function' ? platform.platformInfo() : { napcatSupported: false, label: 'Unsupported' }
-  // The Docker backend is platform-neutral: it can manage a Linux QQ container
-  // even on hosts where the local NapCat backend is unsupported.
-  const dockerBackend = api.settings.napcatBackend === 'docker'
-  const napcatSupported = dockerBackend || support.napcatSupported === true
   const napcatBefore = await napcat.status()
-  if (napcatSupported !== true) {
-    steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `当前平台（${support.label}）暂不支持 NapCat 自动安装` })
-  } else if (napcatBefore.installed !== true) {
+  if (napcatBefore.installed !== true) {
     push('napcat-install', await napcat.install())
   } else {
     steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `NapCat 已安装（${napcatBefore.version ?? '未知版本'}）` })
@@ -79,3 +70,4 @@ export async function runFullSetup({ api, setup }) {
         : '环境已就绪；请用手机扫描二维码登录 QQ，登录后自动写入 OneBot 配置',
   }
 }
+

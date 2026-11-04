@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { test } from 'node:test'
-import { dataPaths, migrateDataLayout } from '../../host/platform/mac/data-paths.js'
+import { dataPaths, migrateDataLayout } from '../../host/platform/common/data-paths.js'
 
 async function tempProject(t) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-qqbot-data-'))

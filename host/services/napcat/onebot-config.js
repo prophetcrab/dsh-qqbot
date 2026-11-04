@@ -5,11 +5,7 @@
  * flag, which makes re-running the configuration idempotent.
  */
 
-import { QQ_APP_PATH } from '../../platform/index.js'
 import { deepClone, isPlainObject } from './common.js'
-
-/** QQ executable matched by `ps` when looking for the running macOS client. */
-export const QQ_EXECUTABLE = `${QQ_APP_PATH}/Contents/MacOS/QQ`
 
 /** Name of the reverse WebSocket client this plugin owns in NapCat configs. */
 export const WS_CLIENT_NAME = 'koishi'

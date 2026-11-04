@@ -8,7 +8,7 @@ import {
   detectKoishiProject,
   detectNapcat,
   resolveSettings,
-} from '../host/platform/mac/index.js'
+} from '../host/platform/win/index.js'
 
 test('resolveSettings: defaults, ~ expansion, port clamping', () => {
   const defaults = resolveSettings()
@@ -45,14 +45,12 @@ test('detectNapcat: never throws on a blank settings object', () => {
   assert.equal(typeof napcat.webui.port, 'number')
 })
 
-import { hostPlatform, platformInfo } from '../host/platform/mac/index.js'
+import { hostPlatform, platformInfo } from '../host/platform/win/index.js'
 
-test('hostPlatform/platformInfo: macOS and Windows support NapCat', () => {
-  assert.equal(hostPlatform('darwin'), 'macos')
+test('hostPlatform/platformInfo: Windows supports NapCat', () => {
   assert.equal(hostPlatform('win32'), 'windows')
-  assert.equal(hostPlatform('linux'), 'linux')
-  assert.equal(platformInfo('darwin').label, 'macOS')
-  assert.equal(platformInfo('darwin').napcatSupported, true)
+  assert.equal(hostPlatform('linux'), 'other')
+  assert.equal(platformInfo('win32').label, 'Windows')
   assert.equal(platformInfo('win32').napcatSupported, true)
   assert.equal(platformInfo('linux').napcatSupported, false)
 })

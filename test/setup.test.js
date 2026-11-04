@@ -87,8 +87,8 @@ test('installDeps: runs npm install and captures logs', async () => {
     logger,
     deps: {
       templateDir,
-      // Keep the historical POSIX expectations deterministic on any host.
-      hostPlatform: () => 'macos',
+      // Keep the command expectations deterministic on any host.
+      hostPlatform: () => 'windows',
       npmExecutable: () => 'npm',
       npmCommand: (args) => ({ file: 'npm', args }),
       spawn: (file, args, options) => {
@@ -178,7 +178,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
   const settings = await makeSettings(root)
   const bundleDir = join(templateDir, 'runtime-bundles')
   await mkdir(bundleDir, { recursive: true })
-  const bundle = join(bundleDir, 'node_modules-darwin-arm64.tar.gz')
+  const bundle = join(bundleDir, 'node_modules-win32-x64.tar.gz')
   await writeFile(bundle, 'fake-bundle')
   let spawned = 0
   const setup = new SetupManager({
@@ -186,7 +186,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
     logger,
     deps: {
       templateDir,
-      bundleKey: 'darwin-arm64',
+      bundleKey: 'win32-x64',
       spawn: () => { spawned += 1; return fakeSpawn()() },
       run: async (file, args) => {
         assert.equal(file, 'tar')
@@ -200,7 +200,7 @@ test('offline bundle: installDeps extracts node_modules without npm', async () =
   await setup.ensureProject()
   const status = await setup.status()
   assert.equal(status.bundleAvailable, true)
-  assert.equal(status.bundleKey, 'darwin-arm64')
+  assert.equal(status.bundleKey, 'win32-x64')
   await rm(join(settings.projectDir, 'node_modules'), { recursive: true, force: true })
   const result = await setup.installDeps()
   assert.equal(result.ok, true)
@@ -214,13 +214,13 @@ test('offline bundle: ensureProject extracts bundled dependencies', async () => 
   const settings = await makeSettings(root)
   const bundleDir = join(templateDir, 'runtime-bundles')
   await mkdir(bundleDir, { recursive: true })
-  await writeFile(join(bundleDir, 'node_modules-darwin-arm64.tar.gz'), 'fake')
+  await writeFile(join(bundleDir, 'node_modules-win32-x64.tar.gz'), 'fake')
   const setup = new SetupManager({
     settings,
     logger,
     deps: {
       templateDir,
-      bundleKey: 'darwin-arm64',
+      bundleKey: 'win32-x64',
       run: async () => {
         await mkdir(join(settings.projectDir, 'node_modules'), { recursive: true })
         return { code: 0, stdout: '', stderr: '' }
@@ -239,12 +239,12 @@ test('offline bundle: selects the bundle matching the injected platform key', as
   const templateDir = await makeTemplate(join(root, 'template'))
   const bundleDir = join(templateDir, 'runtime-bundles')
   await mkdir(bundleDir, { recursive: true })
-  const bundle = join(bundleDir, 'node_modules-darwin-arm64.tar.gz')
+  const bundle = join(bundleDir, 'node_modules-win32-x64.tar.gz')
   await writeFile(bundle, 'fake-mac-bundle')
   const settings = await makeSettings(root)
-  const setup = new SetupManager({ settings, logger, deps: { templateDir, bundleKey: 'darwin-arm64' } })
+  const setup = new SetupManager({ settings, logger, deps: { templateDir, bundleKey: 'win32-x64' } })
   const status = await setup.status()
-  assert.equal(status.bundleKey, 'darwin-arm64')
+  assert.equal(status.bundleKey, 'win32-x64')
   assert.equal(status.bundlePath, bundle)
   assert.equal(status.bundleAvailable, true)
 })

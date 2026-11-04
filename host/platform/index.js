@@ -1,15 +1,13 @@
 /**
- * Selected host platform facade.
+ * Windows host platform facade.
  *
- * This is the **only** file outside `host/platform/`-internal modules that knows
- * which OS is running. Services and plugins import from here; macOS and Windows
- * implementations never import each other.
+ * Services and plugins import from here; the platform layer is the only place
+ * that knows OS-specific paths/commands. This branch carries Windows only.
  */
 
-import * as mac from './mac/index.js'
 import * as win from './win/index.js'
 
-const impl = process.platform === 'win32' ? win : mac
+const impl = win
 
 export const DEFAULT_SETTINGS = impl.DEFAULT_SETTINGS
 export const NAPCAT_INSTALL_DIR = impl.NAPCAT_INSTALL_DIR
@@ -19,7 +17,6 @@ export const QQ_APP_PATH = impl.QQ_APP_PATH
 export const resolveSettings = impl.resolveSettings
 export const hostPlatform = impl.hostPlatform
 export const platformInfo = impl.platformInfo
-export const macInfo = impl.macInfo
 export const hostInfo = impl.hostInfo
 export const detectQq = impl.detectQq
 export const detectNapcat = impl.detectNapcat
@@ -57,7 +54,7 @@ export const migrateDataLayout = impl.migrateDataLayout
 
 /**
  * Offline `node_modules` bundle key for the current platform/arch
- * (`darwin-arm64`, `win32-x64`, ...).
+ * (`win32-x64`, ...).
  *
  * @param {string} [platform] Node's `process.platform` value
  * @param {string} [arch] Node's `process.arch` value

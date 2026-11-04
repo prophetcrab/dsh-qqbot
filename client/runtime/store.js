@@ -19,14 +19,12 @@ export function deriveStatus(snapshot, t, loggedInRef) {
     ? snapshot.platform
     : null
   const rawPlatformId = platformInfo && typeof platformInfo.id === 'string' ? platformInfo.id : ''
-  const platformId = ['macos', 'other'].includes(rawPlatformId)
-    ? rawPlatformId
-    : platformInfo !== null && platformInfo.isMac === true ? 'macos' : 'other'
+  const platformId = rawPlatformId === 'windows' ? 'windows' : 'other'
   const platformLabel = platformInfo !== null && typeof platformInfo.label === 'string' && platformInfo.label !== ''
     ? platformInfo.label
     : platformInfo === null
       ? t('platformUnknown')
-      : platformId === 'macos' ? 'macOS' : t('platformUnknown')
+      : platformId === 'windows' ? 'Windows' : t('platformUnknown')
   const platformArch = platformInfo !== null && typeof platformInfo.arch === 'string' ? platformInfo.arch : ''
   const platformBadgeText = platformInfo === null
     ? t('platformUnknown')
@@ -34,12 +32,12 @@ export function deriveStatus(snapshot, t, loggedInRef) {
   const napcatSupported = platformInfo === null
     ? true
     : platformInfo.napcatSupported === undefined
-      ? platformId === 'macos'
+      ? platformId === 'windows'
       : platformInfo.napcatSupported === true
   const platformInstallHint = platformInfo === null
     ? t('installNapcatHintGeneric')
     : napcatSupported
-      ? t('installNapcatHintMac')
+      ? t('installNapcatHintDocker')
       : t('installNapcatHintUnsupported')
   const napcatAccounts = Array.isArray(napcat.accounts) ? napcat.accounts : []
   const wsClients = []

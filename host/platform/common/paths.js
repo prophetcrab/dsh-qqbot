@@ -1,5 +1,5 @@
 /**
- * Platform-neutral filesystem primitives shared by macOS and Windows.
+ * Platform-neutral filesystem primitives shared by the platform wrappers.
  *
  * Platform modules re-export this file and add only genuinely OS-specific
  * helpers (for example `findCommand`). Services never hand-roll file I/O or

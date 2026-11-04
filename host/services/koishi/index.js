@@ -34,7 +34,6 @@ import {
   DEFAULT_PORT,
   DEFAULT_START_TIMEOUT_MS,
   DEFAULT_STOP_TIMEOUT_MS,
-  LSOF,
   QUIET_LOGGER,
   boundLines,
   combineOutput,
@@ -156,7 +155,7 @@ export class KoishiManager {
 
   async findPortPid(port = this.port) {
     const target = toPort(port, this.port)
-    return this.hasInjectedPortPid ? findPidByPort(target, { portPid: this.portPid }) : this.hasInjectedExec ? findPidByPort(target, { exec: this.exec }) : findPidByPort(target)
+    return this.hasInjectedPortPid ? findPidByPort(target, { portPid: this.portPid }) : findPidByPort(target)
   }
 
   async status() {
@@ -343,17 +342,7 @@ export class KoishiManager {
   }
 
   async isPortListening(port = this.port) {
-    const target = toPort(port, this.port)
-    const result = await this.exec(LSOF, ['-nP', `-iTCP:${target}`, '-sTCP:LISTEN'], { timeoutMs: 8000 })
-    if (result !== null && result !== undefined) {
-      if (result.code === 0) return String(result.stdout ?? '').trim() !== ''
-      if (!result.error) return false
-      if (typeof result.error === 'string' && /ENOENT|not found/iu.test(result.error)) {
-        return probePort(target)
-      }
-      return false
-    }
-    return probePort(target)
+    return probePort(toPort(port, this.port))
   }
 
   isManaged() {

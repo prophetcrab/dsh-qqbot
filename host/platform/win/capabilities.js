@@ -1,7 +1,7 @@
 /**
  * Windows environment capabilities: shared settings plus Windows-specific
- * detection. The local patched QQ client is macOS-only; Windows defaults to
- * the Docker backend.
+ * detection. NapCat/QQ run in Docker; local detection is read-only and only
+ * used for diagnostics.
  */
 
 import { existsSync as fsExistsSync } from 'node:fs'
@@ -21,7 +21,7 @@ import {
 
 export { detectKoishiProject, hostPlatform, platformInfo }
 
-/** Windows defaults to the Docker backend (local patched QQ is macOS-only). */
+/** Windows always uses the Docker backend. */
 export const DEFAULT_SETTINGS = { ...BASE_SETTINGS, napcatBackend: 'docker' }
 
 /** Merge row config over the Windows defaults. */
@@ -29,7 +29,7 @@ export function resolveSettings(raw = {}) {
   return resolveSettingsCommon(raw, DEFAULT_SETTINGS)
 }
 
-/** NapCat installation root on Windows (only used by a manual local install). */
+/** NapCat installation root on Windows (read-only diagnostics only). */
 export const NAPCAT_INSTALL_DIR = ''
 
 /** NapCat runtime configuration directories (Windows local installs are explicit). */
@@ -38,18 +38,14 @@ export const NAPCAT_CONFIG_DIRS = []
 /** Default QQNT executable path on Windows. */
 export const QQ_APP_PATH = 'C:\\Program Files\\Tencent\\QQNT\\QQ.exe'
 
-/** Current Windows/host facts (macOS version is not applicable). */
-export function macInfo() {
+/** Current Windows/host facts. */
+export function hostInfo() {
   return {
-    isMac: process.platform === 'darwin',
     arch: process.arch,
     release: release(),
     osVersion: null,
   }
 }
-
-/** Platform-neutral alias; prefer this name in new code. */
-export const hostInfo = macInfo
 
 /**
  * Detect QQNT on Windows. `settings.qqPath` overrides the search.

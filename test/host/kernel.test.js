@@ -143,7 +143,7 @@ test('kernel: status snapshot merges providers and evaluates feature status', as
     plugin({
       id: 'p1',
       apply(api) {
-        api.registerStatusProvider(async () => ({ platform: { id: 'macos' }, settings: { projectDir: '/tmp' } }))
+        api.registerStatusProvider(async () => ({ platform: { id: 'windows' }, settings: { projectDir: '/tmp' } }))
         api.registerFeature({ id: 'f', title: 'F', status: async () => ({ ready: true }) })
       },
     }),
@@ -155,7 +155,7 @@ test('kernel: status snapshot merges providers and evaluates feature status', as
     }),
   ])
   const snapshot = await kernel.statusSnapshot()
-  assert.equal(snapshot.platform.id, 'macos')
+  assert.equal(snapshot.platform.id, 'windows')
   assert.equal(snapshot.napcat.installed, true)
   assert.equal(snapshot.settings.projectDir, '/tmp')
   assert.equal(snapshot.features[0].id, 'f')

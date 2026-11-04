@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -29,7 +30,7 @@ async function makeProject(t, { packageJson = true } = {}) {
 }
 
 /** Manager with quiet logging, immediate sleep and a test port.
- * Uses the macOS seam so the process/command cases stay deterministic on any
+ * Uses the Windows seam so the process/command cases stay deterministic on any
  * host. */
 function makeManager(projectDir, overrides = {}) {
   const platformInjected = overrides.hostPlatform !== undefined || overrides.deps?.hostPlatform !== undefined
@@ -37,7 +38,7 @@ function makeManager(projectDir, overrides = {}) {
     settings: { projectDir, koishiPort: TEST_PORT },
     logger: QUIET_LOGGER,
     sleep: async () => {},
-    ...(platformInjected ? {} : { hostPlatform: 'macos' }),
+    ...(platformInjected ? {} : { hostPlatform: 'windows' }),
     ...overrides,
   })
 }
@@ -159,11 +160,7 @@ test('status reports an existing project whose port is owned by a foreign PID', 
   const dir = await makeProject(t)
   const manager = makeManager(dir, {
     fetch: unreachable,
-    exec: async (file, args) => {
-      assert.equal(file, '/usr/sbin/lsof')
-      assert.deepEqual(args, ['-nP', `-iTCP:${TEST_PORT}`, '-sTCP:LISTEN'])
-      return { code: 0, stdout: 'COMMAND PID USER\nnode 777 crab\n', stderr: '' }
-    },
+    portPid: async () => 777,
   })
 
   const status = await manager.status()
@@ -290,7 +287,7 @@ test('start refuses to start when the port is occupied by an unhealthy process',
   const dir = await makeProject(t)
   const manager = makeManager(dir, {
     fetch: unreachable,
-    exec: async () => ({ code: 0, stdout: 'COMMAND PID USER\nnode 888 crab\n', stderr: '' }),
+    portPid: async () => 888,
     spawn: () => {
       throw new Error('spawn must not be called when the port is busy')
     },
@@ -394,44 +391,27 @@ test('stop reports that Koishi is not running', async (t) => {
   assert.equal(kill.state.calls.length, 0)
 })
 
-test('findPidByPort parses lsof output and never runs on invalid ports', async () => {
-  const calls = []
-  const exec = async (file, args) => {
-    calls.push({ file, args })
-    return {
-      code: 0,
-      stdout: 'COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME\nnode 12345 crab 23u IPv6 0x1 0t0 TCP *:5199 (LISTEN)\n',
-      stderr: '',
-    }
-  }
-
-  assert.equal(await findPidByPort(TEST_PORT, { exec }), 12345)
-  assert.equal(calls[0].file, '/usr/sbin/lsof')
-  assert.deepEqual(calls[0].args, ['-nP', `-iTCP:${TEST_PORT}`, '-sTCP:LISTEN'])
-  assert.equal(await findPidByPort(TEST_PORT, { exec: async () => ({ code: 1, stdout: '', stderr: '' }) }), null)
-  assert.equal(await findPidByPort('not-a-port', { exec: async () => {
-    throw new Error('exec must not run for an invalid port')
+test('findPidByPort uses the platform resolver and ignores invalid ports', async () => {
+  assert.equal(await findPidByPort(TEST_PORT, { portPid: async () => 12345 }), 12345)
+  assert.equal(await findPidByPort(TEST_PORT, { portPid: async () => 'oops' }), null)
+  assert.equal(await findPidByPort('not-a-port', { portPid: async () => {
+    throw new Error('resolver must not run for an invalid port')
   } }), null)
-  assert.equal(await findPidByPort(0, { exec: async () => ({ code: 0, stdout: 'x 1 y\n', stderr: '' }) }), null)
+  assert.equal(await findPidByPort(0, { portPid: async () => 123 }), null)
 })
 
-test('isPortListening uses lsof and falls back to a TCP probe', async (t) => {
+test('isPortListening probes TCP connect state', async (t) => {
   const dir = await makeProject(t)
-  const listening = makeManager(dir, {
-    exec: async () => ({ code: 0, stdout: 'COMMAND PID USER\nnode 1 crab\n', stderr: '' }),
+  const server = createServer(() => {})
+  await new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', resolve)
   })
-  assert.equal(await listening.isPortListening(TEST_PORT), true)
-
-  const closed = makeManager(dir, {
-    exec: async () => ({ code: 1, stdout: '', stderr: '' }),
-  })
-  assert.equal(await closed.isPortListening(TEST_PORT), false)
-
-  // ENOENT means lsof is unavailable -> probe an unused port instead.
-  const noLsof = makeManager(dir, {
-    exec: async () => ({ code: 1, stdout: '', stderr: '', error: 'spawn /usr/sbin/lsof ENOENT' }),
-  })
-  assert.equal(await noLsof.isPortListening(1), false)
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const port = server.address().port
+  const manager = makeManager(dir)
+  assert.equal(await manager.isPortListening(port), true)
+  assert.equal(await manager.isPortListening(1), false)
 })
 
 test('health parses the endpoint payload and reports failures', async (t) => {

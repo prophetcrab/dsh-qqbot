@@ -12,8 +12,6 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import * as facade from '../../host/platform/index.js'
-import * as macIndex from '../../host/platform/mac/index.js'
-import * as winIndex from '../../host/platform/win/index.js'
 import {
   DEFAULT_SETTINGS,
   detectNapcat,
@@ -26,8 +24,7 @@ import { npmCommand, npmExecutable, parseNetstatPid } from '../../host/platform/
 
 test('windows platform: project supports Windows (Docker-backed NapCat is included)', () => {
   assert.equal(hostPlatform('win32'), 'windows')
-  assert.equal(hostPlatform('darwin'), 'macos')
-  assert.equal(hostPlatform('linux'), 'linux')
+  assert.equal(hostPlatform('linux'), 'other')
   assert.equal(hostPlatform('freebsd'), 'other')
   const info = platformInfo('win32')
   assert.equal(info.id, 'windows')
@@ -35,7 +32,7 @@ test('windows platform: project supports Windows (Docker-backed NapCat is includ
   assert.equal(info.supported, true)
   assert.equal(info.napcatSupported, true)
   assert.equal(info.koishiSupported, true)
-  assert.equal(platformInfo('darwin').napcatSupported, true)
+  assert.equal(platformInfo('linux').napcatSupported, false)
 })
 
 test('windows platform: settings defaults and Docker settings', () => {
@@ -94,12 +91,6 @@ test('windows platform: netstat listener parsing and npm cmd wrapper', () => {
   assert.equal(parseNetstatPid(output, 9000), null)
   assert.equal(npmExecutable(), 'npm.cmd')
   assert.deepEqual(npmCommand(['install', '--no-audit']), { file: 'cmd.exe', args: ['/c', 'npm', 'install', '--no-audit'] })
-})
-
-test('windows platform: index exports every macOS capability', () => {
-  for (const name of Object.keys(macIndex)) {
-    assert.ok(name in winIndex, `win/index.js is missing export ${name}`)
-  }
 })
 
 test('windows platform: ships the win32-x64 offline dependency bundle', () => {

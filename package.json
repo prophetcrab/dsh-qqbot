@@ -1,7 +1,7 @@
 {
   "name": "dsh-qqbot",
   "version": "0.7.0",
-  "description": "Cross-platform (macOS/Windows) plugin-based QQ bot control center for DeepSeek Harness.",
+  "description": "Windows plugin-based QQ bot control center for DeepSeek Harness (NapCat in Docker).",
   "license": "MIT",
   "author": "prophetcrab",
   "homepage": "https://github.com/prophetcrab/dsh-qqbot#readme",
@@ -35,7 +35,6 @@
     "scripts",
     "template",
     "host",
-    "vendor",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -64,11 +63,8 @@
     "check:architecture": "node scripts/check-architecture.mjs",
     "smoke:host": "node scripts/smoke-host.mjs",
     "smoke:client": "node scripts/smoke-client.mjs",
-    "offline:verify": "node scripts/verify-offline.mjs",
-    "check": "npm test && npm run build:client && npm run smoke:host && npm run smoke:client && npm run check:architecture && npm run offline:verify && npm run check:template",
-    "test:client": "node --test test/client/*.test.js",
-    "sync:template": "node scripts/sync-template.mjs",
-    "check:template": "node scripts/sync-template.mjs --check"
+    "check": "npm test && npm run build:client && npm run smoke:host && npm run smoke:client && npm run check:architecture",
+    "test:client": "node --test test/client/*.test.js"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2"

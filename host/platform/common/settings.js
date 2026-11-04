@@ -1,15 +1,15 @@
 /**
  * Platform-neutral settings, platform facts and shared detection helpers.
  *
- * macOS and Windows wrappers provide only their own default backend and the
- * OS-specific detection functions (QQ/NapCat paths, versions, QR cache).
+ * The Windows wrapper provides the default Docker backend; this module holds
+ * the shared defaults and read-only detection helpers.
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { existsSync, expandHome } from './paths.js'
 
-/** Base defaults shared by every host; wrappers override `napcatBackend`. */
+/** Base defaults; the Windows wrapper fixes the Docker backend. */
 export const BASE_SETTINGS = {
   projectDir: '~/project/qq-bot',
   koishiPort: 5140,
@@ -20,8 +20,8 @@ export const BASE_SETTINGS = {
   qqPath: '',
   /** Optional explicit NapCat directory (unusual layouts / tests). */
   napcatDir: '',
-  /** NapCat backend: 'local' (patched macOS QQ.app) or 'docker' (Linux QQ container). */
-  napcatBackend: 'local',
+  /** NapCat backend: this branch always uses the Docker/Linux QQ backend. */
+  napcatBackend: 'docker',
   /** Docker backend: image tag, container name and data directory. */
   dockerNapcatImage: 'mlikiowa/napcat-docker:latest',
   dockerNapcatContainer: 'dsh-qqbot-napcat',
@@ -39,10 +39,6 @@ export const BASE_SETTINGS = {
   dockerEngineTimeoutMs: 180000,
   /** Stop Koishi/NapCat when the DSH host process exits (detached watchdog). */
   lifecycleGuard: true,
-  /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
-  offlineVendorDir: '',
-  /** Empty means the version declared by the offline manifest. */
-  offlineNapcatVersion: '',
   /** AI chat: empty provider/model means "reuse the harness default model". */
   aiProvider: '',
   aiModel: '',
@@ -86,9 +82,7 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     : defaults.reversePath
   const reversePath = reversePathRaw.startsWith('/') ? reversePathRaw : `/${reversePathRaw}`
   const logLines = toBoundedInt(source.logLines, defaults.logLines, 20, 2000)
-  const napcatBackend = source.napcatBackend === 'local' || source.napcatBackend === 'docker'
-    ? source.napcatBackend
-    : defaults.napcatBackend
+  const napcatBackend = 'docker'
   const dockerNapcatDataDirRaw = typeof source.dockerNapcatDataDir === 'string' ? source.dockerNapcatDataDir.trim() : ''
   const dockerNapcatDataDir = dockerNapcatDataDirRaw === ''
     ? join(projectDir, 'runtime', 'napcat-docker')
@@ -117,8 +111,6 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     dockerDesktopPath: typeof source.dockerDesktopPath === 'string' ? expandHome(source.dockerDesktopPath) : '',
     dockerEngineTimeoutMs: toBoundedInt(source.dockerEngineTimeoutMs, defaults.dockerEngineTimeoutMs, 10_000, 600_000),
     lifecycleGuard: source.lifecycleGuard === undefined ? defaults.lifecycleGuard : source.lifecycleGuard === true,
-    offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
-    offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',
     aiModel: typeof source.aiModel === 'string' ? source.aiModel : '',
     aiSystemPrompt: typeof source.aiSystemPrompt === 'string' ? source.aiSystemPrompt : defaults.aiSystemPrompt,
@@ -143,24 +135,20 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
   }
 }
 
-/** Platform id used across the plugin. */
+/** Platform id used across the plugin (this branch supports Windows only). */
 export function hostPlatform(platform = process.platform) {
-  if (platform === 'darwin') return 'macos'
-  if (platform === 'win32') return 'windows'
-  if (platform === 'linux') return 'linux'
-  return 'other'
+  return platform === 'win32' ? 'windows' : 'other'
 }
 
 /** Display/support metadata for the current host. */
 export function platformInfo(platform = process.platform) {
   const id = hostPlatform(platform)
-  const labels = { macos: 'macOS', windows: 'Windows', linux: 'Linux', other: 'Unsupported' }
   return {
     id,
-    label: labels[id],
-    supported: id === 'macos' || id === 'windows',
-    napcatSupported: id === 'macos' || id === 'windows',
-    koishiSupported: id !== 'other',
+    label: id === 'windows' ? 'Windows' : 'Unsupported',
+    supported: id === 'windows',
+    napcatSupported: id === 'windows',
+    koishiSupported: id === 'windows',
   }
 }
 

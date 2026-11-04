@@ -18,7 +18,6 @@ import {
   detectQq,
   hostInfo,
   hostPlatform,
-  macInfo,
   napcatQrPath,
   platformInfo,
   resolveSettings,
@@ -35,7 +34,6 @@ const PLATFORM_SERVICE = Object.freeze({
   detectKoishiProject,
   hostPlatform,
   hostInfo,
-  macInfo,
   platformInfo,
   napcatQrPath,
 })

@@ -3370,9 +3370,9 @@ window.__ModuleLoader__.load({
         managed: 'managed by this plugin',
         noWs: 'none configured',
         platformUnknown: 'Unknown platform',
-        installNapcatHintGeneric: 'Install NapCat from the bundled offline payload, then apply the OneBot config.',
-        installNapcatHintMac: 'Installs NapCat from the bundled offline payload: allow the macOS administrator prompt, then apply the OneBot config.',
-        installNapcatHintUnsupported: 'This macOS-only build does not support NapCat on this platform.',
+        installNapcatHintGeneric: 'Pull and start the NapCat Docker container, then apply the OneBot config.',
+        installNapcatHintDocker: 'Pulls and starts the NapCat Linux QQ container, then applies the OneBot config.',
+        installNapcatHintUnsupported: 'This Windows build requires Docker for NapCat.',
         setupNapcatUnsupported: 'Not supported on this platform',
         loginUnsupported: 'NapCat login is unavailable on this platform.',
         aiTitle: 'AI chat',
@@ -3806,9 +3806,9 @@ window.__ModuleLoader__.load({
         managed: '由本插件启动',
         noWs: '未配置',
         platformUnknown: '未知平台',
-        installNapcatHintGeneric: '会从内置离线包安装 NapCat，请按提示完成授权，然后写入 OneBot 配置。',
-        installNapcatHintMac: '会从内置离线包安装 NapCat：请在 macOS 管理员授权提示中允许，然后写入 OneBot 配置。',
-        installNapcatHintUnsupported: '这个 macOS-only 构建不支持当前平台的 NapCat。',
+        installNapcatHintGeneric: '会拉取并启动 NapCat Docker 容器，然后写入 OneBot 配置。',
+        installNapcatHintDocker: '会拉取并启动 NapCat Linux QQ 容器，然后写入 OneBot 配置。',
+        installNapcatHintUnsupported: '这个 Windows 构建需要 Docker 才能运行 NapCat。',
         setupNapcatUnsupported: '当前平台不支持',
         loginUnsupported: '当前平台无法使用 NapCat 扫码登录。',
         aiTitle: 'AI 聊天',
@@ -4200,14 +4200,12 @@ window.__ModuleLoader__.load({
           ? snapshot.platform
           : null
         const rawPlatformId = platformInfo && typeof platformInfo.id === 'string' ? platformInfo.id : ''
-        const platformId = ['macos', 'other'].includes(rawPlatformId)
-          ? rawPlatformId
-          : platformInfo !== null && platformInfo.isMac === true ? 'macos' : 'other'
+        const platformId = rawPlatformId === 'windows' ? 'windows' : 'other'
         const platformLabel = platformInfo !== null && typeof platformInfo.label === 'string' && platformInfo.label !== ''
           ? platformInfo.label
           : platformInfo === null
             ? t('platformUnknown')
-            : platformId === 'macos' ? 'macOS' : t('platformUnknown')
+            : platformId === 'windows' ? 'Windows' : t('platformUnknown')
         const platformArch = platformInfo !== null && typeof platformInfo.arch === 'string' ? platformInfo.arch : ''
         const platformBadgeText = platformInfo === null
           ? t('platformUnknown')
@@ -4215,12 +4213,12 @@ window.__ModuleLoader__.load({
         const napcatSupported = platformInfo === null
           ? true
           : platformInfo.napcatSupported === undefined
-            ? platformId === 'macos'
+            ? platformId === 'windows'
             : platformInfo.napcatSupported === true
         const platformInstallHint = platformInfo === null
           ? t('installNapcatHintGeneric')
           : napcatSupported
-            ? t('installNapcatHintMac')
+            ? t('installNapcatHintDocker')
             : t('installNapcatHintUnsupported')
         const napcatAccounts = Array.isArray(napcat.accounts) ? napcat.accounts : []
         const wsClients = []

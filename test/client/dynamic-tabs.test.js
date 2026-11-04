@@ -105,7 +105,7 @@ const EXTERNAL_HOST_TAB = { id: 'external-demo', title: { zh: '外部页', en: '
 let hostTabs = BUILTIN_HOST_TABS
 
 const STATUS = {
-  platform: { id: 'macos', label: 'macOS', arch: 'arm64', napcatSupported: true },
+  platform: { id: 'windows', label: 'Windows', arch: 'x64', napcatSupported: true },
   settings: { projectDir: '~/project/qq-bot', koishiPort: 5140, napcatPort: 6099, reversePath: '/onebot' },
   qq: { installed: true },
   napcat: {},

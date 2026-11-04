@@ -1,13 +1,10 @@
-/** Render gacha results as a light, playful 1080x1440 PNG via SVG + macOS sips. */
-import { execFile } from 'node:child_process'
+/** Render gacha results as a light, playful 1080x1440 PNG via SVG + resvg. */
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import { frameHref } from './frames.js'
 import { convertSvgFile } from './png.js'
 
-const run = promisify(execFile)
 const WIDTH = 1080
 const HEIGHT = 1440
 const FONT = 'Yuanti SC, Hannotate SC, Hiragino Maru Gothic ProN, PingFang SC, sans-serif'

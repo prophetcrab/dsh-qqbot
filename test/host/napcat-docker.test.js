@@ -11,8 +11,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { apply } from '../../index.js'
 import { DockerNapcatManager } from '../../host/services/napcat/docker.js'
-import { NapcatManager } from '../../host/services/napcat/index.js'
-import { resolveSettings } from '../../host/platform/mac/index.js'
+import { resolveSettings } from '../../host/platform/index.js'
 import { createFakeContext } from './helpers.js'
 
 const noopLogger = { info() {}, warn() {}, error() {} }
@@ -265,19 +264,11 @@ test('docker settings resolve data dir, image and host defaults', () => {
   assert.equal(custom.dockerNapcatContainer, 'my-napcat')
 })
 
-test('host wires the backend selected by napcatBackend', async (t) => {
+test('host wires the Docker NapCat manager', async (t) => {
   const dockerDir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-host-docker-'))
-  const localDir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-host-local-'))
-  t.after(async () => {
-    await rm(dockerDir, { recursive: true, force: true })
-    await rm(localDir, { recursive: true, force: true })
-  })
+  t.after(() => rm(dockerDir, { recursive: true, force: true }))
 
   const docker = createFakeContext()
   await apply(docker.ctx, { projectDir: dockerDir, bootstrap: false, lifecycleGuard: false, napcatBackend: 'docker' })
   assert.ok(docker.getService().kernel.get('napcat') instanceof DockerNapcatManager)
-
-  const local = createFakeContext()
-  await apply(local.ctx, { projectDir: localDir, bootstrap: false, lifecycleGuard: false, napcatBackend: 'local' })
-  assert.ok(local.getService().kernel.get('napcat') instanceof NapcatManager)
 })

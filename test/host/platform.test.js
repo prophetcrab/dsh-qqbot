@@ -1,5 +1,5 @@
 /**
- * Platform-boundary tests: settings/data compatibility, macOS capability
+ * Platform-boundary tests: settings/data compatibility, Windows capability
  * reporting and the "no process.platform outside host/platform" rule.
  */
 
@@ -13,11 +13,11 @@ import {
   DEFAULT_SETTINGS,
   detectKoishiProject,
   detectNapcat,
+  hostInfo,
   hostPlatform,
-  macInfo,
   platformInfo,
   resolveSettings,
-} from '../../host/platform/mac/index.js'
+} from '../../host/platform/win/index.js'
 
 const ROOT = new URL('../..', import.meta.url)
 
@@ -48,15 +48,13 @@ test('settings: defaults keep the legacy data directory contract', () => {
   assert.equal(custom.logLines, 2000)
 })
 
-test('platform: macOS and Windows report NapCat/Koishi support', () => {
-  assert.equal(hostPlatform('darwin'), 'macos')
+test('platform: Windows reports NapCat/Koishi support', () => {
   assert.equal(hostPlatform('win32'), 'windows')
-  assert.equal(hostPlatform('linux'), 'linux')
-  assert.equal(platformInfo('darwin').label, 'macOS')
-  assert.equal(platformInfo('darwin').napcatSupported, true)
+  assert.equal(hostPlatform('linux'), 'other')
+  assert.equal(platformInfo('win32').label, 'Windows')
   assert.equal(platformInfo('win32').napcatSupported, true)
   assert.equal(platformInfo('linux').napcatSupported, false)
-  assert.equal(typeof macInfo().arch, 'string')
+  assert.equal(typeof hostInfo().arch, 'string')
 })
 
 test('platform: detectors never throw on blank settings', () => {
