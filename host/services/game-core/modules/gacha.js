@@ -2,6 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { CURRENT_UP } from '../gacha-config.js'
 import { renderGachaCard } from '../render/gacha-card.js'
 
 export const gachaHelp = Object.freeze([
@@ -100,6 +101,13 @@ function weightedPick(entries, random) {
   return entries[entries.length - 1]
 }
 
+function pickLegendary(items, upId, random) {
+  const up = items.find((item) => item.id === upId)
+  if (up !== undefined && clampRandom(random) < 0.5) return up
+  const rest = items.filter((item) => item.id !== upId)
+  return pick(rest.length > 0 ? rest : items, random)
+}
+
 function paymentFor(fishing, coins, size) {
   const tickets = fishing.tickets
   if (size === 1) {
@@ -138,7 +146,7 @@ function pay(fishing, coins, payment) {
 function pityDraw(gacha, rods, baits, random) {
   if (gacha.legendaryRodPity >= PITY.legendaryRod) {
     gacha.legendaryRodPity = 0
-    return { kind: 'rod', tier: 4, item: pick(rods[4], random), pityTriggered: 'legendaryRod' }
+    return { kind: 'rod', tier: 4, item: pickLegendary(rods[4], CURRENT_UP.rod, random), pityTriggered: 'legendaryRod' }
   }
   if (gacha.lv3RodPity >= PITY.lv3Rod) {
     gacha.lv3RodPity = 0
@@ -146,7 +154,7 @@ function pityDraw(gacha, rods, baits, random) {
   }
   if (gacha.legendaryBaitPity >= PITY.legendaryBait) {
     gacha.legendaryBaitPity = 0
-    return { kind: 'bait', tier: 4, item: pick(baits[4], random), pityTriggered: 'legendaryBait' }
+    return { kind: 'bait', tier: 4, item: pickLegendary(baits[4], CURRENT_UP.bait, random), pityTriggered: 'legendaryBait' }
   }
   if (gacha.rodPity >= PITY.rod) {
     gacha.rodPity = 0
@@ -159,7 +167,10 @@ function pityDraw(gacha, rods, baits, random) {
 function baseDraw(rods, baits, random) {
   const entry = weightedPick(CATEGORY_WEIGHTS, random)
   const pool = entry.kind === 'rod' ? rods[entry.tier] : baits[entry.tier]
-  return { kind: entry.kind, tier: entry.tier, item: pick(pool, random), pityTriggered: null }
+  const item = entry.tier === 4
+    ? pickLegendary(pool, entry.kind === 'rod' ? CURRENT_UP.rod : CURRENT_UP.bait, random)
+    : pick(pool, random)
+  return { kind: entry.kind, tier: entry.tier, item, pityTriggered: null }
 }
 
 function applyNaturalReset(gacha, result) {
