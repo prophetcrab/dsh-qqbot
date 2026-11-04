@@ -32,13 +32,22 @@ function shanghaiDate(now) {
   const get = (type) => parts.find((part) => part.type === type)?.value ?? ''
   return `${get('year')}-${get('month')}-${get('day')}`
 }
-function ensureFishing(player) {
+export function ensureFishing(player) {
   if (player.fishing === null || typeof player.fishing !== 'object') player.fishing = {}
   const f = player.fishing
   f.cast = f.cast !== null && typeof f.cast === 'object' ? f.cast : null
   f.rodDaily = f.rodDaily !== null && typeof f.rodDaily === 'object' ? f.rodDaily : {}
   f.castCount = Number.isSafeInteger(f.castCount) ? f.castCount : 0
   f.fishWarehouse = Array.isArray(f.fishWarehouse) ? f.fishWarehouse : []
+  f.fishSeq = Number.isSafeInteger(f.fishSeq) ? f.fishSeq : 0
+  for (const fish of f.fishWarehouse) {
+    if (!Number.isSafeInteger(fish.id)) {
+      f.fishSeq += 1
+      fish.id = f.fishSeq
+    } else {
+      f.fishSeq = Math.max(f.fishSeq, fish.id)
+    }
+  }
   f.specials = f.specials !== null && typeof f.specials === 'object' ? f.specials : {}
   if (f.tickets === null || typeof f.tickets !== 'object') f.tickets = {}
   f.tickets.singleTickets = Number.isSafeInteger(f.tickets.singleTickets) ? f.tickets.singleTickets : 0
@@ -181,8 +190,9 @@ export class FishingCastService {
       const result = this.resolve({ fishing, cast, random, now })
       if (result.kind === 'fish') {
         for (let i = 0; i < (result.copies ?? 1); i += 1) {
+          fishing.fishSeq += 1
           fishing.fishWarehouse.push({
-            instanceId: `fish_${Date.now()}_${Math.floor(rand(random) * 100000)}_${i}`,
+            id: fishing.fishSeq,
             fishId: result.item.id,
             name: result.item.name,
             tier: result.tier,
