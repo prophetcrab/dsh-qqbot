@@ -1,0 +1,35 @@
+name: Guidance checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate guidance layout
+        run: |
+          set -eu
+          test -f README.md
+          test -f CONTRIBUTING.md
+          test -f docs/decisions/0008-main-guidance-only.md
+          test -f docs/decisions/0009-feature-flow-and-release-convention.md
+          test -f docs/roadmap/README.md
+          test -f releases/README.md
+          for path in host client template scripts test assets locale node_modules vendor; do
+            if [ -e "$path" ]; then
+              echo "::error::$path must not exist on the guidance-only main branch"
+              exit 1
+            fi
+          done
+          if [ -e package.json ] || [ -e index.js ] || [ -e client.js ]; then
+            echo "::error::plugin code must not exist on the guidance-only main branch"
+            exit 1
+          fi
+          echo "guidance-only main layout: ok"
