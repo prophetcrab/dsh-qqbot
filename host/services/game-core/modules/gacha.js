@@ -230,6 +230,7 @@ export class GachaService {
     this.rods = { 1: [], 2: [], 3: [], 4: [] }
     this.baits = { 1: [], 2: [], 3: [], 4: [] }
     this.loaded = false
+    this.active = new Set()
   }
 
   load() {
@@ -247,10 +248,14 @@ export class GachaService {
     const parts = String(rawCommand).trim().split(/\s+/u)
     if (parts[0] !== '/钓鱼' || (parts[1] !== '抽卡' && parts[1] !== '十连')) return null
     if (parts.length !== 2) return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连'] }
-    try { this.load() } catch (error) { this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error)); return { ok: false, error: 'gacha catalog unavailable' } }
-    const size = parts[1] === '十连' ? 10 : 1
+    const lockKey = String(userId)
+    if (this.active.has(lockKey)) return { ok: true, replies: ['正在抽卡，请稍等待。'] }
+    this.active.add(lockKey)
+    try {
+      try { this.load() } catch (error) { this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error)); return { ok: false, error: 'gacha catalog unavailable' } }
+      const size = parts[1] === '十连' ? 10 : 1
 
-    return store.mutate(groupId, async (state) => {
+      return await store.mutate(groupId, async (state) => {
       const player = state.players[userId]
       if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
       const coins = Number.isSafeInteger(player.fishingCoins) ? player.fishingCoins : 0
@@ -291,6 +296,9 @@ export class GachaService {
         this.logger?.warn?.('gacha image render failed: %s', String(error?.message ?? error))
       }
       return { ok: true, replies: [text], ...(image === undefined ? {} : { image }) }
-    })
+      })
+    } finally {
+      this.active.delete(lockKey)
+    }
   }
 }
