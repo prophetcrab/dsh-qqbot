@@ -1,8 +1,8 @@
 # dsh-qqbot
 
-DeepSeek Harness 的 **macOS-only** QQ 机器人控制中心。
+DeepSeek Harness 的跨平台 QQ 机器人控制中心：macOS 使用本地 QQ/NapCat，Windows 使用 Docker/Linux QQ。
 
-当前分支：`dshbot-mac`。项目已按 plugin-based 架构重写：
+当前开发分支：`dshbot-win64`。项目已按 plugin-based 架构重写：
 
 ```text
 QQ ↔ NapCat ↔ OneBot 11 ↔ Koishi ↔ DSH Host ↔ 面板 / LLM

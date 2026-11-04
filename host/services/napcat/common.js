@@ -6,10 +6,10 @@
  */
 
 /** Stable user-facing messages for unsupported hosts. */
-export const UNSUPPORTED_INSTALL = '当前平台暂不支持 NapCat 安装（此构建仅支持 macOS）'
-export const UNSUPPORTED_CONTROL = '当前平台暂不支持 NapCat 启动/停止'
-export const UNSUPPORTED_CONFIGURE = '当前平台暂不支持 NapCat 配置'
-export const UNSUPPORTED_STATUS = '当前平台暂不支持 NapCat（此构建仅支持 macOS）'
+export const UNSUPPORTED_INSTALL = '当前平台不支持本地 NapCat 安装；Windows 请使用 Docker 后端'
+export const UNSUPPORTED_CONTROL = '当前平台不支持本地 NapCat 启动/停止；Windows 请使用 Docker 后端'
+export const UNSUPPORTED_CONFIGURE = '当前平台不支持本地 NapCat 配置；Windows 请使用 Docker 后端'
+export const UNSUPPORTED_STATUS = '当前平台不支持本地 NapCat；Windows 请使用 Docker 后端'
 
 /** Whether `value` is a non-array object. */
 export function isPlainObject(value) {

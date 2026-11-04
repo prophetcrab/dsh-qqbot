@@ -1,6 +1,6 @@
 # 安装与运行
 
-> 当前分支 `dshbot-mac`，仅支持 macOS（Apple Silicon）。
+> 当前分支 `dshbot-win64`：Windows 使用 Docker/Linux QQ；macOS 分支使用本地 QQ/NapCat。
 
 ## 1. 安装插件
 

@@ -666,7 +666,7 @@ test('unsupported hosts return structured errors for NapCat actions', async () =
   const install = await manager.install()
   assert.equal(install.ok, false)
   assert.equal(install.error, 'unsupported-platform')
-  assert.match(install.message, /当前平台暂不支持 NapCat 安装/u)
+  assert.match(install.message, /当前平台不支持本地 NapCat 安装/u)
   for (const action of [
     () => manager.start(),
     () => manager.stop(),
@@ -682,6 +682,6 @@ test('unsupported hosts return structured errors for NapCat actions', async () =
   assert.equal(status.installed, false)
   assert.equal(status.running, false)
   assert.equal(status.accounts.length, 0)
-  assert.match(status.error, /当前平台暂不支持 NapCat/u)
+  assert.match(status.error, /当前平台不支持本地 NapCat/u)
   assert.deepEqual(sideEffects, [])
 })
