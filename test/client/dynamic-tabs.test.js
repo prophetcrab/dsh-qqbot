@@ -99,6 +99,7 @@ const BUILTIN_HOST_TABS = [
   { id: 'plugins', title: { zh: '插件', en: 'Plugins' }, order: 4 },
   { id: 'features', title: { zh: '功能', en: 'Features' }, order: 5 },
   { id: 'logs', title: { zh: '日志', en: 'Logs' }, order: 6 },
+  { id: 'games', title: { zh: '小游戏', en: 'Mini Games' }, order: 7 },
 ]
 const EXTERNAL_HOST_TAB = { id: 'external-demo', title: { zh: '外部页', en: 'External page' }, order: 1.5 }
 let hostTabs = BUILTIN_HOST_TABS
@@ -229,8 +230,8 @@ const clickTestId = (tree, id) => {
 test('built-in tabs register themselves with the runtime registry', () => {
   assert.ok(globalThis.window.__DSH_QQBOT__, 'window.__DSH_QQBOT__ bridge missing')
   const tabs = globalThis.window.__DSH_QQBOT__.listTabs()
-  assert.deepEqual(tabs.map((tab) => tab.id), ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs'])
-  assert.deepEqual(tabs.map((tab) => tab.order), [0, 1, 2, 3, 4, 5, 6])
+  assert.deepEqual(tabs.map((tab) => tab.id), ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs', 'games'])
+  assert.deepEqual(tabs.map((tab) => tab.order), [0, 1, 2, 3, 4, 5, 6, 7])
 })
 
 test('an external client plugin can register through window.__DSH_QQBOT__', () => {
@@ -285,6 +286,7 @@ test('the panel falls back to every registered tab in order without a Host list'
     'qqbot-tab-plugins',
     'qqbot-tab-features',
     'qqbot-tab-logs',
+    'qqbot-tab-games',
   ])
 })
 
@@ -302,5 +304,5 @@ test('a status snapshot without clientTabs keeps every tab visible', async () =>
   hostTabs = null
   clickTestId(await settle(), 'qqbot-status-refresh')
   const tree = await settle()
-  assert.equal(tabIds(tree).length, 8)
+  assert.equal(tabIds(tree).length, 9)
 })

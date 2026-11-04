@@ -15,5 +15,6 @@ export default {
     const game = new GameCore({ projectDir: api.settings.projectDir, logger: api.logger })
     api.provide('gameCore', game)
     api.registerRoutes(routes(api, game))
+    api.registerClientTab({ id: 'games', title: { zh: '小游戏', en: 'Mini Games' }, order: 7 })
   },
 }

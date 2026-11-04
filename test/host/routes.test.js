@@ -45,7 +45,7 @@ test('host: built-in feature ids and actions are preserved', async (t) => {
 test('host: client tabs are contributed by plugins', async (t) => {
   const { host } = await loadHost(t)
   const tabIds = host.kernel.listClientTabs().map((tab) => tab.id)
-  for (const id of ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs']) {
+  for (const id of ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs', 'games']) {
     assert.ok(tabIds.includes(id), `missing client tab ${id}`)
   }
 })

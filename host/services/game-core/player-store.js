@@ -1,4 +1,5 @@
 /** Per-group player storage for deterministic game commands. */
+import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { readJsonFile, SerialQueue, writeJsonAtomic } from '../group-loop/atomic.js'
 
@@ -14,6 +15,20 @@ export class PlayerStore {
     this.root = join(projectDir, 'data', 'state', 'games', 'players')
     this.logger = logger
     this.queues = new Map()
+  }
+
+  async listGroupIds() {
+    try {
+      const entries = await readdir(this.root, { withFileTypes: true })
+      return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+        .map((entry) => entry.name.slice(0, -5))
+        .filter((id) => GROUP_ID.test(id))
+        .sort()
+    } catch (error) {
+      if (error?.code === 'ENOENT') return []
+      throw error
+    }
   }
 
   path(groupId) {

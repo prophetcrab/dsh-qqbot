@@ -56,8 +56,9 @@ function withRates(items, kind, upId) {
 
 
 export class FishingPoolService {
-  constructor({ projectDir, logger, assetsDir }) {
+  constructor({ projectDir, logger, assetsDir, upStore }) {
     this.logger = logger
+    this.upStore = upStore
     this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
     this.loaded = false
     this.rods = []
@@ -66,8 +67,8 @@ export class FishingPoolService {
 
   load() {
     if (this.loaded) return
-    this.rods = withRates(readCatalog(this.assetsDir, 'rods', 'rods').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'rod', CURRENT_UP.rod)
-    this.baits = withRates(readCatalog(this.assetsDir, 'baits', 'baits').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh')), 'bait', CURRENT_UP.bait)
+    this.rods = readCatalog(this.assetsDir, 'rods', 'rods').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh'))
+    this.baits = readCatalog(this.assetsDir, 'baits', 'baits').slice().sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name, 'zh'))
     this.loaded = true
   }
 
@@ -80,8 +81,11 @@ export class FishingPoolService {
     const state = await store.read(groupId)
     const player = state.players[userId]
     const pity = normalizePity(player)
-    const upRod = this.rods.find((item) => item.isUp)
-    const upBait = this.baits.find((item) => item.isUp)
+    const up = this.upStore === undefined ? CURRENT_UP : await this.upStore.get(groupId)
+    const rods = withRates(this.rods, 'rod', up.rod)
+    const baits = withRates(this.baits, 'bait', up.bait)
+    const upRod = rods.find((item) => item.isUp)
+    const upBait = baits.find((item) => item.isUp)
     const text = [
       '钓鱼卡池',
       `当前 UP：${upRod?.name ?? '无'} / ${upBait?.name ?? '无'}`,
@@ -93,8 +97,8 @@ export class FishingPoolService {
       image = await renderPoolCard({
         nickname: player?.nickname || userId,
         pool: {
-          rods: this.rods,
-          baits: this.baits,
+          rods,
+          baits,
           pity,
           categoryRates: CATEGORY_RATES,
           up: { rod: upRod, bait: upBait },
