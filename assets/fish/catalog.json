@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "fish": [
+    {
+      "id": "crucian",
+      "name": "鲫鱼",
+      "tier": 1,
+      "asset": "t1/crucian.png"
+    },
+    {
+      "id": "whitebait",
+      "name": "白条",
+      "tier": 1,
+      "asset": "t1/whitebait.png"
+    },
+    {
+      "id": "loach",
+      "name": "泥鳅",
+      "tier": 1,
+      "asset": "t1/loach.png"
+    },
+    {
+      "id": "small_carp",
+      "name": "小鲤鱼",
+      "tier": 1,
+      "asset": "t1/small_carp.png"
+    },
+    {
+      "id": "bass",
+      "name": "鲈鱼",
+      "tier": 2,
+      "asset": "t2/bass.png"
+    },
+    {
+      "id": "bream",
+      "name": "鳊鱼",
+      "tier": 2,
+      "asset": "t2/bream.png"
+    },
+    {
+      "id": "yellow_catfish",
+      "name": "黄颡鱼",
+      "tier": 2,
+      "asset": "t2/yellow_catfish.png"
+    },
+    {
+      "id": "grass_carp",
+      "name": "草鱼",
+      "tier": 2,
+      "asset": "t2/grass_carp.png"
+    },
+    {
+      "id": "mandarin_fish",
+      "name": "鳜鱼",
+      "tier": 3,
+      "asset": "t3/mandarin_fish.png"
+    },
+    {
+      "id": "snakehead",
+      "name": "黑鱼",
+      "tier": 3,
+      "asset": "t3/snakehead.png"
+    },
+    {
+      "id": "black_carp",
+      "name": "青鱼",
+      "tier": 3,
+      "asset": "t3/black_carp.png"
+    },
+    {
+      "id": "koi",
+      "name": "锦鲤",
+      "tier": 3,
+      "asset": "t3/koi.png"
+    },
+    {
+      "id": "golden_scale_carp",
+      "name": "金鳞鲤",
+      "tier": 4,
+      "asset": "t4/golden_scale_carp.png"
+    },
+    {
+      "id": "moon_shade_mandarin",
+      "name": "月影鳜",
+      "tier": 4,
+      "asset": "t4/moon_shade_mandarin.png"
+    },
+    {
+      "id": "red_fin_sturgeon",
+      "name": "赤鳍鲟",
+      "tier": 4,
+      "asset": "t4/red_fin_sturgeon.png"
+    },
+    {
+      "id": "cloud_eel",
+      "name": "云纹鳗",
+      "tier": 4,
+      "asset": "t4/cloud_eel.png"
+    },
+    {
+      "id": "dragon_scale_koi",
+      "name": "龙鳞锦鲤",
+      "tier": 5,
+      "asset": "t5/dragon_scale_koi.png"
+    },
+    {
+      "id": "star_river_mandarin",
+      "name": "星河鳜",
+      "tier": 5,
+      "asset": "t5/star_river_mandarin.png"
+    },
+    {
+      "id": "void_kun",
+      "name": "太虚鲲",
+      "tier": 5,
+      "asset": "t5/void_kun.png"
+    },
+    {
+      "id": "glazed_dragonfish",
+      "name": "琉璃龙鱼",
+      "tier": 5,
+      "asset": "t5/glazed_dragonfish.png"
+    }
+  ]
+}
