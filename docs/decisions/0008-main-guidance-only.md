@@ -3,7 +3,8 @@
 ## Status
 
 Accepted. Supersedes the "platform branches merge main" part of
-[0007](0007-multiplatform-branch-strategy.md).
+[0007](0007-multiplatform-branch-strategy.md). Feature/release flow is defined
+in [0009](0009-feature-flow-and-release-convention.md).
 
 ## Decision
 
@@ -31,19 +32,24 @@ feature/*          short-lived work branched from the owning platform branch
   git checkout main -- docs/ README.md
   ```
 
-- Shared code changes move directly between platform branches with
-  `git cherry-pick -x` (or a short-lived shared feature branch), not through
-  `main`.
-- Platform-specific features stay on the owning platform branch.
+- Shared code changes flow from `dshbot-mac` to `dshbot-win64` through focused
+  cherry-picks (or a short-lived shared feature branch), not through `main`.
+  Do not develop cross-platform features independently on the Windows branch.
+- Platform-specific features stay on the owning platform branch; Windows work is
+  primarily synchronization plus platform adaptation.
 
 ## Release Shape
 
 Platform branches own their code tags:
 
 ```text
-dshbot-mac    → v0.7.0-mac
+dshbot-mac    → v0.7.0          (existing mac convention)
 dshbot-win64  → v0.7.0-win64
 ```
+
+The two platform releases are independent; version numbers do not need to match.
+See [0009](0009-feature-flow-and-release-convention.md) for release quality
+requirements.
 
 `main` records the release set, artifact names, checksums and links under
 `releases/`; it does not host the artifacts.

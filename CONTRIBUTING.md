@@ -20,8 +20,8 @@
 规则：
 
 - 新功能只改 `dsh-qqbot` 和 `qq-bot`。
-- `dshbot-win64` 当前是 Windows 开发主线；`dshbot-mac` 保留 macOS 代码。
-- `main` 只保留导向、决策和发布元数据，不挂插件本体代码。
+- 功能开发在 `dshbot-mac` 上进行；`dshbot-win64` 主要同步新功能并做 Windows 平台适配。
+- 两个平台独立发布，版本号不要求同步；`main` 只保留导向、决策和发布元数据。
 - `qq-bot/main` 是 Koishi 运行时的唯一主线。
 - 不允许把 `~/.dsh/profiles/*` 当源码修改；Profile 只通过安装脚本管理。
 
@@ -30,8 +30,9 @@
 ### dsh-qqbot
 
 ```text
-dshbot-win64        当前开发主线（Windows）
-feat/<topic>        新功能
+dshbot-mac          功能开发主线（upstream）
+dshbot-win64        功能同步 + Windows 平台适配（downstream）
+feat/<topic>        新功能（从 dshbot-mac 开）
 fix/<topic>         修复
 chore/<topic>       构建/文档/依赖
 refactor/<topic>    结构性重构
@@ -291,7 +292,19 @@ rsync -a --delete \
 
 ## 11. 发布流程
 
+macOS 和 Windows 独立打包、独立发布，版本号不要求同步：
+
+```text
+dshbot-mac    tag: vX.Y.Z          asset: dsh-qqbot-X.Y.Z-macos-arm64.tgz
+dshbot-win64  tag: vX.Y.Z-win64    asset: dsh-qqbot-X.Y.Z-windows-x64.tgz
+```
+
+发布包必须保证安装简洁、可用；release 前在干净 profile 上验证「安装插件 → 一键安装并配置 → 启动 → 扫码登录」。
+
 只从稳定分支发布。
+
+Windows 发布流程：
+
 
 1. 工作区干净，分支 fast-forward 到最新。
 2. bump `package.json` 版本。
