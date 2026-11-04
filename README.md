@@ -379,9 +379,9 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 198 tests
+npm test
 npm run build:client
-npm run smoke:host       # 41 routes / 6 tools / 5 features
+npm run smoke:host
 npm run smoke:client
 npm run check:architecture
 npm run check:template
