@@ -385,3 +385,30 @@ test('legendary rod effects: grey guarantees lv3 and taigong casts without bait'
   assert.equal(caught.ok, true)
   await rm(root, { recursive: true, force: true })
 })
+
+test('fish warehouse shows numbered fish and sells by number', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishingCoins: 0,
+    fishing: {
+      fishSeq: 2,
+      fishWarehouse: [
+        { id: 1, fishId: 'crucian', name: '鲫鱼', tier: 1, weightKg: 0.6, basePricePerKg: 11, pricePerKg: 12, value: 7, caughtAt: NOW.toISOString() },
+        { id: 2, fishId: 'bass', name: '鲈鱼', tier: 2, weightKg: 1.2, basePricePerKg: 22, pricePerKg: 24, value: 29, caughtAt: NOW.toISOString() },
+      ],
+    },
+  })
+  const warehouse = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 鱼仓' })
+  assert.match(warehouse.replies[0], /共有 2 条鱼/u)
+  assert.equal(warehouse.image?.width, 1080)
+  const sold = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卖鱼 1' })
+  assert.match(sold.replies[0], /\+7 钓鱼币/u)
+  const player = (await readGroup(root, 'g1')).players['20000']
+  assert.equal(player.fishingCoins, 7)
+  assert.equal(player.fishing.fishWarehouse.length, 1)
+  assert.equal(player.fishing.fishWarehouse[0].id, 2)
+  const missing = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卖鱼 99' })
+  assert.match(missing.replies[0], /没有 #99/u)
+  await rm(root, { recursive: true, force: true })
+})
