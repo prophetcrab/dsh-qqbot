@@ -286,12 +286,12 @@ const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMi
 let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
 const GROUP_DASHBOARD = {
   character: {
-    core: { name: '天青色瞪眼鱼', identity: '林见夏，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
+    core: { name: '天青色瞪眼鱼', identity: '天青色瞪眼鱼，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
     emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
   },
   persona: {
     name: '天青色瞪眼鱼',
-    role: '林见夏，28 岁，杭州漫画家',
+    role: '天青色瞪眼鱼，28 岁，杭州漫画家',
     tone: '短句、口语、热络',
     personality: '自来熟、热情、话多但有分寸',
     rules: '像熟人一样自然接话；句子尽量短',
