@@ -677,6 +677,29 @@ priceType: fixed
 同一个 QQ 在不同群拥有独立的玩家记录、背包和金币。
 ```
 
+## 资产
+
+```text
+assets/fish/fish_t{tier}_{index}_{id}.png
+```
+
+示例：
+
+```text
+fish_t1_01_crucian.png
+fish_t3_04_koi.png
+fish_t5_04_glazed_dragonfish.png
+```
+
+规格：
+
+```text
+128 × 128
+PNG
+RGBA
+透明背景
+```
+
 ## 待定
 
 ```text
