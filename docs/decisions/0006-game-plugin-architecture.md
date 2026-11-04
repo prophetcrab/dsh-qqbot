@@ -25,7 +25,7 @@ Koishi 插件不持久化游戏资产。
 
 ```text
 游戏专属仓库
-游戏专属装备库
+游戏专属道具库
 游戏货币
 抽卡/保底状态
 游戏冷却与进度
@@ -37,7 +37,7 @@ Koishi 插件不持久化游戏资产。
 ```text
 账号背包      共享账号模块
 鱼仓          fishing 插件
-装备库        fishing 插件
+钓鱼道具库    fishing 插件
 钓鱼币        fishing 插件
 抽卡/保底     fishing 插件
 鱼竿/鱼饵     fishing 插件
@@ -54,7 +54,7 @@ DSH:
 
 Koishi:
   qqbot-game-fishing
-    commands /钓鱼 /鱼仓 /装备库 /抽卡 ...
+    commands /钓鱼 单抽 /钓鱼 十连 /鱼仓 /钓鱼 道具库 ...
     sends commands to DSH
     no persistent state
 ```
