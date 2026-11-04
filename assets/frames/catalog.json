@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "frames": [
+    {
+      "id": "fish_t1",
+      "target": "fish",
+      "tier": 1,
+      "asset": "frame_fish_t1.png",
+      "name": "Lv.1 鱼"
+    },
+    {
+      "id": "fish_t2",
+      "target": "fish",
+      "tier": 2,
+      "asset": "frame_fish_t2.png",
+      "name": "Lv.2 鱼"
+    },
+    {
+      "id": "fish_t3",
+      "target": "fish",
+      "tier": 3,
+      "asset": "frame_fish_t3.png",
+      "name": "Lv.3 鱼"
+    },
+    {
+      "id": "fish_t4",
+      "target": "fish",
+      "tier": 4,
+      "asset": "frame_fish_t4.png",
+      "name": "Lv.4 鱼"
+    },
+    {
+      "id": "fish_t5",
+      "target": "fish",
+      "tier": 5,
+      "asset": "frame_fish_t5.png",
+      "name": "Lv.5 鱼"
+    },
+    {
+      "id": "gear_t1",
+      "target": "gear",
+      "tier": 1,
+      "asset": "frame_gear_t1.png",
+      "name": "Lv.1 鱼竿/鱼饵"
+    },
+    {
+      "id": "gear_t2",
+      "target": "gear",
+      "tier": 2,
+      "asset": "frame_gear_t2.png",
+      "name": "Lv.2 鱼竿/鱼饵"
+    },
+    {
+      "id": "gear_t3",
+      "target": "gear",
+      "tier": 3,
+      "asset": "frame_gear_t3.png",
+      "name": "Lv.3 鱼竿/鱼饵"
+    },
+    {
+      "id": "rod_taigong",
+      "target": "rod",
+      "tier": 4,
+      "itemId": "taigong",
+      "name": "太公竿",
+      "asset": "frame_rod_t4_01_taigong.png"
+    },
+    {
+      "id": "rod_ziling",
+      "target": "rod",
+      "tier": 4,
+      "itemId": "ziling",
+      "name": "子陵竿",
+      "asset": "frame_rod_t4_02_ziling.png"
+    },
+    {
+      "id": "rod_walton",
+      "target": "rod",
+      "tier": 4,
+      "itemId": "walton",
+      "name": "沃尔顿竿",
+      "asset": "frame_rod_t4_03_walton.png"
+    },
+    {
+      "id": "rod_grey",
+      "target": "rod",
+      "tier": 4,
+      "itemId": "grey",
+      "name": "格雷竿",
+      "asset": "frame_rod_t4_04_grey.png"
+    },
+    {
+      "id": "rod_hemingway",
+      "target": "rod",
+      "tier": 4,
+      "itemId": "hemingway",
+      "name": "海明威竿",
+      "asset": "frame_rod_t4_05_hemingway.png"
+    },
+    {
+      "id": "bait_rapala_floater",
+      "target": "bait",
+      "tier": 4,
+      "itemId": "rapala_floater",
+      "name": "拉帕拉原版浮水米诺",
+      "asset": "frame_bait_t4_01_rapala_floater.png"
+    },
+    {
+      "id": "bait_mepps_aglia",
+      "target": "bait",
+      "tier": 4,
+      "itemId": "mepps_aglia",
+      "name": "梅普斯旋转亮片",
+      "asset": "frame_bait_t4_02_mepps_aglia.png"
+    },
+    {
+      "id": "bait_dardevle",
+      "target": "bait",
+      "tier": 4,
+      "itemId": "dardevle",
+      "name": "达德维尔红白汤匙",
+      "asset": "frame_bait_t4_03_dardevle.png"
+    },
+    {
+      "id": "bait_adams_dry_fly",
+      "target": "bait",
+      "tier": 4,
+      "itemId": "adams_dry_fly",
+      "name": "亚当斯干蝇",
+      "asset": "frame_bait_t4_04_adams_dry_fly.png"
+    },
+    {
+      "id": "bait_royal_coachman",
+      "target": "bait",
+      "tier": 4,
+      "itemId": "royal_coachman",
+      "name": "皇家教练羽饵",
+      "asset": "frame_bait_t4_05_royal_coachman.png"
+    }
+  ]
+}

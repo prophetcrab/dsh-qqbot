@@ -931,7 +931,7 @@ tier: null
 
 # 十二、资产
 
-已生成 20 张透明底鱼 sprite。
+已生成 20 张透明底鱼 sprite、14 张鱼竿图标、14 张鱼饵图标、13 张道具图标和 18 张边框。
 
 ```text
 assets/fish/fish_t{tier}_{index}_{id}.png
@@ -953,6 +953,20 @@ bait_t{tier}_{index}_{id}.png
 ```
 
 普通鱼竿/鱼饵使用 `t1`–`t3`，传奇统一使用 `t4`。
+
+边框：
+
+```text
+frame_fish_t{tier}.png
+frame_gear_t{tier}.png
+frame_rod_t4_{index}_{id}.png
+frame_bait_t4_{index}_{id}.png
+```
+
+- 鱼 5 个等级各 1 张
+- 鱼竿/鱼饵 Lv.1–Lv.3 共用 3 张等级边框
+- 传奇鱼竿 5 张专属边框
+- 传奇鱼饵 5 张专属边框
 
 无等级道具（含特殊物品）：
 
