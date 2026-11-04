@@ -13,6 +13,7 @@ import { copyFile, cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RingLog, bundleKey, dataPaths, migrateDataLayout, npmCommand, npmExecutable, portPid, readJson, run } from '../../platform/index.js'
+import { setServerPort } from '../koishi/server-port.js'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
@@ -106,6 +107,7 @@ export class SetupManager {
     const packagePath = join(this.projectDir, 'package.json')
     if (fsExistsSync(packagePath)) {
       await mkdir(join(this.projectDir, 'runtime'), { recursive: true })
+      await this.#syncKoishiPort()
       // SQLite must only move while Koishi is stopped; wait for the next
       // bootstrap/restart when the port is still in use.
       const koishiRunning = await portPid(this.settings.koishiPort).catch(() => null) !== null
@@ -131,6 +133,7 @@ export class SetupManager {
       })
       await mkdir(join(this.projectDir, 'runtime'), { recursive: true })
       await migrateDataLayout(this.projectDir)
+      await this.#syncKoishiPort()
       const bundled = await this.#extractBundle()
       await this.#seedPresets()
       if (bundled) this.logger.info('已从内置离线包安装 Koishi 依赖')
@@ -273,6 +276,22 @@ export class SetupManager {
       return fsExistsSync(join(this.projectDir, 'node_modules'))
     } catch (error) {
       this.logger.warn('解压内置依赖包异常，将回退 npm install: %s', String(error?.message ?? error))
+      return false
+    }
+  }
+
+  /**
+   * Align the project's Koishi server port with `settings.koishiPort`.
+   * A profile can override the port; the template always ships 5140.
+   */
+  async #syncKoishiPort() {
+    const file = join(this.projectDir, 'koishi.yml')
+    try {
+      const text = await readFile(file, 'utf8')
+      const next = setServerPort(text, this.settings.koishiPort)
+      if (next !== text) await writeFile(file, next, 'utf8')
+      return next !== text
+    } catch {
       return false
     }
   }

@@ -51,6 +51,7 @@ import {
   probePort,
   requestJson,
   serviceStillListening,
+  syncKoishiPort,
   syncManagedPid,
   terminatePid,
   toPort,
@@ -237,6 +238,7 @@ export class KoishiManager {
     if (!project.hasPackageJson) {
       return { ok: false, error: `Koishi 项目缺少 package.json：${project.projectDir}` }
     }
+    await syncKoishiPort(this, project.projectDir)
 
     const current = await this.health()
     if (current.reachable) {
