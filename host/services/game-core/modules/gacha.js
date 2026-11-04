@@ -1,6 +1,7 @@
 /** Fishing gacha: deterministic state changes, no LLM involvement. */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const gachaHelp = Object.freeze([
   ['/钓鱼 抽卡', '单抽，优先消耗单抽券，否则 10 钓鱼币'],
@@ -12,6 +13,8 @@ const TEN_COST = 90
 const SINGLE_TICKET = 'singleTicket'
 const TEN_TICKET = 'tenTicket'
 const COIN = 'coin'
+
+const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 
 const ROD_SELL_PRICE = Object.freeze({
   bamboo_hand: 3, fiberglass_hand: 4, fiberglass_surf: 3,
@@ -222,7 +225,7 @@ function formatCost(payment, size) {
 export class GachaService {
   constructor({ projectDir, logger, assetsDir }) {
     this.logger = logger
-    this.assetsDir = assetsDir ?? join(projectDir, 'assets')
+    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
     this.rods = { 1: [], 2: [], 3: [], 4: [] }
     this.baits = { 1: [], 2: [], 3: [], 4: [] }
     this.loaded = false
