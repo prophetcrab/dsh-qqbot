@@ -293,6 +293,7 @@ window.__ModuleLoader__.load({
       __require("client/plugins/features/index.js")
       __require("client/plugins/logs/index.js")
       __require("client/plugins/games/index.js")
+      __require("client/plugins/tokens/index.js")
 
       const h = React.createElement
 
@@ -2649,6 +2650,414 @@ window.__ModuleLoader__.load({
 
       return {  }
     },
+    "client/plugins/tokens/TokensTab.js": (__require) => {
+      const React = __require("react")
+      const { requestJson } = __require("client/runtime/api.js")
+
+      const h = React.createElement
+
+      function num(value) {
+        const n = Number(value)
+        return Number.isFinite(n) ? n : 0
+      }
+      function fmt(value) {
+        return Math.round(num(value)).toLocaleString('zh-CN')
+      }
+      function rate(value) {
+        return `${(num(value) * 100).toFixed(1)}%`
+      }
+      function time(value) {
+        if (typeof value !== 'string' || value === '') return '—'
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) return value
+        return date.toLocaleString('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          hour12: false,
+        })
+      }
+      function metric(h, label, value, hint, tone = '') {
+        return h(
+          'div',
+          { className: `qqbot-token-metric${tone ? ` is-${tone}` : ''}` },
+          h('span', { className: 'qqbot-token-metric-label' }, label),
+          h('strong', { className: 'qqbot-token-metric-value' }, value),
+          hint ? h('span', { className: 'qqbot-token-metric-hint' }, hint) : null,
+        )
+      }
+
+      function useTokensTab(panel) {
+        const { t } = panel
+        const [view, setView] = React.useState({
+          phase: 'loading',
+          data: null,
+          error: null,
+          confirm: false,
+          clearing: false,
+          notice: null,
+        })
+        const load = React.useCallback(async (manual = false) => {
+          if (manual)
+            setView((prev) => ({
+              ...prev,
+              phase: prev.data === null ? 'loading' : 'refreshing',
+              error: null,
+            }))
+          try {
+            const payload = await requestJson('/qqbot/token-stats')
+            setView((prev) => ({
+              ...prev,
+              phase: 'ready',
+              data: payload?.data ?? null,
+              error: null,
+            }))
+          } catch (error) {
+            setView((prev) => ({
+              ...prev,
+              phase: 'error',
+              error: String(error?.message ?? error),
+            }))
+          }
+        }, [])
+        React.useEffect(() => {
+          void load()
+          const timer = setInterval(() => {
+            void load(false)
+          }, 10000)
+          return () => clearInterval(timer)
+        }, [load])
+        const clear = async () => {
+          if (view.clearing) return
+          if (view.confirm !== true) {
+            setView((prev) => ({ ...prev, confirm: true, notice: null }))
+            return
+          }
+          setView((prev) => ({ ...prev, clearing: true }))
+          try {
+            const payload = await requestJson('/qqbot/token-stats/clear', {
+              method: 'POST',
+              body: {},
+            })
+            setView((prev) => ({
+              ...prev,
+              data: payload?.data ?? prev.data,
+              confirm: false,
+              clearing: false,
+              notice: t('tokensCleared'),
+            }))
+          } catch (error) {
+            setView((prev) => ({
+              ...prev,
+              clearing: false,
+              confirm: false,
+              notice: `${t('tokensClearFailed')}: ${String(error?.message ?? error)}`,
+            }))
+          }
+        }
+        return () =>
+          renderTokens(panel, view, {
+            refresh: () => {
+              void load(true)
+            },
+            clear,
+            cancel: () => setView((prev) => ({ ...prev, confirm: false })),
+          })
+      }
+
+      function renderTokens(panel, view, actions) {
+        const { h, t } = panel
+        const data = view.data ?? {}
+        const totals = data.totals ?? {}
+        const today = data.today ?? {}
+        const groups = Array.isArray(data.groups) ? data.groups : []
+        const recent = Array.isArray(data.recent) ? data.recent : []
+        return h(
+          'div',
+          {
+            className: 'qqbot-ai-dashboard qqbot-token-page',
+            'data-testid': 'qqbot-token-page',
+          },
+          h(
+            'header',
+            { className: 'qqbot-token-hero' },
+            h(
+              'div',
+              null,
+              h('span', { className: 'qqbot-token-eyebrow' }, 'TOKEN / USAGE'),
+              h('h1', null, t('tokensTitle')),
+              h('p', null, t('tokensSubtitle')),
+            ),
+            h(
+              'div',
+              { className: 'qqbot-token-actions' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'qqbot-ai-btn',
+                  'data-testid': 'qqbot-token-refresh',
+                  onClick: actions.refresh,
+                },
+                t('tokensRefresh'),
+              ),
+              view.confirm === true
+                ? h(
+                    'div',
+                    { className: 'qqbot-token-confirm' },
+                    h('span', null, t('tokensClearConfirm')),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'qqbot-ai-btn qqbot-ai-btn-danger',
+                        'data-testid': 'qqbot-token-clear-confirm',
+                        onClick: actions.clear,
+                        disabled: view.clearing,
+                      },
+                      view.clearing ? t('tokensClearing') : t('tokensClearYes'),
+                    ),
+                    h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: 'qqbot-ai-btn',
+                        onClick: actions.cancel,
+                        disabled: view.clearing,
+                      },
+                      t('tokensCancel'),
+                    ),
+                  )
+                : h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'qqbot-ai-btn',
+                      'data-testid': 'qqbot-token-clear',
+                      onClick: actions.clear,
+                    },
+                    t('tokensClear'),
+                  ),
+            ),
+          ),
+          view.phase === 'error'
+            ? h(
+                'section',
+                {
+                  className: 'qqbot-ai-card qqbot-token-error',
+                  'data-testid': 'qqbot-token-error',
+                },
+                h('h2', null, t('tokensLoadFail')),
+                h('p', null, view.error),
+              )
+            : null,
+          view.notice
+            ? h('div', { className: 'qqbot-token-notice' }, view.notice)
+            : null,
+          h(
+            'div',
+            { className: 'qqbot-token-metrics' },
+            metric(
+              h,
+              t('tokensTotal'),
+              fmt(totals.total),
+              t('tokensAllCalls'),
+              'accent',
+            ),
+            metric(h, t('tokensToday'), fmt(today.total), t('tokensTodayCalls')),
+            metric(
+              h,
+              t('tokensCalls'),
+              fmt(totals.calls),
+              `${t('tokensMissingCalls')} ${fmt(totals.missing)}`,
+            ),
+            metric(
+              h,
+              t('tokensCacheRate'),
+              rate(totals.cacheHitRate),
+              `${t('tokensCacheRead')} ${fmt(totals.cacheRead)}`,
+              'violet',
+            ),
+          ),
+          h(
+            'div',
+            { className: 'qqbot-token-metrics qqbot-token-metrics-secondary' },
+            metric(h, t('tokensInput'), fmt(totals.input), t('tokensInputHint')),
+            metric(h, t('tokensOutput'), fmt(totals.output), t('tokensOutputHint')),
+            metric(
+              h,
+              t('tokensCacheWrite'),
+              fmt(totals.cacheWrite),
+              t('tokensCacheWriteHint'),
+            ),
+            metric(
+              h,
+              t('tokensAvgCall'),
+              fmt(totals.avgTotal),
+              t('tokensAvgCallHint'),
+            ),
+          ),
+          h(
+            'div',
+            { className: 'qqbot-token-grid' },
+            h(
+              'section',
+              { className: 'qqbot-ai-card' },
+              h(
+                'div',
+                { className: 'qqbot-ai-card-head' },
+                h(
+                  'div',
+                  null,
+                  h('span', { className: 'qqbot-ai-card-kicker' }, 'GROUPS'),
+                  h('h2', null, t('tokensByGroup')),
+                ),
+                h(
+                  'span',
+                  { className: 'qqbot-ai-card-sub' },
+                  `${groups.length} ${t('tokensGroupsUnit')}`,
+                ),
+              ),
+              groups.length === 0
+                ? h('p', { className: 'qqbot-ai-empty-line' }, t('tokensNoGroups'))
+                : h(
+                    'div',
+                    {
+                      className: 'qqbot-token-groups',
+                      'data-testid': 'qqbot-token-groups',
+                    },
+                    ...groups.map((group) =>
+                      h(
+                        'div',
+                        { key: group.groupId, className: 'qqbot-token-group' },
+                        h(
+                          'div',
+                          { className: 'qqbot-token-group-head' },
+                          h('strong', null, group.groupId),
+                          h(
+                            'span',
+                            null,
+                            `${fmt(group.calls)} ${t('tokensCallsUnit')}`,
+                          ),
+                        ),
+                        h(
+                          'div',
+                          { className: 'qqbot-token-group-numbers' },
+                          h('span', null, `${t('tokensTotal')} ${fmt(group.total)}`),
+                          h(
+                            'span',
+                            null,
+                            `${t('tokensCacheRate')} ${rate(group.cacheHitRate)}`,
+                          ),
+                        ),
+                        h(
+                          'div',
+                          { className: 'qqbot-token-bar' },
+                          h('i', {
+                            style: {
+                              width: `${Math.min(100, Math.max(0, (num(group.total) / Math.max(1, num(totals.total))) * 100))}%`,
+                            },
+                          }),
+                        ),
+                      ),
+                    ),
+                  ),
+              h(
+                'section',
+                { className: 'qqbot-ai-card' },
+                h(
+                  'div',
+                  { className: 'qqbot-ai-card-head' },
+                  h(
+                    'div',
+                    null,
+                    h('span', { className: 'qqbot-ai-card-kicker' }, 'RECENT'),
+                    h('h2', null, t('tokensRecent')),
+                  ),
+                  h(
+                    'span',
+                    { className: 'qqbot-ai-card-sub' },
+                    `${t('tokensRecentHint')} ${data.recentLimit ?? 100}`,
+                  ),
+                ),
+                recent.length === 0
+                  ? h('p', { className: 'qqbot-ai-empty-line' }, t('tokensNoRecent'))
+                  : h(
+                      'div',
+                      {
+                        className: 'qqbot-token-recent',
+                        'data-testid': 'qqbot-token-recent',
+                      },
+                      ...recent.map((entry, index) =>
+                        h(
+                          'div',
+                          {
+                            key: `${entry.at}:${entry.loopId}:${index}`,
+                            className: 'qqbot-token-recent-row',
+                          },
+                          h(
+                            'div',
+                            { className: 'qqbot-token-recent-main' },
+                            h(
+                              'strong',
+                              null,
+                              `${t('tokensRecentGroup')} ${entry.groupId || '—'}`,
+                            ),
+                            h('span', null, time(entry.at)),
+                          ),
+                          h(
+                            'div',
+                            { className: 'qqbot-token-recent-numbers' },
+                            h('span', null, `${fmt(entry.total)} tok`),
+                            h(
+                              'span',
+                              null,
+                              `${rate(entry.input > 0 ? entry.cacheRead / entry.input : 0)} cache`,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+              ),
+              h(
+                'footer',
+                { className: 'qqbot-ai-footer' },
+                h(
+                  'span',
+                  null,
+                  data.updatedAt
+                    ? `${t('tokensUpdated')} ${time(data.updatedAt)}`
+                    : t('tokensWaiting'),
+                ),
+                h(
+                  'span',
+                  null,
+                  t('tokensModel'),
+                  ' ',
+                  data.recent?.[0]?.model ?? '—',
+                ),
+              ),
+            ),
+          ),
+        )
+      }
+
+      return { useTokensTab }
+    },
+    "client/plugins/tokens/index.js": (__require) => {
+      const { registerTab } = __require("client/runtime/tab-registry.js")
+      const { useTokensTab } = __require("client/plugins/tokens/TokensTab.js")
+
+      registerTab({
+        id: 'tokens',
+        labelKey: 'tabTokens',
+        order: 8,
+        use(panel) {
+          return useTokensTab(panel)
+        },
+        handlers: {},
+      })
+
+      return {  }
+    },
     "client/runtime/api.js": (__require) => {
       /**
        * Pure HTTP helpers, formatters and payload-shaping functions shared by the
@@ -3315,6 +3724,48 @@ window.__ModuleLoader__.load({
         gamesRodsOwned: 'rods',
         gamesBaitsOwned: 'baits',
 
+        tabTokens: 'Tokens',
+        tokensTitle: 'Token Usage',
+        tokensSubtitle: 'See overall, today, per-group and recent response usage.',
+        tokensRefresh: 'Refresh',
+        tokensTotal: 'Total',
+        tokensToday: 'Today',
+        tokensCalls: 'Calls',
+        tokensAllCalls: 'All model calls',
+        tokensTodayCalls: 'Today calls',
+        tokensMissingCalls: 'Missing usage',
+        tokensCacheRate: 'Cache hit',
+        tokensCacheRead: 'Cache read',
+        tokensInput: 'Input Tokens',
+        tokensOutput: 'Output Tokens',
+        tokensCacheWrite: 'Cache write',
+        tokensAvgCall: 'Avg per call',
+        tokensInputHint: 'prompt / input',
+        tokensOutputHint: 'completion / output',
+        tokensCacheWriteHint: 'cache write',
+        tokensAvgCallHint: 'average total tokens',
+        tokensByGroup: 'By group',
+        tokensGroupsUnit: 'groups',
+        tokensGroupCount: 'Groups',
+        tokensNoGroups: 'No group usage yet.',
+        tokensCallsUnit: 'calls',
+        tokensRecent: 'Recent responses',
+        tokensRecentHint: 'Latest',
+        tokensNoRecent: 'No response token records yet.',
+        tokensRecentGroup: 'Group',
+        tokensRecentHintUnit: 'entries',
+        tokensRecentLimit: 'entries',
+        tokensClear: 'Clear stats',
+        tokensClearConfirm: 'Clear all token stats?',
+        tokensClearYes: 'Confirm',
+        tokensCancel: 'Cancel',
+        tokensClearing: 'Clearing…',
+        tokensCleared: 'Token stats cleared.',
+        tokensClearFailed: 'Clear failed',
+        tokensLoadFail: 'Failed to load token stats',
+        tokensUpdated: 'Updated',
+        tokensWaiting: 'Waiting for usage',
+        tokensModel: 'Model',
       }
 
       return { en }
@@ -3709,6 +4160,48 @@ window.__ModuleLoader__.load({
         gamesRodsOwned: '把鱼竿',
         gamesBaitsOwned: '种鱼饵',
 
+        tabTokens: 'Token',
+        tokensTitle: 'Token 开销',
+        tokensSubtitle: '查看总体、今日、按群和最近回复的模型用量。',
+        tokensRefresh: '刷新',
+        tokensTotal: '总消耗',
+        tokensToday: '今日消耗',
+        tokensCalls: '调用次数',
+        tokensAllCalls: '全部模型调用',
+        tokensTodayCalls: '今日调用',
+        tokensMissingCalls: '缺少 usage',
+        tokensCacheRate: '缓存命中率',
+        tokensCacheRead: '缓存读取',
+        tokensInput: '输入 Tokens',
+        tokensOutput: '输出 Tokens',
+        tokensCacheWrite: '缓存写入',
+        tokensAvgCall: '平均每次',
+        tokensInputHint: 'prompt / input',
+        tokensOutputHint: 'completion / output',
+        tokensCacheWriteHint: 'cache write',
+        tokensAvgCallHint: '平均总 tokens',
+        tokensByGroup: '按群消耗',
+        tokensGroupsUnit: '个群',
+        tokensGroupCount: '群数量',
+        tokensNoGroups: '还没有群消耗数据。',
+        tokensCallsUnit: '次',
+        tokensRecent: '最近回复',
+        tokensRecentHint: '最近',
+        tokensNoRecent: '还没有发言 token 记录。',
+        tokensRecentGroup: '群',
+        tokensRecentHintUnit: '条',
+        tokensRecentLimit: '条',
+        tokensClear: '清空统计',
+        tokensClearConfirm: '确认清空全部 Token 统计？',
+        tokensClearYes: '确认',
+        tokensCancel: '取消',
+        tokensClearing: '清空中…',
+        tokensCleared: 'Token 统计已清空。',
+        tokensClearFailed: '清空失败',
+        tokensLoadFail: 'Token 统计读取失败',
+        tokensUpdated: '更新于',
+        tokensWaiting: '等待统计',
+        tokensModel: '模型',
       }
 
       return { zh }
@@ -3994,11 +4487,58 @@ window.__ModuleLoader__.load({
 
       return { deriveStatus, useStore }
     },
+    "client/runtime/styles-tokens.js": (__require) => {
+      /** Token usage tab styles; kept separate to respect the per-file size budget. */
+      const TOKEN_CSS = `
+      /* ── Token usage ─────────────────────────────────────────────────── */
+      .qqbot-token-page { gap: 15px; }
+      .qqbot-token-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 8px 2px 4px; flex-wrap: wrap; }
+      .qqbot-token-eyebrow { color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+      .qqbot-token-hero h1 { margin: 6px 0 4px; font-size: 28px; line-height: 1.12; letter-spacing: -.035em; color: var(--dsw-alias-label-primary); }
+      .qqbot-token-hero p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+      .qqbot-token-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .qqbot-token-confirm { display: flex; align-items: center; gap: 6px; color: var(--dsw-alias-label-secondary); font-size: 10.5px; }
+      .qqbot-ai-btn-danger { color: var(--dsw-alias-state-error-primary); border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, var(--dsw-alias-border-l1)); }
+      .qqbot-token-notice { padding: 8px 11px; border-radius: 9px; color: var(--dsw-alias-state-success-primary); background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent); font-size: 10.5px; }
+      .qqbot-token-error h2 { margin: 0 0 5px; font-size: 13px; color: var(--dsw-alias-state-error-primary); }
+      .qqbot-token-error p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; }
+      .qqbot-token-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .qqbot-token-metrics-secondary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .qqbot-token-metric { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 3px; padding: 13px 14px; border: .5px solid var(--dsw-alias-border-l1); border-radius: 14px; background: var(--dsw-alias-bg-layer-1); }
+      .qqbot-token-metric::after { content: ''; position: absolute; right: -20px; bottom: -26px; width: 72px; height: 72px; border-radius: 50%; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 7%, transparent); }
+      .qqbot-token-metric.is-accent { background: linear-gradient(135deg, color-mix(in srgb, var(--dsw-alias-brand-primary) 9%, var(--dsw-alias-bg-layer-1)), var(--dsw-alias-bg-layer-1)); }
+      .qqbot-token-metric.is-violet::after { background: color-mix(in srgb, #7c3aed 10%, transparent); }
+      .qqbot-token-metric-label { color: var(--dsw-alias-label-tertiary); font-size: 10px; }
+      .qqbot-token-metric-value { color: var(--dsw-alias-label-primary); font-size: 22px; line-height: 1.1; letter-spacing: -.035em; }
+      .qqbot-token-metric-hint { color: var(--dsw-alias-label-tertiary); font-size: 9px; }
+      .qqbot-token-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+      .qqbot-token-groups, .qqbot-token-recent { display: flex; flex-direction: column; gap: 7px; }
+      .qqbot-token-group { padding: 9px 10px; border-radius: 9px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 4px; }
+      .qqbot-token-group-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+      .qqbot-token-group-head strong { color: var(--dsw-alias-label-primary); font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-token-group-head span { color: var(--dsw-alias-label-tertiary); font-size: 9px; }
+      .qqbot-token-group-numbers { display: flex; justify-content: space-between; gap: 8px; color: var(--dsw-alias-label-secondary); font-size: 9.5px; }
+      .qqbot-token-bar { height: 3px; border-radius: 999px; background: var(--dsw-alias-bg-base); overflow: hidden; }
+      .qqbot-token-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--dsw-alias-brand-primary), color-mix(in srgb, #7c3aed 60%, var(--dsw-alias-brand-primary))); }
+      .qqbot-token-recent { max-height: 390px; overflow-y: auto; padding-right: 3px; }
+      .qqbot-token-recent-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 9px; border-radius: 8px; background: var(--dsw-alias-bg-base); border: .5px solid var(--dsw-alias-border-l1); }
+      .qqbot-token-recent-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .qqbot-token-recent-main strong { color: var(--dsw-alias-label-primary); font-size: 9.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .qqbot-token-recent-main span { color: var(--dsw-alias-label-tertiary); font-size: 8.5px; }
+      .qqbot-token-recent-numbers { display: flex; gap: 7px; align-items: center; white-space: nowrap; color: var(--dsw-alias-label-tertiary); font-size: 8.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      @media (max-width: 900px) { .qqbot-token-grid { grid-template-columns: 1fr; } .qqbot-token-metrics, .qqbot-token-metrics-secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 560px) { .qqbot-token-metrics, .qqbot-token-metrics-secondary { grid-template-columns: 1fr; } .qqbot-token-hero { align-items: flex-start; flex-direction: column; } }
+      `
+
+      return { TOKEN_CSS }
+    },
     "client/runtime/styles.js": (__require) => {
       /**
        * Panel stylesheet: design tokens, layout, hover/focus states.
        * Kept as one module so the bundle still ships exactly one <style> element.
        */
+      const { TOKEN_CSS } = __require("client/runtime/styles-tokens.js")
+
       const CSS = `
       .qqbot-page { box-sizing: border-box; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
         max-width: 1120px; margin: 0 auto; padding: 24px 28px 64px; display: flex; flex-direction: column; gap: 16px;
@@ -4471,6 +5011,7 @@ window.__ModuleLoader__.load({
         .qqbot-admin-up { grid-template-columns: minmax(0, 1fr); }
       }
 
+      ${TOKEN_CSS}
       `
 
       return { CSS }

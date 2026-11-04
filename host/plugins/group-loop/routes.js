@@ -25,5 +25,17 @@ export function routes(api, loop) {
         sendJson(res, 200, { ok: true, data: await loop.dashboard(groupId) })
       }),
     },
+    {
+      path: '/qqbot/token-stats',
+      handler: (req, res) => only(req, res, ['GET'], async () => {
+        sendJson(res, 200, { ok: true, data: await loop.tokenStatsSnapshot() })
+      }),
+    },
+    {
+      path: '/qqbot/token-stats/clear',
+      handler: (req, res) => only(req, res, ['POST'], async () => {
+        sendJson(res, 200, { ok: true, data: await loop.clearTokenStats() })
+      }),
+    },
   ]
 }

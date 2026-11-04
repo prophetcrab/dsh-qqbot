@@ -237,3 +237,22 @@ test('analyze preserves focus and quote references', async () => {
   assert.deepEqual(result.speak.quote, { messageIds: ['m0'], userIds: [] })
   await rm(root, { recursive: true, force: true })
 })
+
+test('compose records token usage and cache information', async () => {
+  const stream = async function* () {
+    yield { type: 'text-delta', text: '{"parts":["在"]}' }
+    yield { type: 'usage', usage: { inputTokens: 120, outputTokens: 30, cacheReadTokens: 80, cacheWriteTokens: 10 } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream)
+  const result = await service.compose({ groupId: 'g1', loopId: 'loop-token', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  const stats = await service.tokenStatsSnapshot()
+  assert.equal(stats.totals.calls, 1)
+  assert.equal(stats.totals.input, 120)
+  assert.equal(stats.totals.output, 30)
+  assert.equal(stats.totals.cacheRead, 80)
+  assert.equal(stats.recent.length, 1)
+  assert.equal(stats.recent[0].loopId, 'loop-token')
+  await rm(root, { recursive: true, force: true })
+})

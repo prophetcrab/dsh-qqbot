@@ -22,6 +22,7 @@ import './plugins/plugins/index.js'
 import './plugins/features/index.js'
 import './plugins/logs/index.js'
 import './plugins/games/index.js'
+import './plugins/tokens/index.js'
 
 const h = React.createElement
 

@@ -2,12 +2,26 @@
 import { buildCharacterPrompt } from '../persona/index.js'
 import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
+import { normalizeUsage, TokenStatsStore } from './token-stats.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, memoryPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
 import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
 const MATERIAL_LIMITS = { analyze: 16000, compose: 8000, stateUpdate: 10000 }
+
+function mergeUsage(left, right) {
+  if (left === null || left === undefined) return right
+  if (right === null || right === undefined) return left
+  return {
+    input: left.input + right.input,
+    output: left.output + right.output,
+    cacheRead: left.cacheRead + right.cacheRead,
+    cacheWrite: left.cacheWrite + right.cacheWrite,
+    reasoning: left.reasoning + right.reasoning,
+    total: left.total + right.total,
+  }
+}
 
 function needsWebSearch(material) {
   const source = String(material ?? '')
@@ -113,6 +127,7 @@ export class GroupLoopService {
     this.settings = settings
     this.logger = logger
     this.store = new GroupLoopStore({ projectDir: settings.projectDir, personaPath, profilesPath, logger })
+    this.tokenStats = new TokenStatsStore({ projectDir: settings.projectDir, logger })
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
     this.inFlight = new Map()
     this.webSearch = webSearch
@@ -125,13 +140,25 @@ export class GroupLoopService {
     return { provider: 'deepseek-account', model: 'deepseek-flash' }
   }
 
-  async stream(system, user, { maxTokens = 500, temperature = 0.4, images = [] } = {}) {
+  async recordUsage({ groupId, loopId, kind, usage = null, recent = false }) {
+    const selection = this.selection()
+    return this.tokenStats.record({
+      groupId, loopId, kind, usage, recent,
+      provider: selection.provider, model: selection.model,
+    })
+  }
+
+  async tokenStatsSnapshot() { return this.tokenStats.snapshot() }
+  async clearTokenStats() { return this.tokenStats.clear() }
+
+  async stream(system, user, { maxTokens = 500, temperature = 0.4, images = [], onUsage = null } = {}) {
     const llm = this.ctx?.get?.('llm')
     if (llm === null || typeof llm?.stream !== 'function') throw new Error('LLM 服务不可用')
     const selection = this.selection()
     const imageParts = await this.imageParts(images)
     const content = [{ type: 'text', text: user }, ...imageParts]
     let output = ''
+    let usage = null
     for await (const chunk of llm.stream({
       provider: selection.provider,
       model: selection.model,
@@ -141,8 +168,10 @@ export class GroupLoopService {
       temperature,
     })) {
       if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') output += chunk.text
+      if (chunk?.type === 'usage' && chunk.usage !== null && typeof chunk.usage === 'object') usage = normalizeUsage(chunk.usage)
       if (chunk?.type === 'finish' && chunk.reason?.kind === 'error') throw new Error('模型返回错误')
     }
+    if (typeof onUsage === 'function') await onUsage(usage)
     return output.trim()
   }
 
@@ -216,7 +245,7 @@ export class GroupLoopService {
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
     try {
-      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId), await this.memoryContext(groupId)), { maxTokens: 420, temperature: 0.25, images })
+      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId), await this.memoryContext(groupId)), { maxTokens: 420, temperature: 0.25, images, onUsage: (usage) => this.recordUsage({ groupId, loopId: text(input.loopId), kind: 'analyze', usage }) })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -237,7 +266,7 @@ export class GroupLoopService {
     const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId), await this.memoryContext(input.groupId))
     if (this.settings.webSearchEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
     try {
-      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images })
+      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
       const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
       return { ok: true, text: parts.join(''), parts, speak, toolCalls: [], bubbleBudget: budget }
     } catch (error) {
@@ -250,12 +279,13 @@ export class GroupLoopService {
     const toolCalls = []
     let observations = ''
     let nudged = false
+    let composeUsage = null
     const searchIntent = needsWebSearch(input.material)
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
     for (let step = 0; step < 4; step += 1) {
       let raw = ''
       try {
-        raw = await this.stream(system, `${baseUser}${observations ? `\n\n${observations}` : ''}`, { maxTokens: 600, temperature: 0.7, images })
+        raw = await this.stream(system, `${baseUser}${observations ? `\n\n${observations}` : ''}`, { maxTokens: 600, temperature: 0.7, images, onUsage: (usage) => { composeUsage = mergeUsage(composeUsage, usage) } })
       } catch (error) {
         this.logger.warn?.('group-loop react compose failed: %s', String(error?.message ?? error))
         return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
@@ -297,10 +327,12 @@ export class GroupLoopService {
           observations += '\n\n【工具观察】这条消息在问最近行情/点位/新闻/具体数字，请先调用 web_search，再给 final parts。'
           continue
         }
+        await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
         return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
       }
       observations += '\n\n【工具观察】请输出 final parts，或调用 web_search。'
     }
+    await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage })
     return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }
   }
 
@@ -333,7 +365,7 @@ export class GroupLoopService {
     let degraded = false
     let error = ''
     try {
-      parsed = parseJson(await this.stream(stateUpdateSystem(), `${current}\n\n素材：\n${material}`, { maxTokens: 600, temperature: 0.2 })) ?? {}
+      parsed = parseJson(await this.stream(stateUpdateSystem(), `${current}\n\n素材：\n${material}`, { maxTokens: 600, temperature: 0.2, onUsage: (usage) => this.recordUsage({ groupId, loopId, kind: 'state-update', usage }) })) ?? {}
     } catch (cause) {
       degraded = true
       error = String(cause?.message ?? cause)

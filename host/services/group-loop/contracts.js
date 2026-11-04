@@ -38,7 +38,7 @@ export function validateAnalyze(body) {
   if (material === '') return bad('material is required')
   const reason = str(body.trigger?.reason, 30).trim()
   if (reason !== '' && !['mention', 'reply', 'count', 'time', 'keyword'].includes(reason)) return bad('invalid trigger.reason')
-  return { ok: true, value: { apiVersion: API_VERSION, groupId, material, trigger: { reason, messageId: str(body.trigger?.messageId, 80) }, participants: participants(body.participants), images: images(body.images), quotedImages: images(body.quotedImages), backgroundImages: images(body.backgroundImages) } }
+  return { ok: true, value: { apiVersion: API_VERSION, loopId: str(body.loopId, 100).trim(), groupId, material, trigger: { reason, messageId: str(body.trigger?.messageId, 80) }, participants: participants(body.participants), images: images(body.images), quotedImages: images(body.quotedImages), backgroundImages: images(body.backgroundImages) } }
 }
 
 export function validateCompose(body) {
@@ -50,7 +50,7 @@ export function validateCompose(body) {
   if (groupId === '') return bad('groupId is required')
   if (material === '') return bad('material is required')
   if (speak === null || speak.enabled !== true) return bad('speak.enabled must be true for compose')
-  return { ok: true, value: { apiVersion: API_VERSION, groupId, material, speak, participants: participants(body.participants), images: images(body.images), quotedImages: images(body.quotedImages), backgroundImages: images(body.backgroundImages) } }
+  return { ok: true, value: { apiVersion: API_VERSION, loopId: str(body.loopId, 100).trim(), groupId, material, speak, participants: participants(body.participants), images: images(body.images), quotedImages: images(body.quotedImages), backgroundImages: images(body.backgroundImages) } }
 }
 
 export function validateStateUpdate(body) {

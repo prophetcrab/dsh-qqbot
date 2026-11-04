@@ -230,8 +230,8 @@ const clickTestId = (tree, id) => {
 test('built-in tabs register themselves with the runtime registry', () => {
   assert.ok(globalThis.window.__DSH_QQBOT__, 'window.__DSH_QQBOT__ bridge missing')
   const tabs = globalThis.window.__DSH_QQBOT__.listTabs()
-  assert.deepEqual(tabs.map((tab) => tab.id), ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs', 'games'])
-  assert.deepEqual(tabs.map((tab) => tab.order), [0, 1, 2, 3, 4, 5, 6, 7])
+  assert.deepEqual(tabs.map((tab) => tab.id), ['overview', 'ai', 'messages', 'access', 'plugins', 'features', 'logs', 'games', 'tokens'])
+  assert.deepEqual(tabs.map((tab) => tab.order), [0, 1, 2, 3, 4, 5, 6, 7, 8])
 })
 
 test('an external client plugin can register through window.__DSH_QQBOT__', () => {
@@ -287,6 +287,7 @@ test('the panel falls back to every registered tab in order without a Host list'
     'qqbot-tab-features',
     'qqbot-tab-logs',
     'qqbot-tab-games',
+    'qqbot-tab-tokens',
   ])
 })
 
@@ -304,5 +305,5 @@ test('a status snapshot without clientTabs keeps every tab visible', async () =>
   hostTabs = null
   clickTestId(await settle(), 'qqbot-status-refresh')
   const tree = await settle()
-  assert.equal(tabIds(tree).length, 9)
+  assert.equal(tabIds(tree).length, 10)
 })

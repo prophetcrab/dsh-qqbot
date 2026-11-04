@@ -2,6 +2,8 @@
  * Panel stylesheet: design tokens, layout, hover/focus states.
  * Kept as one module so the bundle still ships exactly one <style> element.
  */
+import { TOKEN_CSS } from './styles-tokens.js'
+
 export const CSS = `
 .qqbot-page { box-sizing: border-box; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
   max-width: 1120px; margin: 0 auto; padding: 24px 28px 64px; display: flex; flex-direction: column; gap: 16px;
@@ -474,4 +476,6 @@ export const CSS = `
   .qqbot-admin-up { grid-template-columns: minmax(0, 1fr); }
 }
 
+
+${TOKEN_CSS}
 `

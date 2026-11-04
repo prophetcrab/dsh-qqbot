@@ -412,6 +412,22 @@ globalThis.fetch = async (url, init) => {
     }
     return json({ ok: true, data: STATUS })
   }
+  if (path === '/qqbot/token-stats') {
+    return json({ ok: true, data: {
+      totals: { calls: 3, input: 1000, output: 200, cacheRead: 400, cacheWrite: 50, reasoning: 0, total: 1200, missing: 0, cacheHitRate: 0.4, avgTotal: 400, avgOutput: 66.7 },
+      today: { calls: 2, input: 800, output: 160, cacheRead: 320, cacheWrite: 40, reasoning: 0, total: 960, missing: 0, cacheHitRate: 0.4, avgTotal: 480, avgOutput: 80 },
+      groups: [{ groupId: '1026855069', calls: 2, total: 900, input: 700, output: 200, cacheRead: 300, cacheWrite: 30, reasoning: 0, missing: 0, cacheHitRate: 0.43, avgTotal: 450, avgOutput: 100 }],
+      recent: [{ at: '2026-11-04T08:00:00.000Z', loopId: 'loop-token', groupId: '1026855069', kind: 'compose', input: 400, output: 100, cacheRead: 200, cacheWrite: 10, reasoning: 0, total: 500, provider: 'p', model: 'm' }],
+      startedAt: '2026-11-04T07:00:00.000Z', updatedAt: '2026-11-04T08:00:00.000Z', recentLimit: 100,
+    } })
+  }
+  if (path === '/qqbot/token-stats/clear') {
+    return json({ ok: true, data: {
+      totals: { calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, total: 0, missing: 0, cacheHitRate: 0, avgTotal: 0, avgOutput: 0 },
+      today: { calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, reasoning: 0, total: 0, missing: 0, cacheHitRate: 0, avgTotal: 0, avgOutput: 0 },
+      groups: [], recent: [], startedAt: '2026-11-04T08:10:00.000Z', updatedAt: '2026-11-04T08:10:00.000Z', recentLimit: 100,
+    } })
+  }
   if (path.startsWith('/qqbot/group/dashboard')) {
     const url = new URL(path, 'http://localhost')
     const groupId = url.searchParams.get('groupId')
@@ -761,6 +777,7 @@ for (const id of [
   'qqbot-tab-features',
   'qqbot-tab-logs',
   'qqbot-tab-games',
+  'qqbot-tab-tokens',
 ]) {
   expectTestId(tree, id)
 }
@@ -1309,6 +1326,22 @@ if (upBody.rodId !== 'ziling' || upBody.baitId !== 'rapala_floater') throw new E
 console.log('games tab: ok')
 
 
+
+// ---- tokens tab -------------------------------------------------------------
+clickTestId(tree, 'qqbot-tab-tokens')
+tree = await settle()
+expectTestId(tree, 'qqbot-token-page')
+expectTestId(tree, 'qqbot-token-groups')
+expectTestId(tree, 'qqbot-token-recent')
+if (!text(expectTestId(tree, 'qqbot-token-page')).includes('1,200')) throw new Error('token total missing')
+clickTestId(tree, 'qqbot-token-clear')
+tree = await settle()
+expectTestId(tree, 'qqbot-token-clear-confirm')
+clickTestId(tree, 'qqbot-token-clear-confirm')
+tree = await settle()
+const clearPosts = fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/token-stats/clear')
+if (clearPosts.length !== 1) throw new Error(`expected one token clear POST, got ${clearPosts.length}`)
+console.log('tokens tab: ok')
 
 console.log('\nclient smoke: ok')
 process.exit(0)
