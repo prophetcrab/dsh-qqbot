@@ -306,8 +306,12 @@ test('stop uses the managed PID and never a broad process match', async (t) => {
   const dir = await makeProject(t)
   const child = fakeChild(4321)
   const kill = fakeKiller()
-  const manager = makeManager(dir, {
-    fetch: sequencedFetch([unreachable, onlineHealth()]),
+  let manager
+  manager = makeManager(dir, {
+    // During start we are reachable; after clearManaged() the stop probe must
+    // see a dead endpoint (otherwise the detached-worker fallback kicks in).
+    fetch: async () => (manager.managedPid === null ? unreachable() : onlineHealth()),
+    portPid: async () => null,
     exec: execNoListener(),
     spawn: () => child,
     processKill: kill,
@@ -331,6 +335,7 @@ test('stop escalates to SIGKILL when SIGTERM is ignored', async (t) => {
   const child = fakeChild(4324)
   const calls = []
   let alive = true
+  let spawned = false
   const kill = (pid, signal) => {
     calls.push({ pid, signal })
     if (signal === 0) return alive
@@ -341,9 +346,16 @@ test('stop escalates to SIGKILL when SIGTERM is ignored', async (t) => {
     return true
   }
   const manager = makeManager(dir, {
-    fetch: sequencedFetch([unreachable, onlineHealth()]),
+    fetch: async () => {
+      if (!spawned || !alive) throw new Error('connect ECONNREFUSED 127.0.0.1')
+      return onlineHealth()
+    },
+    portPid: async () => null,
     exec: execNoListener(),
-    spawn: () => child,
+    spawn: () => {
+      spawned = true
+      return child
+    },
     processKill: kill,
   })
 
@@ -589,13 +601,42 @@ test('stop adopts a matching project worker before stopping it', async (t) => {
   const kill = fakeKiller()
   const manager = makeManager(dir, {
     fetch: unreachable,
-    portPid: async () => 777,
-    findProcess: (pattern) => ({ running: pattern.replace(/\\/gu, '/').includes('node_modules/koishi'), pid: 777 }),
+    portPid: async () => (kill.state.alive ? 777 : null),
+    findProcess: () => (kill.state.alive ? { running: true, pid: 777 } : { running: false, pid: null }),
     processKill: kill,
   })
   const result = await manager.stop()
   assert.equal(result.ok, true)
   assert.match(result.message, /777/u)
   assert.deepEqual(kill.state.calls[0], { pid: 777, signal: 'SIGTERM' })
+  assert.equal(manager.isManaged(), false)
+})
+
+test('stop re-adopts a detached worker when the launcher PID already exited', async (t) => {
+  const dir = await makeProject(t)
+  const alive = new Set([111, 222])
+  const kills = []
+  const manager = makeManager(dir, {
+    fetch: async () => {
+      if (!alive.has(222)) throw new Error('connect ECONNREFUSED 127.0.0.1')
+      return offlineHealth('10001')
+    },
+    portPid: async () => (alive.has(222) ? 222 : null),
+    findProcess: () => (alive.has(222) ? { running: true, pid: 222 } : { running: false, pid: null }),
+    processKill: (pid, signal) => {
+      kills.push({ pid, signal })
+      if (signal === 0) return alive.has(pid)
+      alive.delete(pid)
+      return true
+    },
+  })
+  manager.managedPid = 111
+  const result = await manager.stop()
+  assert.equal(result.ok, true)
+  assert.match(result.message, /222/u)
+  const signals = kills.filter((entry) => entry.signal !== 0)
+  assert.deepEqual(signals[0], { pid: 111, signal: 'SIGTERM' })
+  assert.deepEqual(signals.at(-1), { pid: 222, signal: 'SIGTERM' })
+  assert.equal(alive.size, 0)
   assert.equal(manager.isManaged(), false)
 })

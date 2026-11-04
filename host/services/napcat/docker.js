@@ -228,16 +228,21 @@ export class DockerNapcatManager {
       if (!this.state.containerRunning) {
         return { ok: true, alreadyStopped: true, message: 'NapCat 容器已停止' }
       }
-      const stopped = await this.#compose(['stop'], { timeoutMs })
+      const stopped = await this.#compose(['stop'], { timeoutMs: Math.max(60_000, timeoutMs) })
+      await this.refresh()
+      if (!this.state.containerRunning) {
+        // Docker may exit non-zero while a container is still stopping; the
+        // final state is authoritative.
+        if (stopped.code !== 0) {
+          this.logger.warn('docker compose stop 返回 %s，但容器已停止：%s', stopped.code, commandDetail(stopped))
+        }
+        this.logger.info('NapCat 容器已停止（%s）', this.container)
+        return { ok: true, message: 'NapCat 容器已停止' }
+      }
       if (stopped.code !== 0) {
         return failure('docker-stop-failed', `停止 NapCat 容器失败：${commandDetail(stopped)}`)
       }
-      await this.refresh()
-      if (this.state.containerRunning) {
-        return failure('docker-stop-failed', 'NapCat 容器未能在超时内停止')
-      }
-      this.logger.info('NapCat 容器已停止（%s）', this.container)
-      return { ok: true, message: 'NapCat 容器已停止' }
+      return failure('docker-stop-failed', 'NapCat 容器未能在超时内停止')
     } catch (error) {
       return failure('docker-unavailable', `停止 NapCat 容器失败：${String(error?.message ?? error)}`)
     }

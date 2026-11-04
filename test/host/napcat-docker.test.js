@@ -143,6 +143,26 @@ test('docker backend: stop uses docker compose stop and reports the final state'
   assert.ok(calls.some((call) => call.includes('compose') && call.includes('stop')))
 })
 
+test('docker backend: stop succeeds when compose exits non-zero but the container stopped', async (t) => {
+  let running = true
+  const handler = (file, args) => {
+    if (args[0] === 'inspect') {
+      return running
+        ? { code: 0, stdout: CONTAINER_RUNNING, stderr: '' }
+        : { code: 0, stdout: 'false|container-id', stderr: '' }
+    }
+    if (args.includes('stop')) {
+      running = false
+      return { code: 1, stdout: '', stderr: 'Container dsh-qqbot-napcat Stopping' }
+    }
+    return { code: 1, stdout: '', stderr: 'unexpected' }
+  }
+  const { manager } = await makeManager(t, handler)
+  const result = await manager.stop()
+  assert.equal(result.ok, true)
+  assert.match(result.message, /已停止/u)
+})
+
 test('docker backend: install pulls the image when it is missing', async (t) => {
   const pulled = []
   const handler = (file, args) => {

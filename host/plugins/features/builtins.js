@@ -4,6 +4,8 @@
  * the kernel's feature dependency bag (settings + registered services).
  */
 
+import { startAll, stopAll } from '../../services/lifecycle/index.js'
+
 /* --------------------------------------------------------------- overview -- */
 
 function overviewStatus(deps) {
@@ -48,39 +50,6 @@ async function lifecycleStatus(deps) {
   return {
     napcat: { running: napcat?.running === true, loggedIn: napcat?.loggedIn === true, pid: napcat?.pid ?? null },
     koishi: { running: koishi?.running === true, online: koishi?.online === true, pid: koishi?.pid ?? null },
-  }
-}
-
-async function step(name, fn) {
-  try {
-    const result = await fn()
-    return { name, ok: result?.ok !== false, message: result?.message, data: result?.data }
-  } catch (error) {
-    return { name, ok: false, message: String(error?.message ?? error) }
-  }
-}
-
-async function startAll(deps) {
-  const steps = []
-  // Start Koishi first: NapCat.start() waits for a QR scan / login and would
-  // otherwise show the QR code while Koishi still has no process.
-  steps.push(await step('koishi', () => deps.koishi.start()))
-  steps.push(await step('napcat', () => deps.napcat.start()))
-  return {
-    ok: steps.every((entry) => entry.ok),
-    message: steps.map((entry) => `${entry.name}: ${entry.ok ? 'ok' : 'failed'}${entry.message ? ` (${entry.message})` : ''}`).join('; '),
-    steps,
-  }
-}
-
-async function stopAll(deps) {
-  const steps = []
-  steps.push(await step('koishi', () => deps.koishi.stop()))
-  steps.push(await step('napcat', () => deps.napcat.stop()))
-  return {
-    ok: steps.every((entry) => entry.ok),
-    message: steps.map((entry) => `${entry.name}: ${entry.ok ? 'stopped' : 'failed'}${entry.message ? ` (${entry.message})` : ''}`).join('; '),
-    steps,
   }
 }
 
