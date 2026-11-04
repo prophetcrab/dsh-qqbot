@@ -15,6 +15,7 @@ async function setup(stream, options = {}) {
     personaPath: join(root, 'persona.json'),
     profilesPath: join(root, 'profiles.json'),
     ...(options.webSearch ? { webSearch: options.webSearch } : {}),
+    ...(options.weather ? { weather: options.weather } : {}),
     random: options.random ?? (() => 0.9),
   })
   return { root, service }
@@ -254,5 +255,31 @@ test('compose records token usage and cache information', async () => {
   assert.equal(stats.totals.cacheRead, 80)
   assert.equal(stats.recent.length, 1)
   assert.equal(stats.recent[0].loopId, 'loop-token')
+  await rm(root, { recursive: true, force: true })
+})
+
+test('weather tool is called before a weather answer and its observation is reused', async () => {
+  const responses = [
+    '{"type":"tool_call","tool":"weather","args":{"location":"上海","date":"today"}}',
+    '{"type":"final","parts":["上海今天多云，18度左右。"]}',
+  ]
+  let index = 0
+  const stream = async function* () {
+    yield { type: 'text-delta', text: responses[index++] }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  let called = null
+  const { root, service } = await setup(stream, {
+    settings: { weatherEnabled: true, weatherTimeoutMs: 1000 },
+    weather: async (location, options) => {
+      called = { location, options }
+      return { ok: true, location: { name: '上海' }, current: { description: '多云', temperature: 18 }, day: { description: '多云', min: 15, max: 22 }, forecast: [], asOf: '2026-11-04T10:00:00.000Z' }
+    },
+  })
+  const result = await service.compose({ groupId: 'g1', loopId: 'weather-loop', material: '上海今天天气怎么样', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
+  assert.equal(result.ok, true)
+  assert.equal(called.location, '上海')
+  assert.equal(result.toolCalls[0].tool, 'weather')
+  assert.match(result.text, /多云/u)
   await rm(root, { recursive: true, force: true })
 })

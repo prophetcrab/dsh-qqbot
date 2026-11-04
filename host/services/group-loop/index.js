@@ -4,6 +4,7 @@ import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { normalizeUsage, TokenStatsStore } from './token-stats.js'
 import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, memoryPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
+import { parseWeatherCall, getWeather, renderWeatherResult } from './weather.js'
 import { parseWebSearchCall, renderSearchResult, searchWeb } from './web-search.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
@@ -21,6 +22,10 @@ function mergeUsage(left, right) {
     reasoning: left.reasoning + right.reasoning,
     total: left.total + right.total,
   }
+}
+
+function needsWeather(material) {
+  return /(天气|气温|温度|下雨|降雨|雨势|冷不冷|热不热|穿什么|weather)/iu.test(String(material ?? '').slice(-1600))
 }
 
 function needsWebSearch(material) {
@@ -122,7 +127,7 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, random = Math.random }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, random = Math.random }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
@@ -131,6 +136,7 @@ export class GroupLoopService {
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
     this.inFlight = new Map()
     this.webSearch = webSearch
+    this.weather = weather
     this.random = random
   }
 
@@ -264,7 +270,7 @@ export class GroupLoopService {
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
     const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId), await this.memoryContext(input.groupId))
-    if (this.settings.webSearchEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
+    if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
     try {
       const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
       const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
@@ -281,6 +287,7 @@ export class GroupLoopService {
     let nudged = false
     let composeUsage = null
     const searchIntent = needsWebSearch(input.material)
+    const weatherIntent = needsWeather(input.material)
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
     for (let step = 0; step < 4; step += 1) {
       let raw = ''
@@ -291,6 +298,27 @@ export class GroupLoopService {
         return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
       }
       const parsed = parseJson(raw)
+      const requestedWeather = parseWeatherCall(raw, parsed)
+      if (requestedWeather !== null && toolCalls.length < 2) {
+        const location = text(requestedWeather.location).slice(0, 80)
+        if (location === '') {
+          observations += '\n\n【工具观察】天气地点为空，请补充 location，或直接给 final parts。'
+          continue
+        }
+        if (toolCalls.some((call) => call.tool === 'weather' && call.query === location)) {
+          observations += '\n\n【工具观察】这个地点的天气已经查过，请直接基于 observation 给 final parts。'
+          continue
+        }
+        const started = Date.now()
+        const result = await this.weather(location, {
+          timeoutMs: this.settings.weatherTimeoutMs,
+          date: requestedWeather.date,
+        })
+        toolCalls.push({ tool: 'weather', query: location, date: requestedWeather.date || '', source: result.source ?? 'open-meteo', ok: result.ok === true, results: result.ok === true ? 1 : 0, latencyMs: Date.now() - started })
+        observations += `\n\n${renderWeatherResult(result).slice(0, 8000)}`
+        if (toolCalls.length >= 2) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        continue
+      }
       const requestedCall = parseWebSearchCall(raw, parsed)
       if (requestedCall !== null && toolCalls.length < 2) {
         const query = text(requestedCall.query).slice(0, 160)
@@ -322,15 +350,19 @@ export class GroupLoopService {
       }
       const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
       if (parts.length > 0) {
-        if (searchIntent && toolCalls.length === 0 && !nudged) {
-          nudged = true
-          observations += '\n\n【工具观察】这条消息在问最近行情/点位/新闻/具体数字，请先调用 web_search，再给 final parts。'
-          continue
+        if ((searchIntent && toolCalls.length === 0) || (weatherIntent && !toolCalls.some((call) => call.tool === 'weather'))) {
+          if (!nudged) {
+            nudged = true
+            observations += weatherIntent && !toolCalls.some((call) => call.tool === 'weather')
+              ? '\n\n【工具观察】这条消息在问天气，请先调用 weather，再给 final parts。'
+              : '\n\n【工具观察】这条消息在问最近行情/点位/新闻/具体数字，请先调用 web_search，再给 final parts。'
+            continue
+          }
         }
         await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
         return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
       }
-      observations += '\n\n【工具观察】请输出 final parts，或调用 web_search。'
+      observations += '\n\n【工具观察】请输出 final parts，或调用 web_search / weather。'
     }
     await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage })
     return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }

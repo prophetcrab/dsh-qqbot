@@ -45,6 +45,8 @@ export const DEFAULT_SETTINGS = {
   webFetchPages: 2,
   webFetchTimeoutMs: 5000,
   webFetchMaxChars: 3000,
+  weatherEnabled: true,
+  weatherTimeoutMs: 8000,
   autoRestartKoishi: true,
   autoInstallDeps: true,
   /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
@@ -103,6 +105,8 @@ export function resolveSettings(raw = {}) {
     webFetchPages: toBoundedInt(source.webFetchPages, DEFAULT_SETTINGS.webFetchPages, 0, 3),
     webFetchTimeoutMs: toBoundedInt(source.webFetchTimeoutMs, DEFAULT_SETTINGS.webFetchTimeoutMs, 1000, 15000),
     webFetchMaxChars: toBoundedInt(source.webFetchMaxChars, DEFAULT_SETTINGS.webFetchMaxChars, 500, 8000),
+    weatherEnabled: source.weatherEnabled === undefined ? DEFAULT_SETTINGS.weatherEnabled : source.weatherEnabled === true,
+    weatherTimeoutMs: toBoundedInt(source.weatherTimeoutMs, DEFAULT_SETTINGS.weatherTimeoutMs, 1000, 20000),
     autoRestartKoishi: source.autoRestartKoishi === undefined ? DEFAULT_SETTINGS.autoRestartKoishi : source.autoRestartKoishi === true,
     autoInstallDeps: source.autoInstallDeps === undefined ? DEFAULT_SETTINGS.autoInstallDeps : source.autoInstallDeps === true,
     autoSyncSelfId: source.autoSyncSelfId === undefined ? DEFAULT_SETTINGS.autoSyncSelfId : source.autoSyncSelfId === true,
