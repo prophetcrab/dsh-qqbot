@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "baits": [
+    {
+      "id": "dough",
+      "name": "面团饵",
+      "tier": 1,
+      "asset": "bait_t1_01_dough.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "red_worm",
+      "name": "红虫饵",
+      "tier": 1,
+      "asset": "bait_t1_02_red_worm.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "rice_wine",
+      "name": "酒米饵",
+      "tier": 1,
+      "asset": "bait_t1_03_rice_wine.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "shrimp_powder",
+      "name": "虾粉饵",
+      "tier": 2,
+      "asset": "bait_t2_01_shrimp_powder.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "corn",
+      "name": "玉米饵",
+      "tier": 2,
+      "asset": "bait_t2_02_corn.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "worm_paste",
+      "name": "虫浆饵",
+      "tier": 2,
+      "asset": "bait_t2_03_worm_paste.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "secret_fish",
+      "name": "秘制腥饵",
+      "tier": 3,
+      "asset": "bait_t3_01_secret_fish.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "golden_insect",
+      "name": "金虫饵",
+      "tier": 3,
+      "asset": "bait_t3_02_golden_insect.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "aged_grain",
+      "name": "古窖饵",
+      "tier": 3,
+      "asset": "bait_t3_03_aged_grain.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "rapala_floater",
+      "name": "拉帕拉原版浮水米诺",
+      "tier": 4,
+      "asset": "bait_t4_01_rapala_floater.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "mepps_aglia",
+      "name": "梅普斯旋转亮片",
+      "tier": 4,
+      "asset": "bait_t4_02_mepps_aglia.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "dardevle",
+      "name": "达德维尔红白汤匙",
+      "tier": 4,
+      "asset": "bait_t4_03_dardevle.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "adams_dry_fly",
+      "name": "亚当斯干蝇",
+      "tier": 4,
+      "asset": "bait_t4_04_adams_dry_fly.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "royal_coachman",
+      "name": "皇家教练羽饵",
+      "tier": 4,
+      "asset": "bait_t4_05_royal_coachman.png",
+      "rarity": "legendary"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "rods": [
+    {
+      "id": "bamboo_hand",
+      "name": "竹制手竿",
+      "tier": 1,
+      "asset": "rod_t1_01_bamboo_hand.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "fiberglass_hand",
+      "name": "玻璃钢手竿",
+      "tier": 1,
+      "asset": "rod_t1_02_fiberglass_hand.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "fiberglass_surf",
+      "name": "玻璃钢海竿",
+      "tier": 1,
+      "asset": "rod_t1_03_fiberglass_surf.png",
+      "rarity": "lv1"
+    },
+    {
+      "id": "carbon_hand",
+      "name": "碳素手竿",
+      "tier": 2,
+      "asset": "rod_t2_01_carbon_hand.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "carbon_iso",
+      "name": "碳素矶竿",
+      "tier": 2,
+      "asset": "rod_t2_02_carbon_iso.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "carbon_lure",
+      "name": "碳素路亚竿",
+      "tier": 2,
+      "asset": "rod_t2_03_carbon_lure.png",
+      "rarity": "lv2"
+    },
+    {
+      "id": "high_carbon_hand",
+      "name": "高碳素手竿",
+      "tier": 3,
+      "asset": "rod_t3_01_high_carbon_hand.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "high_carbon_lure",
+      "name": "高碳素路亚竿",
+      "tier": 3,
+      "asset": "rod_t3_02_high_carbon_lure.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "high_carbon_surf",
+      "name": "高碳素远投竿",
+      "tier": 3,
+      "asset": "rod_t3_03_high_carbon_surf.png",
+      "rarity": "lv3"
+    },
+    {
+      "id": "taigong",
+      "name": "太公竿",
+      "tier": 4,
+      "asset": "rod_t4_01_taigong.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "ziling",
+      "name": "子陵竿",
+      "tier": 4,
+      "asset": "rod_t4_02_ziling.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "walton",
+      "name": "沃尔顿竿",
+      "tier": 4,
+      "asset": "rod_t4_03_walton.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "grey",
+      "name": "格雷竿",
+      "tier": 4,
+      "asset": "rod_t4_04_grey.png",
+      "rarity": "legendary"
+    },
+    {
+      "id": "hemingway",
+      "name": "海明威竿",
+      "tier": 4,
+      "asset": "rod_t4_05_hemingway.png",
+      "rarity": "legendary"
+    }
+  ]
+}
