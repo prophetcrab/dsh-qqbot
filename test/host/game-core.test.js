@@ -249,3 +249,23 @@ test('same player gacha requests are serialized', async () => {
   assert.equal(player.fishing.gacha.history.length, 10)
   await rm(root, { recursive: true, force: true })
 })
+
+test('fishing item library returns an image and owned items', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishingCoins: 42,
+    fishing: {
+      tickets: { singleTickets: 3, tenTickets: 2 },
+      rods: { owned: ['bamboo_hand', 'walton'], equipped: 'walton' },
+      baits: { counts: { dough: 4, mepps_aglia: 1 }, selected: 'mepps_aglia' },
+    },
+  })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 道具库' })
+  assert.equal(result.ok, true)
+  assert.match(result.replies[0], /钓鱼道具库/u)
+  assert.match(result.replies[0], /鱼竿 2 把/u)
+  assert.equal(result.image?.mime, 'image/png')
+  assert.equal(result.image?.width, 1080)
+  await rm(root, { recursive: true, force: true })
+})
