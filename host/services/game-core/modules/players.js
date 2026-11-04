@@ -24,14 +24,12 @@ function checkinGain(random) {
 
 function bagReply(player, fallbackName) {
   const coins = Math.max(0, Math.floor(Number(player?.coins) || 0))
-  const fishingCoins = Math.max(0, Math.floor(Number(player?.fishingCoins) || 0))
   const items = Object.keys(player?.items ?? {})
   return {
     ok: true,
     replies: [[
       `${cleanNickname(player?.nickname, fallbackName)}的账号背包`,
       `金币：${coins}`,
-      `钓鱼币：${fishingCoins}`,
       items.length === 0 ? '物品：暂无' : `物品：${items.join('、')}`,
     ].join('\n')],
   }

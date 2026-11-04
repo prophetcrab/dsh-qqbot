@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "single_draw_ticket",
+      "name": "钓鱼单抽券",
+      "category": "ticket",
+      "tier": null,
+      "asset": "item_t0_01_single_draw_ticket.png",
+      "valueTier": "high"
+    },
+    {
+      "id": "ten_draw_ticket",
+      "name": "钓鱼十连券",
+      "category": "ticket",
+      "tier": null,
+      "asset": "item_t0_02_ten_draw_ticket.png",
+      "valueTier": "high"
+    },
+    {
+      "id": "water_grass",
+      "name": "水草团",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 1,
+      "asset": "item_t0_03_water_grass.png"
+    },
+    {
+      "id": "soaked_manuscript",
+      "name": "泡烂的漫画原稿",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 2,
+      "asset": "item_t0_04_soaked_manuscript.png"
+    },
+    {
+      "id": "rusty_hook",
+      "name": "生锈鱼钩",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 3,
+      "asset": "item_t0_05_rusty_hook.png"
+    },
+    {
+      "id": "convenience_receipt",
+      "name": "便利店小票",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 5,
+      "asset": "item_t0_06_convenience_receipt.png"
+    },
+    {
+      "id": "broken_slipper",
+      "name": "破拖鞋",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 8,
+      "asset": "item_t0_07_broken_slipper.png"
+    },
+    {
+      "id": "empty_can",
+      "name": "空易拉罐",
+      "category": "special_low",
+      "tier": null,
+      "fixedPrice": 10,
+      "asset": "item_t0_08_empty_can.png"
+    },
+    {
+      "id": "old_coin",
+      "name": "旧城铜钱",
+      "category": "special_high",
+      "tier": null,
+      "fixedPrice": 100,
+      "asset": "item_t0_09_old_coin.png"
+    },
+    {
+      "id": "lost_silver_ring",
+      "name": "遗失的银戒指",
+      "category": "special_high",
+      "tier": null,
+      "fixedPrice": 250,
+      "asset": "item_t0_10_lost_silver_ring.png"
+    },
+    {
+      "id": "river_pocket_watch",
+      "name": "河底旧怀表",
+      "category": "special_high",
+      "tier": null,
+      "fixedPrice": 500,
+      "asset": "item_t0_11_river_pocket_watch.png"
+    },
+    {
+      "id": "antique_shop_sign",
+      "name": "古董招牌残片",
+      "category": "special_high",
+      "tier": null,
+      "fixedPrice": 1000,
+      "asset": "item_t0_12_antique_shop_sign.png"
+    },
+    {
+      "id": "sealed_safe",
+      "name": "密封保险箱",
+      "category": "special_high",
+      "tier": null,
+      "fixedPrice": 2000,
+      "asset": "item_t0_13_sealed_safe.png"
+    }
+  ]
+}

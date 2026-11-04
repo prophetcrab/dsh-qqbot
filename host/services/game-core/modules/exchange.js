@@ -38,7 +38,8 @@ export async function executeExchange({ rawCommand, groupId, userId, nickname, s
   const isFishingToGold = parts[0] === FISHING_TO_GOLD
   if (!isGoldToFishing && !isFishingToGold) return null
   if (isGoldToFishing && parts.length !== 2) return usage()
-  if (isFishingToGold && (parts.length !== 3 || parts[1] !== '兑换金币')) return usage()
+  if (isFishingToGold && parts[1] !== '兑换金币') return null
+  if (isFishingToGold && parts.length !== 3) return usage()
   const amount = parseAmount(parts[parts.length - 1])
   if (amount === null) return { ok: true, replies: ['数量必须是正整数。'] }
 
