@@ -42,6 +42,7 @@ import {
   defaultProcessKill,
   errorText,
   findPidByPort,
+  killSupervisor,
   normalizeExec,
   normalizeHostPlatform,
   normalizeLogger,
@@ -49,7 +50,11 @@ import {
   pickBot,
   probePort,
   requestJson,
+  serviceStillListening,
+  syncManagedPid,
+  terminatePid,
   toPort,
+  trackChild,
   truncateOutput,
 } from './helpers.js'
 export class KoishiManager {
@@ -148,6 +153,7 @@ export class KoishiManager {
   }
 
   async adoptExternal() { return adoptKoishiProcess({ manager: this, findPortPid: (port) => this.findPortPid(port), findProcess: (pattern) => this.findProcess(pattern), projectDir: this.projectDir, logger: this.logger }) }
+
   async findPortPid(port = this.port) {
     const target = toPort(port, this.port)
     return this.hasInjectedPortPid ? findPidByPort(target, { portPid: this.portPid }) : this.hasInjectedExec ? findPidByPort(target, { exec: this.exec }) : findPidByPort(target)
@@ -246,6 +252,7 @@ export class KoishiManager {
     if (this.managedPid !== null) {
       const reachable = await this.waitForReachable(timeoutMs)
       if (reachable) {
+        await syncManagedPid(this)
         const health = await this.health()
         return {
           ok: true,
@@ -290,11 +297,12 @@ export class KoishiManager {
       return { ok: false, error: '启动 Koishi 失败：无法创建子进程' }
     }
 
-    this.trackChild(child)
+    trackChild(this, child)
     this.logger.info('已启动 Koishi（pid=%s，cwd=%s）', this.managedPid, project.projectDir)
 
     const reachable = await this.waitForReachable(timeoutMs)
     if (reachable) {
+      await syncManagedPid(this)
       const health = await this.health()
       return {
         ok: true,
@@ -339,20 +347,29 @@ export class KoishiManager {
       return { ok: true, message: 'Koishi 未在运行' }
     }
 
-    const signal = (sig) => this.signalProcess(pid, sig, wasManaged)
-    if (!signal('SIGTERM')) {
-      this.clearManaged()
-      return { ok: true, message: 'Koishi 进程已不存在' }
-    }
-    let stopped = await this.waitForExit(pid, gracefulTimeoutMs)
-    if (!stopped) {
-      this.logger.warn('Koishi 未在 %dms 内响应 SIGTERM，发送 SIGKILL', gracefulTimeoutMs)
-      signal('SIGKILL')
-      stopped = await this.waitForExit(pid, killTimeoutMs)
-    }
+    await killSupervisor(this)
+    const stopped = await terminatePid(this, pid, wasManaged, gracefulTimeoutMs, killTimeoutMs)
     this.clearManaged()
-    if (!stopped) {
+    if (!stopped.ok) {
       return { ok: false, error: `无法停止 Koishi 进程 ${pid}（已发送 SIGKILL）` }
+    }
+
+    // On Windows/Electron a launcher process can exit while a detached Koishi
+    // worker keeps the HTTP port open. Re-check the port and stop that worker
+    // too, but only after proving it belongs to this project.
+    if (await serviceStillListening(this)) {
+      await killSupervisor(this)
+      if (!await this.adoptExternal()) {
+        return { ok: false, error: `Koishi 进程 ${pid} 已停止，但端口 ${this.port} 仍在响应且无法确认归属；为避免误杀，请手动检查` }
+      }
+      const workerPid = this.managedPid
+      const workerStopped = await terminatePid(this, workerPid, true, gracefulTimeoutMs, killTimeoutMs)
+      this.clearManaged()
+      await killSupervisor(this)
+      if (workerStopped.ok && !await serviceStillListening(this)) {
+        return { ok: true, message: `Koishi 已停止（pid=${workerPid}）` }
+      }
+      return { ok: false, error: `Koishi 的残留进程 ${workerPid ?? '未知'} 未能停止` }
     }
     this.logger.info('Koishi 已停止（pid=%s）', pid)
     return { ok: true, message: `Koishi 已停止（pid=${pid}）` }
@@ -404,33 +421,6 @@ export class KoishiManager {
 
   get managedSince() {
     return this.startedAt
-  }
-
-  trackChild(child) {
-    this.managedChild = child
-    const pid = Number(child.pid)
-    this.managedPid = Number.isInteger(pid) && pid > 0 ? pid : null
-    this.startedAt = new Date().toISOString()
-    if (typeof child.unref === 'function') child.unref()
-
-    for (const stream of [child.stdout, child.stderr]) {
-      if (stream === null || stream === undefined || typeof stream.on !== 'function') continue
-      stream.on('data', (chunk) => this.logRing.append(chunk))
-    }
-    if (typeof child.on !== 'function') return
-    child.on('error', (error) => {
-      this.logRing.append(`[error] ${errorText(error)}`)
-    })
-    child.on('exit', (code, signal) => {
-      this.childExit = {
-        code: Number.isInteger(code) ? code : null,
-        signal: signal === null || signal === undefined ? null : String(signal),
-        at: new Date().toISOString(),
-      }
-      this.managedChild = null
-      this.managedPid = null
-      this.logRing.append(`[koishi] 进程已退出（code=${code ?? 'null'}${signal ? `, signal=${signal}` : ''}）`)
-    })
   }
 
   async waitForReachable(timeoutMs) {

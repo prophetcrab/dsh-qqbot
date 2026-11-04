@@ -3,6 +3,7 @@
  */
 
 import { textOutput } from '../../kernel/http.js'
+import { startAll, stopAll } from '../../services/lifecycle/index.js'
 import { renderStatus } from './render.js'
 
 /** @param {object} api plugin API */
@@ -46,8 +47,9 @@ function controlTool(api) {
       if (!['start', 'stop', 'restart'].includes(action)) throw new Error('action must be start|stop|restart')
       const result = await api.serialize(async () => {
         if (target === 'all') {
-          const feature = action === 'stop' ? 'all-stop' : 'all-start'
-          const outcome = await api.kernel.featureRegistry.run('lifecycle', feature, {})
+          const outcome = action === 'stop'
+            ? await stopAll({ napcat, koishi })
+            : await startAll({ napcat, koishi })
           return { ok: outcome?.ok !== false, message: outcome?.message ?? '', steps: outcome?.steps ?? [] }
         }
         if (action === 'restart') {

@@ -4,15 +4,22 @@
  */
 
 import { only, sendJson } from '../../kernel/http.js'
+import { startAll, stopAll } from '../../services/lifecycle/index.js'
 
-/** Run a lifecycle feature action, reporting a missing feature as a failure. */
-async function runFeature(api, action) {
-  try {
-    const result = await api.kernel.featureRegistry.run('lifecycle', action, {})
-    return { ok: result?.ok !== false, steps: result?.steps ?? [], message: result?.message }
-  } catch (error) {
-    return { ok: false, steps: [], message: String(error?.message ?? error) }
+/**
+ * Run one all-start/all-stop action with the registered services.
+ *
+ * @param {object} api plugin API
+ * @param {'all-start'|'all-stop'} action
+ */
+async function runLifecycle(api, action) {
+  const services = { napcat: api.get('napcat'), koishi: api.get('koishi') }
+  if (services.napcat === undefined || services.koishi === undefined) {
+    return { ok: false, steps: [], message: 'NapCat/Koishi 服务尚未加载' }
   }
+  if (action === 'all-start') return startAll(services)
+  if (action === 'all-stop') return stopAll(services)
+  return { ok: false, steps: [], message: `未知的启停动作：${action}` }
 }
 
 /** @param {object} api plugin API */
@@ -27,13 +34,13 @@ export function routes(api) {
     {
       path: '/qqbot/all/start',
       handler: (req, res) => only(req, res, ['POST'], async () => {
-        sendJson(res, 200, await api.serialize(() => runFeature(api, 'all-start')))
+        sendJson(res, 200, await api.serialize(() => runLifecycle(api, 'all-start')))
       }),
     },
     {
       path: '/qqbot/all/stop',
       handler: (req, res) => only(req, res, ['POST'], async () => {
-        sendJson(res, 200, await api.serialize(() => runFeature(api, 'all-stop')))
+        sendJson(res, 200, await api.serialize(() => runLifecycle(api, 'all-stop')))
       }),
     },
   ]

@@ -6,6 +6,7 @@
  */
 
 import { connect } from 'node:net'
+import { join } from 'node:path'
 import {
   hostPlatform as platformHostPlatform,
   httpJson,
@@ -230,5 +231,86 @@ export async function requestJson(manager, url, options = {}) {
     }
   } catch (error) {
     return { ok: false, status: 0, data: null, error: errorText(error) }
+  }
+}
+
+/** Track a spawned child's streams/PID; a launcher PID may be transient. */
+export function trackChild(manager, child) {
+  manager.managedChild = child
+  const pid = Number(child.pid)
+  manager.managedPid = Number.isInteger(pid) && pid > 0 ? pid : null
+  manager.startedAt = new Date().toISOString()
+  if (typeof child.unref === 'function') child.unref()
+
+  for (const stream of [child.stdout, child.stderr]) {
+    if (stream === null || stream === undefined || typeof stream.on !== 'function') continue
+    stream.on('data', (chunk) => manager.logRing.append(chunk))
+  }
+  if (typeof child.on !== 'function') return
+  child.on('error', (error) => {
+    manager.logRing.append(`[error] ${errorText(error)}`)
+  })
+  child.on('exit', (code, signal) => {
+    manager.childExit = {
+      code: Number.isInteger(code) ? code : null,
+      signal: signal === null || signal === undefined ? null : String(signal),
+      at: new Date().toISOString(),
+    }
+    manager.managedChild = null
+    // Keep an already re-synced detached worker PID; only clear the child PID.
+    if (manager.managedPid === pid) manager.managedPid = null
+    manager.logRing.append(`[koishi] 进程已退出（code=${code ?? 'null'}${signal ? `, signal=${signal}` : ''}）`)
+  })
+}
+
+/** Point managedPid at the process that actually owns the HTTP port. */
+export async function syncManagedPid(manager) {
+  const owner = await manager.findPortPid(manager.port).catch(() => null)
+  if (owner === null) return null
+  manager.managedPid = owner
+  if (manager.startedAt === null) manager.startedAt = new Date().toISOString()
+  return owner
+}
+
+/** Send SIGTERM, escalate to SIGKILL and wait until `pid` is gone. */
+export async function terminatePid(manager, pid, wasManaged, gracefulTimeoutMs, killTimeoutMs) {
+  if (pid === null || pid === undefined) return { ok: true }
+  const signal = (sig) => manager.signalProcess(pid, sig, wasManaged)
+  if (!signal('SIGTERM')) return { ok: true }
+  let stopped = await manager.waitForExit(pid, gracefulTimeoutMs)
+  if (!stopped) {
+    manager.logger.warn('Koishi 未在 %dms 内响应 SIGTERM，发送 SIGKILL', gracefulTimeoutMs)
+    signal('SIGKILL')
+    stopped = await manager.waitForExit(pid, killTimeoutMs)
+  }
+  return { ok: stopped }
+}
+
+/** Whether the configured port still has a live owner or healthy endpoint. */
+export async function serviceStillListening(manager) {
+  const pid = await manager.findPortPid(manager.port).catch(() => null)
+  if (pid !== null) return true
+  const health = await manager.health().catch(() => null)
+  return health?.reachable === true
+}
+
+/**
+ * Windows/Electron runs `koishi start` as a supervisor that respawns its worker
+ * when only the worker is killed. Tree-kill that supervisor before touching
+ * the port owner; macOS/Linux stop the whole process group via signals.
+ */
+export async function killSupervisor(manager) {
+  if (manager.hostPlatform() !== 'windows') return false
+  const pattern = join(manager.projectDir, 'node_modules', 'koishi', 'bin.js')
+  const found = manager.findProcess(pattern)
+  if (found === null || typeof found !== 'object' || found.running !== true) return false
+  const pid = Number(found.pid)
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false
+  try {
+    await manager.killPid(pid, { force: true })
+    manager.logger.info('已结束 Koishi 监管进程（pid=%s）', pid)
+    return true
+  } catch {
+    return false
   }
 }
