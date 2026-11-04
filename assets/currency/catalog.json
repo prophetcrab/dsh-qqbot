@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "currency": [
+    {
+      "id": "fishing_coin",
+      "name": "钓鱼币",
+      "tier": null,
+      "asset": "coin_t0_01_fishing_coin.png"
+    }
+  ]
+}
