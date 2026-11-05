@@ -7,7 +7,7 @@
 | 分支 | 角色 | 代码 | 平台 | 当前版本 / release |
 |---|---|---|---|---|
 | `main` | 导航与管理 | 无插件代码 | 无 | 只记录发布元数据 |
-| `dshbot-mac` | macOS 功能开发主线 | 完整 macOS 代码 | `host/platform/mac`，本地 QQ/NapCat | `v0.7.0` |
+| `dshbot-mac` | macOS 功能开发主线 | 完整 macOS 代码 | `host/platform/mac`，本地 QQ/NapCat | `v0.7.1` |
 | `dshbot-win64` | Windows 代码分支 | 完整 Windows 代码 | `host/platform/win`，Docker/Linux QQ | `v0.7.0-win64` |
 
 分支头会随提交变化，以 `git log` / GitHub 实际状态为准。

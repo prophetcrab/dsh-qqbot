@@ -12,7 +12,7 @@
 ```text
 /Users/crab/project/dsh-qqbot       DSH 插件（主开发）
   branch: dshbot-mac
-  version: 0.7.0
+  version: 0.7.1
 
 /Users/crab/project/qq-bot          Koishi 实际运行时（模板来源）
   branch: main
