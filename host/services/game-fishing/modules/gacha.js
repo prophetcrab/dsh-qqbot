@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURRENT_UP } from '../gacha-config.js'
+import { recordBaitAcquired, recordRodAcquired } from './fishing-state.js'
 import { renderGachaCard } from '../render/gacha-card.js'
 
 export const gachaHelp = Object.freeze([
@@ -193,10 +194,16 @@ function storeResult(player, fishing, result, drawNo, source, now) {
     } else {
       fishing.rods.owned.push(id)
       if (fishing.rods.equipped === null) fishing.rods.equipped = id
+      recordRodAcquired(fishing, id, now.toISOString())
     }
   } else {
-    fishing.baits.counts[result.item.id] = (Number.isSafeInteger(fishing.baits.counts[result.item.id]) ? fishing.baits.counts[result.item.id] : 0) + 1
-    if (fishing.baits.selected === null) fishing.baits.selected = result.item.id
+    const baitId = result.item.id
+    const previous = Number.isSafeInteger(fishing.baits.counts[baitId]) ? fishing.baits.counts[baitId] : 0
+    fishing.baits.counts[baitId] = previous + 1
+    if (fishing.baits.selected === null) fishing.baits.selected = baitId
+    // Legacy saves already had stock but no acquisition time: keep it unknown
+    // instead of claiming the bait was first acquired just now.
+    recordBaitAcquired(fishing, baitId, previous > 0 ? null : now.toISOString())
   }
 
   fishing.gacha.totalDraws += 1

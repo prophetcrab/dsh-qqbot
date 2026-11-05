@@ -3,8 +3,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS } from '../data.js'
+import { ensureFishing, recordBaitAcquired, recordFishCaught } from './fishing-state.js'
 import { ROD_INFO } from './fishing-rod.js'
 import { renderCatchCard } from '../render/catch-card.js'
+
+// Older modules import `ensureFishing` from this module; keep that path working.
+export { ensureFishing }
 
 export const castHelp = Object.freeze([
   ['/钓鱼 抛竿 [鱼饵名]', '抛竿，未指定鱼饵时随机使用仓库鱼饵'],
@@ -32,33 +36,6 @@ function shanghaiDate(now) {
   const get = (type) => parts.find((part) => part.type === type)?.value ?? ''
   return `${get('year')}-${get('month')}-${get('day')}`
 }
-export function ensureFishing(player) {
-  if (player.fishing === null || typeof player.fishing !== 'object') player.fishing = {}
-  const f = player.fishing
-  f.cast = f.cast !== null && typeof f.cast === 'object' ? f.cast : null
-  f.rodDaily = f.rodDaily !== null && typeof f.rodDaily === 'object' ? f.rodDaily : {}
-  f.castCount = Number.isSafeInteger(f.castCount) ? f.castCount : 0
-  f.fishWarehouse = Array.isArray(f.fishWarehouse) ? f.fishWarehouse : []
-  f.fishSeq = Number.isSafeInteger(f.fishSeq) ? f.fishSeq : 0
-  for (const fish of f.fishWarehouse) {
-    if (!Number.isSafeInteger(fish.id)) {
-      f.fishSeq += 1
-      fish.id = f.fishSeq
-    } else {
-      f.fishSeq = Math.max(f.fishSeq, fish.id)
-    }
-  }
-  f.specials = f.specials !== null && typeof f.specials === 'object' ? f.specials : {}
-  if (f.tickets === null || typeof f.tickets !== 'object') f.tickets = {}
-  f.tickets.singleTickets = Number.isSafeInteger(f.tickets.singleTickets) ? f.tickets.singleTickets : 0
-  f.tickets.tenTickets = Number.isSafeInteger(f.tickets.tenTickets) ? f.tickets.tenTickets : 0
-  if (f.rods === null || typeof f.rods !== 'object') f.rods = {}
-  f.rods.owned = Array.isArray(f.rods.owned) ? f.rods.owned : []
-  if (typeof f.rods.equipped !== 'string') f.rods.equipped = null
-  if (f.baits === null || typeof f.baits !== 'object') f.baits = {}
-  if (f.baits.counts === null || typeof f.baits.counts !== 'object') f.baits.counts = {}
-  return f
-}
 function chooseTier(weights, random) {
   const total = weights.reduce((sum, value) => sum + value, 0)
   let cursor = rand(random) * total
@@ -76,8 +53,9 @@ function addSpecial(fishing, item) {
     fishing.specials[item.id] = (Number.isSafeInteger(fishing.specials[item.id]) ? fishing.specials[item.id] : 0) + 1
   }
 }
-function addBait(fishing, id) {
+function addBait(fishing, id, at) {
   fishing.baits.counts[id] = (Number.isSafeInteger(fishing.baits.counts[id]) ? fishing.baits.counts[id] : 0) + 1
+  recordBaitAcquired(fishing, id, at)
 }
 
 export class FishingCastService {
@@ -205,15 +183,16 @@ export class FishingCastService {
             caughtAt: now.toISOString(),
           })
         }
+        recordFishCaught(fishing, result.item.id, result.weightKg, now.toISOString())
         if (result.extraSpecial !== undefined) addSpecial(fishing, result.extraSpecial)
-        if (result.extraBait !== undefined) addBait(fishing, result.extraBait)
+        if (result.extraBait !== undefined) addBait(fishing, result.extraBait, now.toISOString())
       } else {
         addSpecial(fishing, result.item)
         if (result.extraSpecial !== undefined) addSpecial(fishing, result.extraSpecial)
       }
       if (result.extraBait === undefined && cast.effects.includes('adams_dry_fly')) {
         const others = this.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
-        if (others.length > 0) addBait(fishing, pick(others, random).id)
+        if (others.length > 0) addBait(fishing, pick(others, random).id, now.toISOString())
       }
       const text = this.describe({ result, cast })
       let image

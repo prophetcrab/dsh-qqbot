@@ -1,6 +1,7 @@
 /** Fishing game package: services, admin snapshot and command metadata. */
 import { FishingBagService, bagHelp } from './modules/fishing-bag.js'
 import { FishingCastService, castHelp } from './modules/fishing-cast.js'
+import { FishingCodexService, codexHelp } from './modules/codex.js'
 import { FishingPoolService, poolHelp } from './modules/fishing-pool.js'
 import { FishingRodService, rodHelp } from './modules/fishing-rod.js'
 import { FishingStorageService, storageHelp } from './modules/fishing-storage.js'
@@ -20,6 +21,7 @@ export const FISHING_HELP = Object.freeze([
   ...gachaHelp,
   ...bagHelp,
   ...rodHelp,
+  ...codexHelp,
   ...poolHelp,
   ...castHelp,
   ...storageHelp,
@@ -38,6 +40,7 @@ export class FishingGame {
     this.bag = new FishingBagService({ projectDir, assetsDir, logger })
     this.rod = new FishingRodService({ projectDir, assetsDir, logger })
     this.pool = new FishingPoolService({ projectDir, assetsDir, logger, upStore: this.up })
+    this.codex = new FishingCodexService({ projectDir, assetsDir, logger })
     this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs })
     this.storage = new FishingStorageService({ projectDir, assetsDir, logger })
     this.admin = new GameAdminService({ projectDir, assetsDir, logger, store, upStore: this.up })
@@ -60,6 +63,8 @@ export class FishingGame {
     if (bag !== null) return bag
     const rod = await this.rod.execute({ rawCommand, groupId, userId, store: this.admin.store })
     if (rod !== null) return rod
+    const codex = await this.codex.execute({ rawCommand, groupId, userId, store: this.admin.store })
+    if (codex !== null) return codex
     const pool = await this.pool.execute({ rawCommand, groupId, userId, store: this.admin.store })
     if (pool !== null) return pool
     const cast = await this.cast.execute({ rawCommand, groupId, userId, store: this.admin.store, random: this.random, now: this.now() })
@@ -67,7 +72,7 @@ export class FishingGame {
     const storage = await this.storage.execute({ rawCommand, groupId, userId, store: this.admin.store })
     if (storage !== null) return storage
     if (rawCommand === '/钓鱼' || rawCommand.startsWith('/钓鱼 ')) {
-      return { ok: true, replies: ['用法：\n/钓鱼 抛竿 [鱼饵名]\n/钓鱼 收竿\n/钓鱼 鱼仓\n/钓鱼 卖鱼 编号\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 卡池\n/钓鱼 道具库\n/钓鱼 查看鱼竿\n/钓鱼 更换鱼竿 鱼竿名\n/钓鱼 兑换金币 数量'] }
+      return { ok: true, replies: ['用法：\n/钓鱼 抛竿 [鱼饵名]\n/钓鱼 收竿\n/钓鱼 鱼仓\n/钓鱼 卖鱼 编号\n/钓鱼 抽卡\n/钓鱼 十连\n/钓鱼 卡池\n/钓鱼 道具库\n/钓鱼 图鉴\n/钓鱼 查看鱼竿\n/钓鱼 更换鱼竿 鱼竿名\n/钓鱼 兑换金币 数量'] }
     }
     return { ok: false, error: 'invalid command' }
   }

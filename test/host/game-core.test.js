@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { FISH_STATS } from '../../host/services/game-fishing/data.js'
+import { buildCodex, formatAcquiredAt, formatWeight } from '../../host/services/game-fishing/modules/codex.js'
+import { recordBaitAcquired, recordFishCaught, recordRodAcquired } from '../../host/services/game-fishing/modules/fishing-state.js'
 import { createGame } from './game-harness.js'
 
 const NOW = new Date('2026-11-03T08:00:00+08:00')
@@ -137,10 +139,74 @@ test('help includes fishing exchange commands', async () => {
   assert.match(help.replies[0], /兑换金币/u)
   assert.match(help.replies[0], /钓鱼 抽卡/u)
   assert.match(help.replies[0], /钓鱼 十连/u)
+  assert.match(help.replies[0], /钓鱼 图鉴/u)
   await rm(root, { recursive: true, force: true })
 })
 
 const ASSETS_DIR = join(process.cwd(), 'assets')
+
+test('codex records first acquisition times without overwriting them', () => {
+  const fishing = {}
+  recordRodAcquired(fishing, 'bamboo_hand', '2026-11-01T00:00:00.000Z')
+  recordRodAcquired(fishing, 'bamboo_hand', '2026-11-02T00:00:00.000Z')
+  recordBaitAcquired(fishing, 'dough', '2026-11-03T00:00:00.000Z')
+  recordBaitAcquired(fishing, 'dough', null)
+  assert.equal(fishing.codex.rods.bamboo_hand.at, '2026-11-01T00:00:00.000Z')
+  assert.equal(fishing.codex.baits.dough.at, '2026-11-03T00:00:00.000Z')
+})
+
+test('codex keeps only the heaviest catch per fish', () => {
+  const fishing = {}
+  recordFishCaught(fishing, 'crucian', 0.5, '2026-11-01T00:00:00.000Z')
+  recordFishCaught(fishing, 'crucian', 1.25, '2026-11-02T00:00:00.000Z')
+  recordFishCaught(fishing, 'crucian', 0.9, '2026-11-03T00:00:00.000Z')
+  recordFishCaught(fishing, 'crucian', Number.NaN, '2026-11-04T00:00:00.000Z')
+  assert.deepEqual(fishing.codex.fish.crucian, { maxWeightKg: 1.25, at: '2026-11-02T00:00:00.000Z' })
+})
+
+test('codex formatting uses Shanghai dates and trims weights', () => {
+  assert.equal(formatAcquiredAt('2026-11-04T17:00:00.000Z'), '2026-11-05')
+  assert.equal(formatAcquiredAt('not-a-date'), null)
+  assert.equal(formatAcquiredAt(null), null)
+  assert.equal(formatWeight(1.2), '1.2')
+  assert.equal(formatWeight(10), '10')
+  assert.equal(formatWeight(0.5), '0.5')
+  assert.equal(formatWeight(0), null)
+})
+
+test('buildCodex merges legacy saves and labels unobtained items', () => {
+  const fishing = {
+    rods: { owned: ['bamboo_hand'] },
+    baits: { counts: { dough: 2 } },
+    fishWarehouse: [{ fishId: 'crucian', weightKg: 0.6 }],
+    codex: { rods: {}, baits: {}, fish: {} },
+  }
+  const rods = [
+    { id: 'bamboo_hand', name: '竹制手竿', tier: 1, asset: 'rod_t1_01_bamboo_hand.png' },
+    { id: 'fiberglass_hand', name: '玻璃钢手竿', tier: 1, asset: 'rod_t1_02_fiberglass_hand.png' },
+  ]
+  const baits = [
+    { id: 'dough', name: '面团饵', tier: 1, asset: 'bait_t1_01_dough.png' },
+    { id: 'red_worm', name: '红虫饵', tier: 1, asset: 'bait_t1_02_red_worm.png' },
+  ]
+  const fish = [
+    { id: 'crucian', name: '鲫鱼', tier: 1, asset: 'fish_t1_01_crucian.png' },
+    { id: 'whitebait', name: '白条', tier: 1, asset: 'fish_t1_02_whitebait.png' },
+  ]
+  const data = buildCodex({ fishing, rods, baits, fish })
+  assert.deepEqual(data.summary, { rodsOwned: 1, rodsTotal: 2, baitsOwned: 1, baitsTotal: 2, fishOwned: 1, fishTotal: 2 })
+  assert.equal(data.rods.find((rod) => rod.id === 'bamboo_hand').owned, true)
+  assert.equal(data.rods.find((rod) => rod.id === 'bamboo_hand').acquiredLabel, '时间未知')
+  assert.equal(data.rods.find((rod) => rod.id === 'fiberglass_hand').owned, false)
+  assert.equal(data.rods.find((rod) => rod.id === 'fiberglass_hand').acquiredLabel, null)
+  assert.equal(data.baits.find((bait) => bait.id === 'dough').owned, true)
+  assert.equal(data.baits.find((bait) => bait.id === 'red_worm').owned, false)
+  assert.equal(data.fish.find((item) => item.id === 'crucian').owned, true)
+  assert.equal(data.fish.find((item) => item.id === 'crucian').maxWeightLabel, '0.6kg')
+  assert.equal(data.fish.find((item) => item.id === 'whitebait').owned, false)
+  assert.equal(data.fish.find((item) => item.id === 'whitebait').maxWeightLabel, null)
+})
+
 
 async function gachaWorkspace(random = () => 0) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-gacha-'))
@@ -167,6 +233,9 @@ test('single draw consumes a single ticket before coins', async () => {
   assert.equal(player.fishing.tickets.tenTickets, 1)
   assert.equal(player.fishingCoins, 100)
   assert.equal(player.fishing.gacha.history.length, 1)
+  const drawn = player.fishing.gacha.history[0]
+  const bucket = drawn.kind === 'rod' ? player.fishing.codex.rods : player.fishing.codex.baits
+  assert.equal(bucket[drawn.itemId]?.at, NOW.toISOString())
   await rm(root, { recursive: true, force: true })
 })
 
@@ -345,6 +414,8 @@ test('cast waits for the ready time, consumes bait and stores a fish', async () 
   player = (await readGroup(root, 'g1')).players['20000']
   assert.equal(player.fishing.cast, null)
   assert.equal(player.fishing.fishWarehouse.length, 1)
+  const stored = player.fishing.fishWarehouse[0]
+  assert.deepEqual(player.fishing.codex.fish[stored.fishId], { maxWeightKg: stored.weightKg, at: clock.at.toISOString() })
   const again = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 收竿' })
   assert.match(again.replies[0], /当前没有在钓鱼/u)
   await rm(root, { recursive: true, force: true })
@@ -407,11 +478,40 @@ test('fish warehouse shows numbered fish and sells by number', async () => {
   const sold = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卖鱼 1' })
   assert.match(sold.replies[0], /\+7 钓鱼币/u)
   const player = (await readGroup(root, 'g1')).players['20000']
+  assert.deepEqual(player.fishing.codex.fish.crucian, { maxWeightKg: 0.6, at: NOW.toISOString() })
   assert.equal(player.fishingCoins, 7)
   assert.equal(player.fishing.fishWarehouse.length, 1)
   assert.equal(player.fishing.fishWarehouse[0].id, 2)
   const missing = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 卖鱼 99' })
   assert.match(missing.replies[0], /没有 #99/u)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('the fishing codex command renders a long collection image', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, {
+    fishing: {
+      rods: { owned: ['bamboo_hand'], equipped: 'bamboo_hand' },
+      baits: { counts: { dough: 2 }, selected: 'dough' },
+      fishSeq: 1,
+      fishWarehouse: [{ id: 1, fishId: 'crucian', name: '鲫鱼', tier: 1, weightKg: 0.6, basePricePerKg: 11, pricePerKg: 12, value: 7, caughtAt: NOW.toISOString() }],
+      codex: {
+        rods: { bamboo_hand: { at: NOW.toISOString() } },
+        baits: { dough: { at: null } },
+        fish: { crucian: { maxWeightKg: 0.6, at: NOW.toISOString() } },
+      },
+    },
+  })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 图鉴' })
+  assert.equal(result.ok, true)
+  assert.match(result.replies[0], /钓鱼图鉴/u)
+  assert.match(result.replies[0], /鱼竿 1\/14/u)
+  assert.match(result.replies[0], /鱼饵 1\/14/u)
+  assert.match(result.replies[0], /鱼 1\/20/u)
+  assert.equal(result.image?.mime, 'image/png')
+  assert.equal(result.image?.width, 1080)
+  assert.ok(result.image?.height > 1800)
   await rm(root, { recursive: true, force: true })
 })
 

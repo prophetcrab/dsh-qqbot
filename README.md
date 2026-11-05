@@ -401,7 +401,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 311 个 host/client 测试
+npm test                 # 317 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
 npm run smoke:host       # 53 routes / 6 tools / 3 features

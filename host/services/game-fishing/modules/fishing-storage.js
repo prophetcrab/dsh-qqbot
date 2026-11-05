@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ensureFishing } from './fishing-cast.js'
+import { recordFishCaught } from './fishing-state.js'
 import { renderWarehouseCard } from '../render/warehouse-card.js'
 
 export const storageHelp = Object.freeze([
@@ -81,6 +82,8 @@ export class FishingStorageService {
       const index = fishing.fishWarehouse.findIndex((entry) => entry.id === id)
       if (index < 0) return { ok: true, replies: [`鱼仓里没有 #${id}。`] }
       const [fish] = fishing.fishWarehouse.splice(index, 1)
+      // Selling must not erase the codex record of the heaviest catch.
+      recordFishCaught(fishing, fish.fishId, fish.weightKg, typeof fish.caughtAt === 'string' ? fish.caughtAt : null)
       const value = money(fish.value)
       player.fishingCoins = money(player.fishingCoins) + value
       return { ok: true, replies: [`已卖出 #${id}「${fish.name}」${fish.weightKg}kg，+${value} 钓鱼币。当前钓鱼币 ${player.fishingCoins}。`] }
