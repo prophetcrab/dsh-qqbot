@@ -13,6 +13,7 @@
     "qqPath": { "type": "string" },
     "napcatDir": { "type": "string" },
     "lifecycleGuard": { "type": "boolean" },
+    "bootstrap": { "type": "boolean" },
     "offlineVendorDir": { "type": "string" },
     "offlineNapcatVersion": { "type": "string" },
     "aiProvider": { "type": "string" },

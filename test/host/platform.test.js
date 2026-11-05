@@ -38,6 +38,9 @@ test('settings: defaults keep the legacy data directory contract', () => {
   assert.equal(settings.napcatPort, DEFAULT_SETTINGS.napcatPort)
   assert.equal(settings.reversePath, '/onebot')
   assert.equal(settings.logLines, 200)
+  assert.equal(settings.lifecycleGuard, true)
+  assert.equal(settings.bootstrap, true)
+  assert.equal(resolveSettings({ bootstrap: false }).bootstrap, false)
 
   const custom = resolveSettings({ projectDir: '/tmp/qq-bot', koishiPort: '6000', napcatPort: 0, reversePath: 'ws', logLines: 99999 })
   assert.equal(custom.projectDir, '/tmp/qq-bot')

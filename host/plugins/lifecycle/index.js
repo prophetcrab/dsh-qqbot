@@ -44,7 +44,7 @@ export default {
         stopLifecycleWatchdog(watchdog)
       }
     }
-    if (typeof api.ctx?.effect === 'function') api.ctx.effect(() => () => { void shutdown() })
+    if (typeof api.ctx?.effect === 'function') api.ctx.effect(() => () => shutdown())
 
     if (api.settings.bootstrap === false) return
     // Never blocks plugin activation; every step is retryable from the panel.

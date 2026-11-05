@@ -39,6 +39,8 @@ export const BASE_SETTINGS = {
   dockerEngineTimeoutMs: 180000,
   /** Stop Koishi/NapCat when the DSH host process exits (detached watchdog). */
   lifecycleGuard: true,
+  /** Run first-run bootstrap (scaffold/install/configure) when the plugin loads. */
+  bootstrap: true,
   /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
@@ -117,6 +119,7 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     dockerDesktopPath: typeof source.dockerDesktopPath === 'string' ? expandHome(source.dockerDesktopPath) : '',
     dockerEngineTimeoutMs: toBoundedInt(source.dockerEngineTimeoutMs, defaults.dockerEngineTimeoutMs, 10_000, 600_000),
     lifecycleGuard: source.lifecycleGuard === undefined ? defaults.lifecycleGuard : source.lifecycleGuard === true,
+    bootstrap: source.bootstrap === undefined ? defaults.bootstrap : source.bootstrap === true,
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',

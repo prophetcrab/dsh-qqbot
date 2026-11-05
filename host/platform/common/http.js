@@ -1,5 +1,5 @@
 /**
- * JSON HTTP helper for the macOS host platform.
+ * JSON HTTP helper shared by every host platform.
  *
  * Built on the global fetch; network and HTTP errors are reported in the result
  * instead of thrown, which keeps route handlers and services total.
