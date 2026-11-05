@@ -56,9 +56,15 @@ export async function requestJson(path, options) {
   } catch {
     payload = null
   }
-  if (!response.ok) throw new Error(payload && payload.error ? payload.error : `HTTP ${response.status}`)
+  if (!response.ok) {
+    const detail = payload && (payload.error || payload.message)
+    throw new Error(detail ? detail : `HTTP ${response.status}`)
+  }
   if (payload !== null && payload.ok === false && config.acceptNotOk !== true) {
-    throw new Error(payload.error ? payload.error : 'request failed')
+    // Host routes report the user-facing failure in `message`; only the
+    // contract-level failures use `error`. Keep both so the panel never shows
+    // a bare "request failed" for an actionable start/stop error.
+    throw new Error(payload.error || payload.message || 'request failed')
   }
   return payload
 }
