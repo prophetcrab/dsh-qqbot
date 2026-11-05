@@ -36,8 +36,8 @@ function cut(value, length) {
   return text.length > length ? `${text.slice(0, length - 1)}…` : text
 }
 function tierLabel(tier, kind) { return kind !== 'fish' && tier >= 4 ? '传奇' : `Lv.${tier}` }
-function color(tier) { return TIER_COLOR[tier] ?? TIER_COLOR[1] }
-function soft(tier) { return TIER_SOFT[tier] ?? TIER_SOFT[1] }
+function color(tier) { const n = Number(tier); return TIER_COLOR[n] ?? (n >= 5 ? TIER_COLOR[5] : TIER_COLOR[1]) }
+function soft(tier) { const n = Number(tier); return TIER_SOFT[n] ?? (n >= 5 ? TIER_SOFT[5] : TIER_SOFT[1]) }
 function countOf(value, fallback) { return Number.isSafeInteger(value) && value >= 0 ? value : fallback }
 function tally(items) { return items.filter((item) => item.owned === true).length }
 

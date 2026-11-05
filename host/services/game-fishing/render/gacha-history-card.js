@@ -56,8 +56,8 @@ function tierOf(value) {
   const tier = int(value, 1)
   return tier >= 4 ? 4 : Math.max(1, tier)
 }
-function colorOf(tier) { return TIER_COLOR[tier] ?? TIER_COLOR[1] }
-function softOf(tier) { return TIER_SOFT[tier] ?? TIER_SOFT[1] }
+function colorOf(tier) { const n = Number(tier); return TIER_COLOR[n] ?? (n >= 5 ? TIER_COLOR[5] : TIER_COLOR[1]) }
+function softOf(tier) { const n = Number(tier); return TIER_SOFT[n] ?? (n >= 5 ? TIER_SOFT[5] : TIER_SOFT[1]) }
 function textWidth(value, size) {
   let width = 0
   for (const char of text(value)) width += char.codePointAt(0) > 0xff ? size : size * 0.56

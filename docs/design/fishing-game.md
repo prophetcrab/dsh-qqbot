@@ -1203,7 +1203,70 @@ RGBA
 
 ---
 
-# 十三、待定
+# 十三、扩展品类（鱼 / 鱼饵 / 鱼竿）
+
+新增鱼、鱼饵、鱼竿或新稀有度时，按下面的清单改，避免“图里出现了但玩法不认”。
+
+## 1. 美术与目录（图鉴会自动同步）
+
+```text
+assets/fish/catalog.json    { id, name, tier, asset }
+assets/baits/catalog.json   { id, name, tier, asset }
+assets/rods/catalog.json    { id, name, tier, asset }
+assets/<kind>/<asset>       对应 PNG 图标
+assets/frames/catalog.json  新鱼等级加 frame_fish_t<N>.png；传奇竿/饵加专属 frame 条目
+```
+
+- 图鉴通过 mtime 感知的 `loadCatalog` 读取目录：**改完 catalog.json 后下一次 `/钓鱼 图鉴` 即生效，无需重启 DSH**；
+- 图标/边框文件缺失只会让该条目少图，不会让图鉴报错；
+- 未在目录里的条目不会出现在图鉴中，计数自动按目录长度变化。
+
+## 2. 玩法数据（必须同步，否则该条目玩法不可用）
+
+```text
+鱼     host/services/game-fishing/data.js  FISH_STATS[id] = { minKg, maxKg, basePricePerKg, weightBonus }
+鱼竿   modules/fishing-rod.js              ROD_INFO[id] = { weights[5], sellPrice, effect }
+鱼饵   普通饵 data.js NORMAL_BAIT_COEFFICIENTS[id] = [5 个档位系数]
+       传奇饵 data.js LEGENDARY_BAIT_EFFECTS 加入 id，并在 cast.resolve 里实现效果
+```
+
+## 3. 新稀有度 / 新等级
+
+```text
+鱼     tier 新增：cast 的 fishByTier 增加档位 + gacha 概率组/保底需覆盖
+       fish tier 目前支持 1–5，frame 命名 frame_fish_t<N>.png（<N> 为等级数字）
+鱼竿/饵 tier 新增：gacha 的 rods/baits 档位、CATEGORY_WEIGHTS、保底与 UP 需覆盖
+       gear tier 目前支持 1–4（4 = 传奇）
+渲染   codex 渲染器对未知 tier 有颜色/无边框兜底，但概率与保底仍需显式配置
+```
+
+## 4. 启动自检
+
+`FishingGame` 构造时运行 `catalog-audit`，把缺数值、缺美术、超出现有等级支持的条目
+通过 logger 告警（每个 assets 目录只检查一次）：
+
+```text
+rod <id>: missing ROD_INFO (weights/sellPrice/effect)
+fish <id>: missing FISH_STATS (weight/price)
+bait <id>: missing NORMAL_BAIT_COEFFICIENTS or LEGENDARY_BAIT_EFFECTS entry
+<kind> <id>: missing art <asset>
+fish <id>: tier 6 needs fishByTier/frame support
+...
+```
+
+## 5. 测试
+
+```text
+新增目录条目后跑 npm test
+  - catalog loader 热刷新
+  - codex 新条目自动出现
+  - catalog-audit 对缺数据/缺图/新 tier 告警
+  - 现有 assets 的 audit warnings 必须为空
+```
+
+---
+
+# 十四、待定
 
 ```text
 默认鱼稀有度权重

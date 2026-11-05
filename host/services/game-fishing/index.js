@@ -8,7 +8,12 @@ import { FishingStorageService, storageHelp } from './modules/fishing-storage.js
 import { GachaService, gachaHelp } from './modules/gacha.js'
 import { exchangeHelp, executeExchange } from './modules/exchange.js'
 import { GameAdminService } from './admin.js'
+import { auditCatalogs } from './catalog-audit.js'
+import { resolveAssetsDir } from './catalog.js'
 import { UpStore } from './up-store.js'
+
+/** Catalogs are audited once per process/assets directory. */
+const AUDITED_ASSETS = new Set()
 
 export const FISHING_GAME = Object.freeze({
   id: 'fishing',
@@ -44,6 +49,20 @@ export class FishingGame {
     this.cast = new FishingCastService({ projectDir, assetsDir, logger, castDurationMs })
     this.storage = new FishingStorageService({ projectDir, assetsDir, logger })
     this.admin = new GameAdminService({ projectDir, assetsDir, logger, store, upStore: this.up })
+    this.#auditCatalogs(projectDir, assetsDir, logger)
+  }
+
+  /** Warn (never throw) when a catalog entry lacks gameplay data or art. */
+  #auditCatalogs(projectDir, assetsDir, logger) {
+    const resolved = resolveAssetsDir(projectDir, assetsDir)
+    if (AUDITED_ASSETS.has(resolved)) return
+    AUDITED_ASSETS.add(resolved)
+    try {
+      const { warnings } = auditCatalogs({ assetsDir: resolved })
+      for (const warning of warnings.slice(0, 20)) logger?.warn?.('fishing catalog: %s', warning)
+    } catch (error) {
+      logger?.warn?.('fishing catalog audit failed: %s', String(error?.message ?? error))
+    }
   }
 
   async command(input) {

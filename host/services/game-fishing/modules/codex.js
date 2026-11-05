@@ -1,21 +1,11 @@
 /** `/钓鱼 图鉴`: collection overview for rods, baits and fish. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { loadCatalog, resolveAssetsDir } from '../catalog.js'
 import { ensureFishing } from './fishing-state.js'
 import { renderCodexCard } from '../render/codex-card.js'
 
 export const codexHelp = Object.freeze([
   ['/钓鱼 图鉴', '查看鱼竿、鱼饵和鱼的全图鉴长图'],
 ])
-
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
-
-function readCatalog(assetsDir, name, key) {
-  const parsed = JSON.parse(readFileSync(join(assetsDir, name, 'catalog.json'), 'utf8'))
-  if (!Array.isArray(parsed[key])) throw new Error(`invalid catalog: ${name}`)
-  return parsed[key]
-}
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {}
@@ -148,27 +138,21 @@ export function buildCodex({ fishing, rods, baits, fish }) {
 export class FishingCodexService {
   constructor({ projectDir, logger, assetsDir }) {
     this.logger = logger
-    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
-    this.loaded = false
-    this.rods = []
-    this.baits = []
-    this.fish = []
-  }
-
-  load() {
-    if (this.loaded) return
-    this.rods = readCatalog(this.assetsDir, 'rods', 'rods')
-    this.baits = readCatalog(this.assetsDir, 'baits', 'baits')
-    this.fish = readCatalog(this.assetsDir, 'fish', 'fish')
-    this.loaded = true
+    this.assetsDir = resolveAssetsDir(projectDir, assetsDir)
   }
 
   async execute({ rawCommand, groupId, userId, store }) {
     const parts = String(rawCommand).trim().split(/\s+/u)
     if (parts[0] !== '/钓鱼' || parts[1] !== '图鉴') return null
     if (parts.length !== 2) return { ok: true, replies: ['用法：/钓鱼 图鉴'] }
+    let rods
+    let baits
+    let fish
     try {
-      this.load()
+      // mtime-aware: new catalog entries show up without a plugin restart.
+      rods = loadCatalog(this.assetsDir, 'rods', 'rods')
+      baits = loadCatalog(this.assetsDir, 'baits', 'baits')
+      fish = loadCatalog(this.assetsDir, 'fish', 'fish')
     } catch (error) {
       this.logger?.warn?.('codex catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'codex catalog unavailable' }
@@ -177,7 +161,7 @@ export class FishingCodexService {
     const player = state.players[userId]
     if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
     const fishing = ensureFishing(player)
-    const data = buildCodex({ fishing, rods: this.rods, baits: this.baits, fish: this.fish })
+    const data = buildCodex({ fishing, rods, baits, fish })
     const text = [
       '钓鱼图鉴',
       `鱼竿 ${data.summary.rodsOwned}/${data.summary.rodsTotal} · 鱼饵 ${data.summary.baitsOwned}/${data.summary.baitsTotal} · 鱼 ${data.summary.fishOwned}/${data.summary.fishTotal}`,
