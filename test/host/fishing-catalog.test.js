@@ -5,18 +5,29 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { auditCatalogs } from '../../host/services/game-fishing/catalog-audit.js'
-import { clearCatalogCache, loadCatalog, readCatalogFile } from '../../host/services/game-fishing/catalog.js'
+import { FishingCatalog, catalogFor, clearCatalogCache, readCatalogFile } from '../../host/services/game-fishing/catalog.js'
+import { FishingBagService } from '../../host/services/game-fishing/modules/fishing-bag.js'
 import { FishingCodexService } from '../../host/services/game-fishing/modules/codex.js'
+import { FishingRodService } from '../../host/services/game-fishing/modules/fishing-rod.js'
 
 const REAL_ASSETS = join(process.cwd(), 'assets')
 
-async function makeAssets(root, { rods, baits, fish, frames = [] }) {
+async function makeAssets(root, { rods, baits, fish, items = [], frames = [] }) {
   const assets = join(root, 'assets')
-  for (const [name, key, items] of [['rods', 'rods', rods], ['baits', 'baits', baits], ['fish', 'fish', fish], ['frames', 'frames', frames]]) {
+  for (const [name, key, itemsList] of [['rods', 'rods', rods], ['baits', 'baits', baits], ['fish', 'fish', fish], ['items', 'items', items], ['frames', 'frames', frames]]) {
+    const items = itemsList
     await mkdir(join(assets, name), { recursive: true })
     await writeFile(join(assets, name, 'catalog.json'), JSON.stringify({ version: 1, [key]: items }, null, 2))
   }
   return assets
+}
+
+/** Write and mtime-bump a catalog so the mtime cache notices the change. */
+async function rewriteCatalog(assets, name, key, items) {
+  const file = join(assets, name, 'catalog.json')
+  await writeFile(file, JSON.stringify({ version: 1, [key]: items }, null, 2))
+  const future = new Date(Date.now() + 10_000)
+  await utimes(file, future, future)
 }
 
 function catalogItem(id, tier = 1) {
@@ -25,17 +36,19 @@ function catalogItem(id, tier = 1) {
 
 const STORE = { read: async () => ({ players: { '20000': { nickname: '小明' } } }) }
 
-test('catalog loader refreshes when the catalog file changes', async () => {
+test('catalogs refresh by mtime and share one instance per assets dir', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-fishing-catalog-'))
   try {
     const assets = await makeAssets(root, { rods: [catalogItem('a')], baits: [], fish: [], frames: [] })
     clearCatalogCache()
-    assert.equal(loadCatalog(assets, 'rods', 'rods').length, 1)
-    await writeFile(join(assets, 'rods', 'catalog.json'), JSON.stringify({ version: 1, rods: [catalogItem('a'), catalogItem('b')] }))
-    const future = new Date(Date.now() + 10_000)
-    await utimes(join(assets, 'rods', 'catalog.json'), future, future)
-    assert.equal(loadCatalog(assets, 'rods', 'rods').length, 2)
-    assert.equal(readCatalogFile(assets, 'rods', 'rods').length, 2)
+    const catalog = new FishingCatalog(assets)
+    assert.equal(catalog.rods.length, 1)
+    assert.equal(catalog.rodsByTier[1].length, 1)
+    assert.equal(catalogFor(assets), catalogFor(assets))
+    await rewriteCatalog(assets, 'rods', 'rods', [catalogItem('a'), catalogItem('b', 2)])
+    assert.equal(catalog.rods.length, 2)
+    assert.equal(catalog.rodsByTier[2].length, 1)
+    assert.equal(readCatalogFile(assets, 'rods').length, 2)
   } finally {
     clearCatalogCache()
     await rm(root, { recursive: true, force: true })
@@ -71,6 +84,43 @@ test('codex picks up newly added species without a restart', async () => {
     assert.match(second.replies[0], /鱼竿 0\/2/u)
     assert.match(second.replies[0], /鱼饵 0\/2/u)
     assert.match(second.replies[0], /鱼 0\/2/u)
+  } finally {
+    clearCatalogCache()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('the item library and rod view pick up catalog changes in place', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-fishing-services-sync-'))
+  try {
+    const assets = await makeAssets(root, { rods: [], baits: [], fish: [] })
+    clearCatalogCache()
+    const owned = {
+      read: async () => ({
+        players: {
+          '20000': {
+            nickname: '小明',
+            fishing: {
+              rods: { owned: ['bamboo_hand'], equipped: 'bamboo_hand' },
+              baits: { counts: { dough: 1 }, selected: 'dough' },
+              tickets: { singleTickets: 0, tenTickets: 0 },
+            },
+          },
+        },
+      }),
+    }
+    const bag = new FishingBagService({ projectDir: root, assetsDir: assets, logger: { warn() {} } })
+    const rod = new FishingRodService({ projectDir: root, assetsDir: assets, logger: { warn() {} } })
+    const bagCall = () => bag.execute({ rawCommand: '/钓鱼 道具库', groupId: 'g1', userId: '20000', store: owned })
+    const rodCall = () => rod.execute({ rawCommand: '/钓鱼 查看鱼竿', groupId: 'g1', userId: '20000', store: owned })
+
+    assert.match((await bagCall()).replies[0], /鱼竿 0 把/u)
+    assert.match((await rodCall()).replies[0], /当前没有装备鱼竿/u)
+
+    await rewriteCatalog(assets, 'rods', 'rods', [catalogItem('bamboo_hand')])
+    await rewriteCatalog(assets, 'baits', 'baits', [catalogItem('dough')])
+    assert.match((await bagCall()).replies[0], /鱼竿 1 把 · 鱼饵 1 种/u)
+    assert.match((await rodCall()).replies[0], /bamboo_hand-name/u)
   } finally {
     clearCatalogCache()
     await rm(root, { recursive: true, force: true })

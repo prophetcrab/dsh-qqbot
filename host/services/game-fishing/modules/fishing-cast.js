@@ -1,34 +1,25 @@
 /** Fishing cast and collect loop, including rod/bait effects. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS } from '../data.js'
+import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS, ROD_INFO } from '../data.js'
+import { catalogFor, resolveAssetsDir } from '../catalog.js'
 import { ensureFishing, recordBaitAcquired, recordFishCaught } from './fishing-state.js'
-import { ROD_INFO } from './fishing-rod.js'
 import { renderCatchCard } from '../render/catch-card.js'
-
-// Older modules import `ensureFishing` from this module; keep that path working.
-export { ensureFishing }
 
 export const castHelp = Object.freeze([
   ['/钓鱼 抛竿 [鱼饵名]', '抛竿，未指定鱼饵时随机使用仓库鱼饵'],
   ['/钓鱼 收竿', '收下当前钓到的鱼'],
 ])
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
 const SPECIAL_RATE = 0.03
 const SPECIAL_SPLIT = { low: 0.7, high: 0.3 }
 
-function readCatalog(assetsDir, name, key) {
-  const parsed = JSON.parse(readFileSync(join(assetsDir, name, 'catalog.json'), 'utf8'))
-  if (!Array.isArray(parsed[key])) throw new Error(`invalid catalog: ${name}`)
-  return parsed[key]
-}
 function rand(random) {
   const value = Number(random())
   return Number.isFinite(value) ? Math.min(0.999999, Math.max(0, value)) : 0
 }
-function pick(items, random) { return items[Math.min(items.length - 1, Math.floor(rand(random) * items.length))] }
+function pick(items, random) {
+  if (!Array.isArray(items) || items.length === 0) throw new Error('empty catalog pool')
+  return items[Math.min(items.length - 1, Math.floor(rand(random) * items.length))]
+}
 function round(value, digits = 2) { return Math.round(value * 10 ** digits) / 10 ** digits }
 function tierLabel(tier) { return `Lv.${tier}` }
 function shanghaiDate(now) {
@@ -62,35 +53,29 @@ export class FishingCastService {
   constructor({ projectDir, logger, assetsDir, castDurationMs = 300000 }) {
     this.logger = logger
     this.castDurationMs = castDurationMs
-    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
-    this.loaded = false
-    this.rods = new Map()
-    this.baits = []
-    this.baitById = new Map()
-    this.fishByTier = { 1: [], 2: [], 3: [], 4: [], 5: [] }
-    this.specialLow = []
-    this.specialHigh = []
+    this.catalog = catalogFor(resolveAssetsDir(projectDir, assetsDir))
   }
 
-  load() {
-    if (this.loaded) return
-    for (const rod of readCatalog(this.assetsDir, 'rods', 'rods')) {
-      if (ROD_INFO[rod.id] !== undefined) this.rods.set(rod.id, { ...rod, ...ROD_INFO[rod.id] })
-    }
-    this.baits = readCatalog(this.assetsDir, 'baits', 'baits')
-    this.baitById = new Map(this.baits.map((bait) => [bait.id, bait]))
-    for (const fish of readCatalog(this.assetsDir, 'fish', 'fish')) this.fishByTier[fish.tier].push(fish)
-    for (const item of readCatalog(this.assetsDir, 'items', 'items')) {
-      if (item.category === 'special_low') this.specialLow.push(item)
-      else if (item.category === 'special_high' || item.category === 'ticket') this.specialHigh.push(item)
-    }
-    this.loaded = true
+  /** Catalog rod merged with its static gameplay data, or undefined. */
+  #rod(id) {
+    const item = this.catalog.rodById.get(id)
+    const info = item === undefined ? undefined : ROD_INFO[id]
+    return item === undefined || info === undefined ? undefined : { ...item, ...info }
+  }
+
+  /** Fish available at one tier; throws with a clear message for empty tiers. */
+  #fishAt(tier) {
+    const pool = this.catalog.fishByTier[tier]
+    if (!Array.isArray(pool) || pool.length === 0) throw new Error(`missing fish tier ${tier}`)
+    return pool
   }
 
   async execute({ rawCommand, groupId, userId, store, random, now }) {
     const parts = String(rawCommand).trim().split(/\s+/u)
     if (parts[0] !== '/钓鱼' || (parts[1] !== '抛竿' && parts[1] !== '收竿')) return null
-    try { this.load() } catch (error) {
+    try {
+      this.catalog.assertReady(['rods', 'baits', 'fish', 'items'])
+    } catch (error) {
       this.logger?.warn?.('fishing catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'fishing catalog unavailable' }
     }
@@ -108,20 +93,20 @@ export class FishingCastService {
       if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
       const fishing = ensureFishing(player)
       if (fishing.cast !== null) return { ok: true, replies: ['正在钓鱼，请等待收竿。'] }
-      const rod = fishing.rods.equipped === null ? null : this.rods.get(fishing.rods.equipped)
+      const rod = fishing.rods.equipped === null ? null : this.#rod(fishing.rods.equipped)
       if (rod === null || rod === undefined) return { ok: true, replies: ['还没有装备鱼竿，先使用 /钓鱼 更换鱼竿 鱼竿名。'] }
 
       const date = shanghaiDate(now)
       const taigongFree = rod.id === 'taigong' && fishing.rodDaily.taigong !== date
       let bait = null
       if (baitName !== null) {
-        bait = this.baits.find((item) => item.name === baitName)
+        bait = this.catalog.baits.find((item) => item.name === baitName)
         if (bait === undefined) return { ok: true, replies: [`没有叫「${baitName}」的鱼饵。`] }
         if (!taigongFree && (Number.isSafeInteger(fishing.baits.counts[bait.id]) ? fishing.baits.counts[bait.id] : 0) <= 0) {
           return { ok: true, replies: [`仓库里没有「${baitName}」了。`] }
         }
       } else if (!taigongFree) {
-        const available = this.baits.filter((item) => (Number.isSafeInteger(fishing.baits.counts[item.id]) ? fishing.baits.counts[item.id] : 0) > 0)
+        const available = this.catalog.baits.filter((item) => (Number.isSafeInteger(fishing.baits.counts[item.id]) ? fishing.baits.counts[item.id] : 0) > 0)
         if (available.length === 0) return { ok: true, replies: ['仓库里没有鱼饵，钓鱼失败。'] }
         bait = pick(available, random)
       }
@@ -191,7 +176,7 @@ export class FishingCastService {
         if (result.extraSpecial !== undefined) addSpecial(fishing, result.extraSpecial)
       }
       if (result.extraBait === undefined && cast.effects.includes('adams_dry_fly')) {
-        const others = this.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
+        const others = this.catalog.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
         if (others.length > 0) addBait(fishing, pick(others, random).id, now.toISOString())
       }
       const text = this.describe({ result, cast })
@@ -202,7 +187,7 @@ export class FishingCastService {
           result,
           rodName: cast.rodName,
           baitName: cast.baitName,
-          assetsDir: this.assetsDir,
+          assetsDir: this.catalog.assetsDir,
         })
       } catch (error) {
         this.logger?.warn?.('catch image failed: %s', String(error?.message ?? error))
@@ -213,7 +198,8 @@ export class FishingCastService {
 
   resolve({ fishing, cast, random, now }) {
     if (rand(random) < SPECIAL_RATE) return this.resolveSpecial(fishing, cast, random)
-    const rod = this.rods.get(cast.rodId)
+    const rod = this.#rod(cast.rodId)
+    if (rod === undefined) throw new Error(`missing rod info: ${cast.rodId}`)
     let weights = [...rod.weights]
     if (cast.normalCoefficient !== null) weights = weights.map((weight, index) => weight * cast.normalCoefficient[index])
     if (weights.every((weight) => weight === 0)) weights = [1, 1, 1, 1, 1]
@@ -221,7 +207,7 @@ export class FishingCastService {
     if (cast.rodId === 'grey') tier = Math.max(3, tier)
     if (cast.forceFive) tier = 5
     if (cast.effects.includes('adams_dry_fly')) tier = Math.min(5, tier + 1)
-    const fish = pick(this.fishByTier[tier], random)
+    const fish = pick(this.#fishAt(tier), random)
     const stats = FISH_STATS[fish.id]
     if (stats === undefined) throw new Error(`missing fish stats: ${fish.id}`)
     let weightKg = stats.minKg + rand(random) * (stats.maxKg - stats.minKg)
@@ -241,7 +227,7 @@ export class FishingCastService {
     let extraBait
     let extraBaitName
     if (cast.effects.includes('adams_dry_fly')) {
-      const others = this.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
+      const others = this.catalog.baits.filter((bait) => bait.tier === 4 && bait.id !== 'adams_dry_fly')
       if (others.length > 0) {
         const extra = pick(others, random)
         extraBait = extra.id
@@ -261,7 +247,7 @@ export class FishingCastService {
 
   specialItem(random, forcedTier) {
     const tier = forcedTier ?? (rand(random) < SPECIAL_SPLIT.low ? 'low' : 'high')
-    return pick(tier === 'low' ? this.specialLow : this.specialHigh, random)
+    return pick(tier === 'low' ? this.catalog.specialLow : this.catalog.specialHigh, random)
   }
 
   describe({ result, cast }) {

@@ -43,3 +43,35 @@ export const LEGENDARY_BAIT_EFFECTS = Object.freeze([
 ])
 
 export const SPECIAL_WEIGHTS = Object.freeze({ low: 0.7, high: 0.3 })
+
+/** Static rod gameplay data: 5 tier weights, sell price and effect text. */
+export const ROD_INFO = Object.freeze({
+  bamboo_hand: { weights: [60, 30, 8, 2, 0], sellPrice: 3, effect: '无特殊效果' },
+  fiberglass_hand: { weights: [58, 31, 8, 3, 0], sellPrice: 4, effect: '无特殊效果' },
+  fiberglass_surf: { weights: [62, 28, 8, 2, 0], sellPrice: 3, effect: '无特殊效果' },
+  carbon_hand: { weights: [35, 35, 20, 8, 2], sellPrice: 7, effect: '无特殊效果' },
+  carbon_iso: { weights: [30, 38, 22, 8, 2], sellPrice: 8, effect: '无特殊效果' },
+  carbon_lure: { weights: [40, 32, 18, 8, 2], sellPrice: 7, effect: '无特殊效果' },
+  high_carbon_hand: { weights: [13, 25, 32, 20, 10], sellPrice: 15, effect: '无特殊效果' },
+  high_carbon_lure: { weights: [10, 23, 33, 22, 12], sellPrice: 18, effect: '无特殊效果' },
+  high_carbon_surf: { weights: [15, 25, 31, 19, 10], sellPrice: 16, effect: '无特殊效果' },
+  taigong: { weights: [3, 14, 30, 32, 21], sellPrice: 100, effect: '每日第一次钓鱼不消耗鱼饵，并随机获得一种传奇鱼饵效果' },
+  ziling: { weights: [2, 12, 30, 34, 22], sellPrice: 120, effect: '全天鱼获重量 +15%' },
+  walton: { weights: [2, 13, 31, 33, 21], sellPrice: 110, effect: '每日第一次钓鱼的那条鱼重量翻倍' },
+  grey: { weights: [1, 10, 28, 36, 25], sellPrice: 140, effect: '每次钓鱼保底 Lv.3+ 鱼' },
+  hemingway: { weights: [1, 7, 24, 38, 30], sellPrice: 160, effect: '每 20 次钓鱼，本次保底 Lv.5 鱼' },
+})
+
+/** Pull counts that trigger pity for each pool. */
+export const PITY_LIMITS = Object.freeze({
+  rod: 10,
+  lv3Rod: 50,
+  legendaryBait: 60,
+  legendaryRod: 150,
+})
+
+/** Base gacha category rates (percent) shared by the draw and the pool view. */
+export const CATEGORY_RATES = Object.freeze({
+  bait: Object.freeze({ 1: 37.5, 2: 30, 3: 20, 4: 2.5 }),
+  rod: Object.freeze({ 1: 5, 2: 2.857, 3: 1.786, 4: 0.357 }),
+})

@@ -1,5 +1,5 @@
 /** `/钓鱼 图鉴`: collection overview for rods, baits and fish. */
-import { loadCatalog, resolveAssetsDir } from '../catalog.js'
+import { catalogFor, resolveAssetsDir } from '../catalog.js'
 import { ensureFishing } from './fishing-state.js'
 import { renderCodexCard } from '../render/codex-card.js'
 
@@ -138,21 +138,16 @@ export function buildCodex({ fishing, rods, baits, fish }) {
 export class FishingCodexService {
   constructor({ projectDir, logger, assetsDir }) {
     this.logger = logger
-    this.assetsDir = resolveAssetsDir(projectDir, assetsDir)
+    this.catalog = catalogFor(resolveAssetsDir(projectDir, assetsDir))
   }
 
   async execute({ rawCommand, groupId, userId, store }) {
     const parts = String(rawCommand).trim().split(/\s+/u)
     if (parts[0] !== '/钓鱼' || parts[1] !== '图鉴') return null
     if (parts.length !== 2) return { ok: true, replies: ['用法：/钓鱼 图鉴'] }
-    let rods
-    let baits
-    let fish
+    let catalog
     try {
-      // mtime-aware: new catalog entries show up without a plugin restart.
-      rods = loadCatalog(this.assetsDir, 'rods', 'rods')
-      baits = loadCatalog(this.assetsDir, 'baits', 'baits')
-      fish = loadCatalog(this.assetsDir, 'fish', 'fish')
+      catalog = this.catalog.assertReady(['rods', 'baits', 'fish'])
     } catch (error) {
       this.logger?.warn?.('codex catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'codex catalog unavailable' }
@@ -161,14 +156,14 @@ export class FishingCodexService {
     const player = state.players[userId]
     if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
     const fishing = ensureFishing(player)
-    const data = buildCodex({ fishing, rods, baits, fish })
+    const data = buildCodex({ fishing, rods: catalog.rods, baits: catalog.baits, fish: catalog.fish })
     const text = [
       '钓鱼图鉴',
       `鱼竿 ${data.summary.rodsOwned}/${data.summary.rodsTotal} · 鱼饵 ${data.summary.baitsOwned}/${data.summary.baitsTotal} · 鱼 ${data.summary.fishOwned}/${data.summary.fishTotal}`,
     ].join('\n')
     let image
     try {
-      image = await renderCodexCard({ nickname: player.nickname || userId, data, assetsDir: this.assetsDir })
+      image = await renderCodexCard({ nickname: player.nickname || userId, data, assetsDir: this.catalog.assetsDir })
     } catch (error) {
       this.logger?.warn?.('codex image failed: %s', String(error?.message ?? error))
     }

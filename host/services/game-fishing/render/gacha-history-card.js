@@ -38,7 +38,6 @@ const PITY_ROWS = [
   { key: 'legendaryRod', label: '传奇鱼竿', limit: 150 },
 ]
 const ICON_CACHE = new Map()
-const CATALOG_CACHE = new Map()
 
 function esc(value) {
   return String(value ?? '').replace(/&/gu, '&amp;').replace(/</gu, '&lt;').replace(/>/gu, '&gt;').replace(/"/gu, '&quot;').replace(/'/gu, '&apos;')
@@ -64,27 +63,11 @@ function textWidth(value, size) {
   return width
 }
 
-async function catalogMap(assetsDir, folder) {
-  const path = join(assetsDir, folder, 'catalog.json')
-  if (CATALOG_CACHE.has(path)) return CATALOG_CACHE.get(path)
-  let map = new Map()
-  try {
-    const parsed = JSON.parse(await readFile(path, 'utf8'))
-    const items = Array.isArray(parsed[folder]) ? parsed[folder] : []
-    map = new Map(items.filter((item) => typeof item?.id === 'string').map((item) => [item.id, item]))
-  } catch {
-    map = new Map()
-  }
-  CATALOG_CACHE.set(path, map)
-  return map
-}
-
-/** Icon data URI for one draw, resolved through the asset catalog; '' when unknown. */
-async function iconHref(assetsDir, folder, itemId) {
-  if (!assetsDir || itemId === '') return ''
-  const entry = (await catalogMap(assetsDir, folder)).get(itemId)
-  if (entry === undefined || typeof entry.asset !== 'string') return ''
-  const path = join(assetsDir, folder, entry.asset)
+/** Icon data URI for one draw; the service supplies the catalog `asset` name. */
+async function iconHref(assetsDir, kind, asset) {
+  if (!assetsDir || typeof asset !== 'string' || asset === '') return ''
+  const folder = kind === 'bait' ? 'baits' : 'rods'
+  const path = join(assetsDir, folder, asset)
   if (ICON_CACHE.has(path)) return ICON_CACHE.get(path)
   try {
     const bytes = await readFile(path)
@@ -112,6 +95,7 @@ function normalizeRows(rows) {
       itemId: text(row.itemId),
       name: text(row.name) === '' ? '未知道具' : text(row.name),
       kind: row.kind === 'bait' ? 'bait' : 'rod',
+      asset: text(row.asset),
       tier: tierOf(row.tier),
       rarityLabel: text(row.rarityLabel),
       pity: row.pity === true,

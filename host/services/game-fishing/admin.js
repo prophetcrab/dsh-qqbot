@@ -1,9 +1,7 @@
 /** Read-only group/game snapshots and UP controls for the client console. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { catalogFor, resolveAssetsDir } from './catalog.js'
+import { ensureFishing } from './modules/fishing-state.js'
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../assets/', import.meta.url))
 const GAMES = Object.freeze([
   {
     id: 'fishing',
@@ -12,67 +10,27 @@ const GAMES = Object.freeze([
   },
 ])
 
-function readCatalog(assetsDir, name, key) {
-  const parsed = JSON.parse(readFileSync(join(assetsDir, name, 'catalog.json'), 'utf8'))
-  if (!Array.isArray(parsed[key])) throw new Error(`invalid catalog: ${name}`)
-  return parsed[key]
-}
 function num(value) {
   return Number.isSafeInteger(value) ? value : 0
 }
-function ensureFishing(player) {
-  if (player.fishing === null || typeof player.fishing !== 'object') player.fishing = {}
-  const f = player.fishing
-  if (f.rods === null || typeof f.rods !== 'object') f.rods = {}
-  f.rods.owned = Array.isArray(f.rods.owned) ? f.rods.owned : []
-  if (typeof f.rods.equipped !== 'string') f.rods.equipped = null
-  if (f.baits === null || typeof f.baits !== 'object') f.baits = {}
-  if (f.baits.counts === null || typeof f.baits.counts !== 'object') f.baits.counts = {}
-  if (typeof f.baits.selected !== 'string') f.baits.selected = null
-  if (f.tickets === null || typeof f.tickets !== 'object') f.tickets = {}
-  f.tickets.singleTickets = num(f.tickets.singleTickets)
-  f.tickets.tenTickets = num(f.tickets.tenTickets)
-  if (f.gacha === null || typeof f.gacha !== 'object') f.gacha = {}
-  f.gacha.rodPity = num(f.gacha.rodPity)
-  f.gacha.lv3RodPity = num(f.gacha.lv3RodPity)
-  f.gacha.legendaryBaitPity = num(f.gacha.legendaryBaitPity)
-  f.gacha.legendaryRodPity = num(f.gacha.legendaryRodPity)
-  f.fishWarehouse = Array.isArray(f.fishWarehouse) ? f.fishWarehouse : []
-  if (f.cast === undefined) f.cast = null
-  return f
-}
 
 export class GameAdminService {
-  constructor({ projectDir, assetsDir, logger, store, upStore }) {
-    this.logger = logger
-    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
+  constructor({ projectDir, assetsDir, store, upStore }) {
+    this.catalog = catalogFor(resolveAssetsDir(projectDir, assetsDir))
     this.store = store
     this.upStore = upStore
-    this.loaded = false
-    this.rods = []
-    this.baits = []
-    this.rodById = new Map()
-    this.baitById = new Map()
-  }
-
-  load() {
-    if (this.loaded) return
-    this.rods = readCatalog(this.assetsDir, 'rods', 'rods')
-    this.baits = readCatalog(this.assetsDir, 'baits', 'baits')
-    this.rodById = new Map(this.rods.map((item) => [item.id, item]))
-    this.baitById = new Map(this.baits.map((item) => [item.id, item]))
-    this.loaded = true
   }
 
   catalogOptions() {
-    return {
-      rods: this.rods.filter((item) => item.tier === 4).map((item) => ({ id: item.id, name: item.name, tier: item.tier })),
-      baits: this.baits.filter((item) => item.tier === 4).map((item) => ({ id: item.id, name: item.name, tier: item.tier })),
-    }
+    const catalog = this.catalog.assertReady()
+    const legendaries = (items) => items
+      .filter((item) => item.tier === 4)
+      .map((item) => ({ id: item.id, name: item.name, tier: item.tier }))
+    return { rods: legendaries(catalog.rods), baits: legendaries(catalog.baits) }
   }
 
   async listGroups() {
-    this.load()
+    this.catalog.assertReady()
     const ids = await this.store.listGroupIds()
     const groups = []
     for (const groupId of ids) {
@@ -100,7 +58,7 @@ export class GameAdminService {
   }
 
   async getGroup(groupId) {
-    this.load()
+    this.catalog.assertReady()
     const state = await this.store.read(groupId)
     const players = state.players
     const users = Object.entries(players).map(([qq, player]) => this.accountRow(qq, player))
@@ -126,14 +84,14 @@ export class GameAdminService {
   }
 
   async getGame(groupId, gameId) {
-    this.load()
+    this.catalog.assertReady()
     if (gameId !== 'fishing') throw new Error('unknown game')
     const state = await this.store.read(groupId)
     const players = state.players
     const entries = Object.entries(players).map(([qq, player]) => this.fishingRow(qq, player))
     const up = await this.upStore.get(groupId)
-    const upRod = this.rodById.get(up.rod)
-    const upBait = this.baitById.get(up.bait)
+    const upRod = this.catalog.rodById.get(up.rod)
+    const upBait = this.catalog.baitById.get(up.bait)
     return {
       groupId,
       game: GAMES[0],
@@ -159,10 +117,10 @@ export class GameAdminService {
 
   fishingRow(qq, player) {
     const f = ensureFishing(player)
-    const rods = f.rods.owned.map((id) => ({ id, name: this.rodById.get(id)?.name ?? id }))
+    const rods = f.rods.owned.map((id) => ({ id, name: this.catalog.rodById.get(id)?.name ?? id }))
     const baits = Object.entries(f.baits.counts)
       .filter(([, count]) => num(count) > 0)
-      .map(([id, count]) => ({ id, name: this.baitById.get(id)?.name ?? id, count: num(count) }))
+      .map(([id, count]) => ({ id, name: this.catalog.baitById.get(id)?.name ?? id, count: num(count) }))
     const cast = f.cast !== null && typeof f.cast === 'object' ? {
       rodName: typeof f.cast.rodName === 'string' ? f.cast.rodName : '',
       baitName: typeof f.cast.baitName === 'string' ? f.cast.baitName : '',
@@ -193,10 +151,10 @@ export class GameAdminService {
   }
 
   async setGameUp(groupId, gameId, { rodId, baitId }) {
-    this.load()
+    this.catalog.assertReady()
     if (gameId !== 'fishing') throw new Error('unknown game')
-    const rod = this.rodById.get(rodId)
-    const bait = this.baitById.get(baitId)
+    const rod = this.catalog.rodById.get(rodId)
+    const bait = this.catalog.baitById.get(baitId)
     if (rod === undefined || rod.tier !== 4) throw new Error('UP rod must be legendary')
     if (bait === undefined || bait.tier !== 4) throw new Error('UP bait must be legendary')
     await this.upStore.set(groupId, { rod: rod.id, bait: bait.id })

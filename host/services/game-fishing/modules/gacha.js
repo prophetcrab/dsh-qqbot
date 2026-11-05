@@ -1,10 +1,9 @@
 /** Fishing gacha: deterministic state changes, no LLM involvement. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { CATEGORY_RATES, PITY_LIMITS, ROD_INFO } from '../data.js'
 import { CURRENT_UP } from '../gacha-config.js'
+import { catalogFor, resolveAssetsDir } from '../catalog.js'
 import { buildHistoryRows, buildHistorySummary } from './gacha-history.js'
-import { recordBaitAcquired, recordRodAcquired } from './fishing-state.js'
+import { ensureFishing, recordBaitAcquired, recordRodAcquired } from './fishing-state.js'
 import { renderGachaCard } from '../render/gacha-card.js'
 import { renderGachaHistoryCard } from '../render/gacha-history-card.js'
 
@@ -20,66 +19,13 @@ const SINGLE_TICKET = 'singleTicket'
 const TEN_TICKET = 'tenTicket'
 const COIN = 'coin'
 
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
-
-const ROD_SELL_PRICE = Object.freeze({
-  bamboo_hand: 3, fiberglass_hand: 4, fiberglass_surf: 3,
-  carbon_hand: 7, carbon_iso: 8, carbon_lure: 7,
-  high_carbon_hand: 15, high_carbon_lure: 18, high_carbon_surf: 16,
-  taigong: 100, ziling: 120, walton: 110, grey: 140, hemingway: 160,
-})
-
-const CATEGORY_WEIGHTS = Object.freeze([
-  { kind: 'bait', tier: 1, weight: 37.5 },
-  { kind: 'bait', tier: 2, weight: 30.0 },
-  { kind: 'bait', tier: 3, weight: 20.0 },
-  { kind: 'bait', tier: 4, weight: 2.5 },
-  { kind: 'rod', tier: 1, weight: 5.0 },
-  { kind: 'rod', tier: 2, weight: 2.857 },
-  { kind: 'rod', tier: 3, weight: 1.786 },
-  { kind: 'rod', tier: 4, weight: 0.357 },
-].map((entry) => ({ ...entry })))
-
-const PITY = Object.freeze({
-  rod: 10,
-  lv3Rod: 50,
-  legendaryBait: 60,
-  legendaryRod: 150,
-})
-
-function readCatalog(assetsDir, name, key) {
-  const path = join(assetsDir, name, 'catalog.json')
-  const parsed = JSON.parse(readFileSync(path, 'utf8'))
-  if (!Array.isArray(parsed[key])) throw new Error(`invalid catalog: ${path}`)
-  return parsed[key]
-}
-
-function cleanPlayerId(value) {
-  return String(value ?? '')
-}
-
-function ensureFishing(player) {
-  if (player.fishing === null || typeof player.fishing !== 'object') player.fishing = {}
-  const fishing = player.fishing
-  if (fishing.tickets === null || typeof fishing.tickets !== 'object') fishing.tickets = {}
-  fishing.tickets.singleTickets = Number.isSafeInteger(fishing.tickets.singleTickets) ? fishing.tickets.singleTickets : 0
-  fishing.tickets.tenTickets = Number.isSafeInteger(fishing.tickets.tenTickets) ? fishing.tickets.tenTickets : 0
-  if (fishing.rods === null || typeof fishing.rods !== 'object') fishing.rods = {}
-  fishing.rods.owned = Array.isArray(fishing.rods.owned) ? fishing.rods.owned : []
-  if (typeof fishing.rods.equipped !== 'string') fishing.rods.equipped = null
-  if (fishing.baits === null || typeof fishing.baits !== 'object') fishing.baits = {}
-  if (fishing.baits.counts === null || typeof fishing.baits.counts !== 'object') fishing.baits.counts = {}
-  if (typeof fishing.baits.selected !== 'string') fishing.baits.selected = null
-  if (fishing.gacha === null || typeof fishing.gacha !== 'object') fishing.gacha = {}
-  const gacha = fishing.gacha
-  gacha.rodPity = Number.isSafeInteger(gacha.rodPity) ? gacha.rodPity : 0
-  gacha.lv3RodPity = Number.isSafeInteger(gacha.lv3RodPity) ? gacha.lv3RodPity : 0
-  gacha.legendaryBaitPity = Number.isSafeInteger(gacha.legendaryBaitPity) ? gacha.legendaryBaitPity : 0
-  gacha.legendaryRodPity = Number.isSafeInteger(gacha.legendaryRodPity) ? gacha.legendaryRodPity : 0
-  gacha.totalDraws = Number.isSafeInteger(gacha.totalDraws) ? gacha.totalDraws : 0
-  gacha.history = Array.isArray(gacha.history) ? gacha.history.slice(-50) : []
-  return fishing
-}
+const CATEGORY_WEIGHTS = Object.freeze(
+  ['bait', 'rod'].flatMap((kind) => Object.entries(CATEGORY_RATES[kind]).map(([tier, weight]) => ({
+    kind,
+    tier: Number(tier),
+    weight,
+  }))).sort((left, right) => (left.kind === right.kind ? left.tier - right.tier : left.kind === 'bait' ? -1 : 1)),
+)
 
 function tierLabel(tier) {
   return tier >= 4 ? 'Legendary' : `Lv.${tier}`
@@ -148,19 +94,19 @@ function pay(fishing, coins, payment) {
 }
 
 function pityDraw(gacha, rods, baits, random, up) {
-  if (gacha.legendaryRodPity >= PITY.legendaryRod) {
+  if (gacha.legendaryRodPity >= PITY_LIMITS.legendaryRod) {
     gacha.legendaryRodPity = 0
     return { kind: 'rod', tier: 4, item: pickLegendary(rods[4], up.rod, random), pityTriggered: 'legendaryRod' }
   }
-  if (gacha.lv3RodPity >= PITY.lv3Rod) {
+  if (gacha.lv3RodPity >= PITY_LIMITS.lv3Rod) {
     gacha.lv3RodPity = 0
     return { kind: 'rod', tier: 3, item: pick(rods[3], random), pityTriggered: 'lv3Rod' }
   }
-  if (gacha.legendaryBaitPity >= PITY.legendaryBait) {
+  if (gacha.legendaryBaitPity >= PITY_LIMITS.legendaryBait) {
     gacha.legendaryBaitPity = 0
     return { kind: 'bait', tier: 4, item: pickLegendary(baits[4], up.bait, random), pityTriggered: 'legendaryBait' }
   }
-  if (gacha.rodPity >= PITY.rod) {
+  if (gacha.rodPity >= PITY_LIMITS.rod) {
     gacha.rodPity = 0
     const tier = clampRandom(random) < 5 / 7.857 ? 1 : 2
     return { kind: 'rod', tier, item: pick(rods[tier], random), pityTriggered: 'rod' }
@@ -192,7 +138,7 @@ function storeResult(player, fishing, result, drawNo, source, now) {
   if (result.kind === 'rod') {
     const id = result.item.id
     if (fishing.rods.owned.includes(id)) {
-      duplicateSold = ROD_SELL_PRICE[id] ?? 0
+      duplicateSold = ROD_INFO[id]?.sellPrice ?? 0
       player.fishingCoins = (Number.isSafeInteger(player.fishingCoins) ? player.fishingCoins : 0) + duplicateSold
     } else {
       fishing.rods.owned.push(id)
@@ -232,7 +178,7 @@ function formatDraw(result, index) {
 }
 
 function formatPity(gacha) {
-  return `鱼竿 ${gacha.rodPity}/${PITY.rod} · Lv3 ${gacha.lv3RodPity}/${PITY.lv3Rod} · 传奇饵 ${gacha.legendaryBaitPity}/${PITY.legendaryBait} · 传奇竿 ${gacha.legendaryRodPity}/${PITY.legendaryRod}`
+  return `鱼竿 ${gacha.rodPity}/${PITY_LIMITS.rod} · Lv3 ${gacha.lv3RodPity}/${PITY_LIMITS.lv3Rod} · 传奇饵 ${gacha.legendaryBaitPity}/${PITY_LIMITS.legendaryBait} · 传奇竿 ${gacha.legendaryRodPity}/${PITY_LIMITS.legendaryRod}`
 }
 
 function formatCost(payment, size) {
@@ -248,32 +194,24 @@ export class GachaService {
   constructor({ projectDir, logger, assetsDir, upStore }) {
     this.logger = logger
     this.upStore = upStore
-    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
-    this.rods = { 1: [], 2: [], 3: [], 4: [] }
-    this.baits = { 1: [], 2: [], 3: [], 4: [] }
-    this.itemById = new Map()
-    this.loaded = false
+    this.catalog = catalogFor(resolveAssetsDir(projectDir, assetsDir))
     this.active = new Set()
   }
 
-  load() {
-    if (this.loaded) return
-    for (const rod of readCatalog(this.assetsDir, 'rods', 'rods')) this.rods[rod.tier].push(rod)
-    for (const bait of readCatalog(this.assetsDir, 'baits', 'baits')) this.baits[bait.tier].push(bait)
+  /** Catalogs grouped by tier, validated for the tiers the gacha uses. */
+  #catalogs() {
+    const catalog = this.catalog.assertReady(['rods', 'baits'])
     for (const tier of [1, 2, 3, 4]) {
-      for (const rod of this.rods[tier]) this.itemById.set(rod.id, rod)
-      for (const bait of this.baits[tier]) this.itemById.set(bait.id, bait)
+      if ((catalog.rodsByTier[tier] ?? []).length === 0) throw new Error(`missing rod tier ${tier}`)
+      if ((catalog.baitsByTier[tier] ?? []).length === 0) throw new Error(`missing bait tier ${tier}`)
     }
-    for (const tier of [1, 2, 3, 4]) {
-      if (this.rods[tier].length === 0) throw new Error(`missing rod tier ${tier}`)
-      if (this.baits[tier].length === 0) throw new Error(`missing bait tier ${tier}`)
-    }
-    this.loaded = true
+    return { rods: catalog.rodsByTier, baits: catalog.baitsByTier, itemById: catalog.itemById }
   }
 
   async history({ groupId, userId, store }) {
+    let catalogs
     try {
-      this.load()
+      catalogs = this.#catalogs()
     } catch (error) {
       this.logger?.warn?.('gacha history catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'gacha catalog unavailable' }
@@ -282,9 +220,9 @@ export class GachaService {
     const player = state.players[userId]
     if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
     const fishing = ensureFishing(player)
-    const rows = buildHistoryRows(fishing.gacha.history, this.itemById)
+    const rows = buildHistoryRows(fishing.gacha.history, catalogs.itemById)
     if (rows.length === 0) return { ok: true, replies: ['还没有抽卡记录。发送 /钓鱼 抽卡 开始第一次抽卡。'] }
-    const summary = buildHistorySummary(rows, fishing.gacha, PITY)
+    const summary = buildHistorySummary(rows, fishing.gacha, PITY_LIMITS)
     const text = [
       '抽卡记录',
       `总抽数 ${summary.totalDraws} · 最近 ${summary.shown} 条 · 传奇 ${summary.legendary} · 重复回收 ${summary.duplicateCoins} 钓鱼币`,
@@ -292,7 +230,7 @@ export class GachaService {
     ].join('\n')
     let image
     try {
-      image = await renderGachaHistoryCard({ nickname: player.nickname || userId, rows, summary, assetsDir: this.assetsDir })
+      image = await renderGachaHistoryCard({ nickname: player.nickname || userId, rows, summary, assetsDir: this.catalog.assetsDir })
     } catch (error) {
       this.logger?.warn?.('gacha history image failed: %s', String(error?.message ?? error))
     }
@@ -312,7 +250,13 @@ export class GachaService {
     if (this.active.has(lockKey)) return { ok: true, replies: ['正在抽卡，请稍等待。'] }
     this.active.add(lockKey)
     try {
-      try { this.load() } catch (error) { this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error)); return { ok: false, error: 'gacha catalog unavailable' } }
+      let catalogs
+      try {
+        catalogs = this.#catalogs()
+      } catch (error) {
+        this.logger?.warn?.('gacha catalog failed: %s', String(error?.message ?? error))
+        return { ok: false, error: 'gacha catalog unavailable' }
+      }
       const size = parts[1] === '十连' ? 10 : 1
       const up = this.upStore === undefined ? CURRENT_UP : await this.upStore.get(groupId)
 
@@ -331,8 +275,8 @@ export class GachaService {
         fishing.gacha.lv3RodPity += 1
         fishing.gacha.legendaryBaitPity += 1
         fishing.gacha.legendaryRodPity += 1
-        const forced = pityDraw(fishing.gacha, this.rods, this.baits, random, up)
-        const result = forced ?? baseDraw(this.rods, this.baits, random, up)
+        const forced = pityDraw(fishing.gacha, catalogs.rods, catalogs.baits, random, up)
+        const result = forced ?? baseDraw(catalogs.rods, catalogs.baits, random, up)
         if (forced === null) applyNaturalReset(fishing.gacha, result)
         results.push(storeResult(player, fishing, result, fishing.gacha.totalDraws + 1, payment.sources[index], now))
       }
@@ -351,7 +295,7 @@ export class GachaService {
           cost: formatCost(payment, size),
           player,
           fishing,
-          assetsDir: this.assetsDir,
+          assetsDir: this.catalog.assetsDir,
         })
       } catch (error) {
         this.logger?.warn?.('gacha image render failed: %s', String(error?.message ?? error))

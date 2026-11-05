@@ -134,6 +134,8 @@ host/services/game-core/       # 共享账号与游戏注册表
 
 host/services/game-fishing/    # 当前游戏参考实现
 ├── index.js                   # FishingGame 门面：装配服务与帮助
+├── catalog.js                 # 目录读取（mtime 热更新，全服务共享）
+├── catalog-audit.js           # 启动时检查缺数值/缺美术/新等级
 ├── data.js                    # 鱼种数值、鱼饵系数
 ├── admin.js                   # 管理台快照、UP 校验、GAMES
 ├── up-store.js                # 按群 UP 持久化
@@ -401,7 +403,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 329 个 host/client 测试
+npm test                 # 330 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
 npm run smoke:host       # 53 routes / 6 tools / 3 features

@@ -50,6 +50,7 @@ export function buildHistoryRows(history, itemById) {
       sourceLabel: SOURCE_LABELS[String(entry?.source ?? '')] ?? String(entry?.source ?? '—'),
       itemId: String(entry?.itemId ?? ''),
       name: String(entry?.itemName ?? item?.name ?? entry?.itemId ?? '未知'),
+      asset: String(item?.asset ?? ''),
       kind: entry?.kind === 'rod' ? 'rod' : 'bait',
       tier,
       rarityLabel: rarity === 'Legendary' ? '传奇' : (rarity || `Lv.${tier}`),

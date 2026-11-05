@@ -42,6 +42,15 @@ export function ensureFishing(player) {
   if (typeof f.rods.equipped !== 'string') f.rods.equipped = null
   if (f.baits === null || typeof f.baits !== 'object') f.baits = {}
   if (f.baits.counts === null || typeof f.baits.counts !== 'object') f.baits.counts = {}
+  if (typeof f.baits.selected !== 'string') f.baits.selected = null
+  if (f.gacha === null || typeof f.gacha !== 'object') f.gacha = {}
+  const gacha = f.gacha
+  gacha.rodPity = Number.isSafeInteger(gacha.rodPity) ? gacha.rodPity : 0
+  gacha.lv3RodPity = Number.isSafeInteger(gacha.lv3RodPity) ? gacha.lv3RodPity : 0
+  gacha.legendaryBaitPity = Number.isSafeInteger(gacha.legendaryBaitPity) ? gacha.legendaryBaitPity : 0
+  gacha.legendaryRodPity = Number.isSafeInteger(gacha.legendaryRodPity) ? gacha.legendaryRodPity : 0
+  gacha.totalDraws = Number.isSafeInteger(gacha.totalDraws) ? gacha.totalDraws : 0
+  gacha.history = Array.isArray(gacha.history) ? gacha.history.slice(-50) : []
   if (f.codex === null || typeof f.codex !== 'object') f.codex = {}
   if (f.codex.rods === null || typeof f.codex.rods !== 'object') f.codex.rods = {}
   if (f.codex.baits === null || typeof f.codex.baits !== 'object') f.codex.baits = {}

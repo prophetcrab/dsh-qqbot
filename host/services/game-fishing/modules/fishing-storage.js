@@ -1,23 +1,12 @@
 /** Fish warehouse view and sell-by-id commands. */
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { ensureFishing } from './fishing-cast.js'
-import { recordFishCaught } from './fishing-state.js'
+import { catalogFor, resolveAssetsDir } from '../catalog.js'
+import { ensureFishing, recordFishCaught } from './fishing-state.js'
 import { renderWarehouseCard } from '../render/warehouse-card.js'
 
 export const storageHelp = Object.freeze([
   ['/钓鱼 鱼仓', '查看鱼仓长图，每条鱼带纯数字编号'],
   ['/钓鱼 卖鱼 编号', '按编号出售鱼获'],
 ])
-
-const PACKAGE_ASSETS = fileURLToPath(new URL('../../../../assets/', import.meta.url))
-
-function readCatalog(assetsDir) {
-  const parsed = JSON.parse(readFileSync(join(assetsDir, 'fish', 'catalog.json'), 'utf8'))
-  if (!Array.isArray(parsed.fish)) throw new Error('invalid fish catalog')
-  return parsed.fish
-}
 
 function money(value) {
   return Number.isSafeInteger(value) ? value : 0
@@ -26,21 +15,15 @@ function money(value) {
 export class FishingStorageService {
   constructor({ projectDir, logger, assetsDir }) {
     this.logger = logger
-    this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
-    this.loaded = false
-    this.fishById = new Map()
-  }
-
-  load() {
-    if (this.loaded) return
-    for (const fish of readCatalog(this.assetsDir)) this.fishById.set(fish.id, fish)
-    this.loaded = true
+    this.catalog = catalogFor(resolveAssetsDir(projectDir, assetsDir))
   }
 
   async execute({ rawCommand, groupId, userId, store }) {
     const parts = String(rawCommand).trim().split(/\s+/u)
     if (parts[0] !== '/钓鱼' || (parts[1] !== '鱼仓' && parts[1] !== '卖鱼')) return null
-    try { this.load() } catch (error) {
+    try {
+      this.catalog.assertReady(['fish'])
+    } catch (error) {
       this.logger?.warn?.('fish warehouse catalog failed: %s', String(error?.message ?? error))
       return { ok: false, error: 'fish warehouse catalog unavailable' }
     }
@@ -65,8 +48,8 @@ export class FishingStorageService {
       image = await renderWarehouseCard({
         nickname: player.nickname || userId,
         entries,
-        fishById: this.fishById,
-        assetsDir: this.assetsDir,
+        fishById: this.catalog.fishById,
+        assetsDir: this.catalog.assetsDir,
       })
     } catch (error) {
       this.logger?.warn?.('warehouse image failed: %s', String(error?.message ?? error))

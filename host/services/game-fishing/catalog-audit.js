@@ -6,16 +6,15 @@
  */
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS } from './data.js'
+import { FISH_STATS, LEGENDARY_BAIT_EFFECTS, NORMAL_BAIT_COEFFICIENTS, ROD_INFO } from './data.js'
 import { readCatalogFile } from './catalog.js'
-import { ROD_INFO } from './modules/fishing-rod.js'
 
 const FISH_TIERS = new Set([1, 2, 3, 4, 5])
 const GEAR_TIERS = new Set([1, 2, 3, 4])
 
 function readSafe(assetsDir, name, key, warnings) {
   try {
-    return readCatalogFile(assetsDir, name, key)
+    return readCatalogFile(assetsDir, name)
   } catch (error) {
     warnings.push(`${name} catalog unavailable: ${String(error?.message ?? error)}`)
     return []

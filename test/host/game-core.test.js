@@ -589,7 +589,6 @@ test('gacha history command explains the empty state before the first draw', asy
 
 test('legendary rod and bait effects apply', async () => {
   const { root, game } = await gachaWorkspace()
-  game.cast.load()
   const seq = (values) => { let i = 0; return () => values[i++] ?? 0.5 }
   const cast = (overrides = {}) => ({
     rodId: 'bamboo_hand', effects: [], normalCoefficient: null, waltonFirst: false, forceFive: false, ...overrides,
