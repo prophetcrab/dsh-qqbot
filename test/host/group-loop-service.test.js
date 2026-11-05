@@ -325,6 +325,47 @@ test('the ReAct loop can run calculator and group_search tools', async () => {
   await rm(root, { recursive: true, force: true })
 })
 
+test('the ReAct loop is not capped at 4 steps or 2 tool calls', async () => {
+  const expressions = ['1+1', '2+2', '3+3', '4+4', '5+5', '6+6']
+  let index = 0
+  const stream = async function* () {
+    const next = index < expressions.length
+      ? JSON.stringify({ type: 'tool_call', tool: 'calculator', args: { expression: expressions[index] } })
+      : '{"type":"final","parts":["算完了"]}'
+    index += 1
+    yield { type: 'text-delta', text: next }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, { settings: { webSearchEnabled: true } })
+  const result = await service.compose({
+    groupId: 'g1', loopId: 'uncapped-loop', material: '多轮计算', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} },
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.parts, ['算完了'])
+  assert.equal(result.toolCalls.length, 6)
+  assert.deepEqual(result.toolCalls.map((call) => call.tool), Array(6).fill('calculator'))
+  await rm(root, { recursive: true, force: true })
+})
+
+test('the ReAct loop gives up only when it stops making progress', async () => {
+  let calls = 0
+  const stream = async function* () {
+    calls += 1
+    // Always the same call: executed once, then repeats forever.
+    yield { type: 'text-delta', text: '{"type":"tool_call","tool":"calculator","args":{"expression":"1+1"}}' }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+  const { root, service } = await setup(stream, { settings: { webSearchEnabled: true } })
+  const result = await service.compose({
+    groupId: 'g1', loopId: 'stalled-loop', material: '一直重复', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} },
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.toolCalls.length, 1)
+  assert.equal(calls, 4) // 1 executed + REACT_STALL_LIMIT (3) refusals
+  assert.match(result.error, /ReAct 未生成最终发言/u)
+  await rm(root, { recursive: true, force: true })
+})
+
 test('finance calendar is available as a ReAct tool', async () => {
   let index = 0
   const stream = async function* () {

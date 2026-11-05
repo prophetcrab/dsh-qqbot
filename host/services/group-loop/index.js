@@ -15,6 +15,12 @@ import { parseToolCalls, renderObservation, toolQuery, toolSignature } from './t
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
 const MATERIAL_LIMITS = { analyze: 16000, compose: 8000, stateUpdate: 10000 }
+/**
+ * Safety valve, not a budget: after this many consecutive compose turns with
+ * neither a tool result nor final parts the loop gives up. Tool calls and
+ * steps themselves are unlimited; the model decides when the goal is met.
+ */
+const REACT_STALL_LIMIT = 3
 
 function mergeUsage(left, right) {
   if (left === null || left === undefined) return right
@@ -285,8 +291,11 @@ export class GroupLoopService {
     const executed = new Set()
     let observations = ''
     let composeUsage = null
+    let stalls = 0
     const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
-    for (let step = 0; step < 4; step += 1) {
+    // No fixed step/tool-call budget: the model keeps calling tools until it
+    // decides the goal is met. `stalls` only stops a non-terminating loop.
+    for (;;) {
       let raw = ''
       try {
         raw = await this.stream(system, `${baseUser}${observations ? `\n\n${observations}` : ''}`, { maxTokens: 600, temperature: 0.7, images, onUsage: (usage) => { composeUsage = mergeUsage(composeUsage, usage) } })
@@ -297,15 +306,11 @@ export class GroupLoopService {
       const parsed = parseJson(raw)
       const calls = parseToolCalls(raw, parsed)
       if (calls.length > 0) {
-        const available = Math.max(0, 2 - toolCalls.length)
-        if (available === 0) {
-          observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
-          continue
-        }
-        for (const call of calls.slice(0, available)) {
+        let progressed = false
+        for (const call of calls) {
           const signature = toolSignature(call)
           if (executed.has(signature)) {
-            observations += '\n\n【工具观察】这个工具参数已经执行过，请直接基于已有 observation 给 final parts。'
+            observations += '\n\n【工具观察】这个工具参数已经执行过，请基于已有 observation 继续或给 final parts。'
             continue
           }
           const started = Date.now()
@@ -316,6 +321,7 @@ export class GroupLoopService {
             result = { ok: false, error: String(error?.message ?? error) }
           }
           executed.add(signature)
+          progressed = true
           const query = toolQuery(call)
           const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.events) ? result.events.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
           toolCalls.push({
@@ -329,11 +335,20 @@ export class GroupLoopService {
           })
           observations += `\n\n${renderObservation(call.tool, result).slice(0, 14000)}`
         }
-        if (calls.length > available) observations += '\n\n【工具观察】工具预算已用完，请直接给 final parts。'
+        if (progressed) {
+          stalls = 0
+          continue
+        }
+        // Only already-executed calls were requested: nudge once, then stop if
+        // the model keeps requesting the same thing.
+        stalls += 1
+        if (stalls >= REACT_STALL_LIMIT) break
         continue
       }
       if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {
+        stalls += 1
         observations += '\n\n【工具观察】工具调用格式无法解析，请重新输出合法 tool_call，或直接给 final parts。'
+        if (stalls >= REACT_STALL_LIMIT) break
         continue
       }
       const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
@@ -341,7 +356,9 @@ export class GroupLoopService {
         await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
         return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
       }
+      stalls += 1
       observations += '\n\n【工具观察】请输出 final parts，或调用可用工具。'
+      if (stalls >= REACT_STALL_LIMIT) break
     }
     await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage })
     return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }
