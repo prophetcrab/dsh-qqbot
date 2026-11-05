@@ -31,7 +31,8 @@ NapCat 安装需要一次 macOS 管理员授权。
 
 生命周期：DSH 正常退出/重载插件时会停止 Koishi 与 NapCat（本地 QQ 进程）；
 DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程（本地 QQ 不会被结束）。
-不需要该行为时可在配置中设置 `lifecycleGuard: false`。
+若不希望崩溃时自动结束 Koishi，可设置 `lifecycleGuard: false`；正常退出/卸载
+仍会停止服务。
 
 ## 3. 登录
 

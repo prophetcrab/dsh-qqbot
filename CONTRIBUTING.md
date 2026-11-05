@@ -113,8 +113,8 @@ client/runtime ← client/components ← client/plugins ← client/index.js
 - 禁止 `process.platform` 出现在 `host/platform/` 之外。
 - 平台层只使用 `host/platform/index.js` 门面；`host/platform/common/` 放平台
   无关实现，`host/platform/mac/` 只放 macOS 差异。
-- 本分支不得引入 `host/platform/win`、Docker NapCat 后端、`vendor/napcat`
-  之外的 Windows 离线资源；这些属于 `dshbot-win64`。
+- 本分支不得引入 `host/platform/win`、Docker NapCat 后端或 Windows 离线
+  包/资源；`vendor/napcat` 与 darwin runtime bundle 属于本分支。
 - 普通源码文件 <=500 行；入口 <=80 行。
 - 有循环依赖直接拒绝合并。
 
@@ -170,8 +170,8 @@ plugins/<name>/
 - 插件必须有 `name`、`Config`、`apply`。
 - 通过 `inject` 声明依赖。
 - 插件之间只通过 `ctx.qqbot.*` 服务通信。
-- 禁止 `plugins/ai/trigger.ts` import 另一个插件的内部文件。
-- 新玩法只新增 `plugins/games/<name>`，不修改 `ai-chat`。
+- 禁止 import 另一个插件的内部文件。
+- 新玩法只在 Koishi 增加命令入口（如 `plugins/game-<name>`），游戏逻辑留在 DSH。
 - 业务插件不得直接操作 DSH 文件系统；通过 HTTP 契约。
 - AI 触发/上下文/批量/图片属于 Koishi；不要移到 Host。
 
@@ -182,7 +182,7 @@ plugins/<name>/
 | 端口、路径、安装、离线包 | DSH Host | 只写在 cordis 配置 |
 | Koishi 插件树 | Koishi Loader | 只通过插件管理 API 修改 |
 | 权限策略 | Koishi access-control | DSH 写文件，Koishi 执行 |
-| AI 触发/批量 | Koishi ai-chat | 面板可编辑，单一文件 |
+| AI 触发/批量 | Koishi group-listener | 面板可编辑，单一文件 |
 | 模型/人设/画像 | DSH | 只通过 Host API |
 | NapCat OneBot 配置 | DSH NapCat Adapter | 通过 WebUI/配置文件 |
 | 游戏状态 | 对应 Koishi 游戏插件 | 插件自己管理 |

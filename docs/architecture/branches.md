@@ -37,7 +37,7 @@
 ### 尚未对齐
 
 - `dshbot-mac` 仍包含 `host/platform/mac`、本地 NapCat 后端、`vendor/napcat` 和 darwin runtime bundle；这是 macOS 分支的预期内容，不是 Windows 分支的遗漏。
-- Windows 分支在 v0.7.0 之后有若干共享修复和清理（例如 OneBot 重复客户端、重复 @、Koishi 端口同步、Docker 生命周期、构建校验），这些应在新功能开发前从 win 选择性 cherry-pick 回 mac。
+- Windows 分支在 v0.7.0 之后的共享修复已在 `dshbot-mac` 上 cherry-pick 落地（平台层 `common` 共享实现、OneBot 重复客户端、重复 @、Koishi 端口同步与状态探针、生命周期 guard、模板测试 CI、构建校验）；Docker 生命周期等 Windows 专属改动保留在 win 分支。
 - 平台分支的 root README/SETUP/CONTRIBUTING 保留平台运行细节；项目级架构、决策和发布记录以 `main` 为权威，平台分支中的副本是同步快照。
 - Windows 分支中 `f979045` 是 v0.7.0-win64 release tag，分支头还包含发布后的 CI 修复和导航/发布文档，不等于 release 资产内容。
 

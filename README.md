@@ -325,7 +325,7 @@ qqPath               空
 napcatDir            空
 offlineVendorDir     空
 offlineNapcatVersion 空
-lifecycleGuard       true（DSH 退出时结束 Koishi 进程）
+lifecycleGuard       true（DSH 崩溃时由 watchdog 结束 Koishi 进程）
 ```
 
 NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
@@ -358,8 +358,9 @@ logLines           200
 
 生命周期：DSH 正常退出或卸载插件时，插件会停止 Koishi 与 NapCat（本地 QQ
 进程）；`lifecycleGuard=true`（默认）时另有一个脱离 DSH 的 watchdog，在 DSH
-崩溃/被杀时结束本项目的 Koishi 进程。NapCat 是本地 `QQ.app`，watchdog 不会
-结束它，避免误杀用户自己的 QQ 会话。
+崩溃/被杀时结束本项目的 Koishi 进程。该开关只控制 watchdog，不改变正常退出/
+卸载时的停止行为。NapCat 是本地 `QQ.app`，watchdog 不会结束它，避免误杀用户
+自己的 QQ 会话。
 
 ## 安装
 
