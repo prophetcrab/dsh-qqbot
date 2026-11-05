@@ -1,6 +1,7 @@
 # 功能性系统测试清单
 
-自动化检查（`npm run check`）只验证模块、契约、构建和离线资产。  
+自动化检查（`npm run check`）只验证模块、契约、构建和离线资产；CI 另外会跑
+Koishi 模板测试（`npm run test:template`，67 个）和模板漂移检查。  
 以下测试必须在真实 macOS / Apple Silicon 环境执行，不能只靠 CI。
 
 ## 1. 合并前最低门槛
@@ -25,15 +26,15 @@
 ### A. DSH 插件
 
 ```text
-[ ] 面板可打开，9 个 Tab 正常
+[ ] 面板可打开，9 个 Tab 正常（overview/ai/messages/access/plugins/features/logs/games/tokens）
 [ ] 刷新页面后 Client bundle 正常
 [ ] 概览状态与进程实际状态一致
 [ ] 全部停止：Koishi、NapCat、QQ 进程结束
 [ ] 全部启动：Koishi 先就绪，再出现 NapCat 二维码
 [ ] NapCat 安装/版本检测正常
 [ ] QR 刷新按钮可用
-[ ] 插件页读取 17 个 Koishi 插件，启停操作正常
-[ ] 功能页 3 个 Feature 可见
+[ ] 插件页读取 19 个 Koishi 插件，启停操作正常
+[ ] 功能页 3 个 Feature 可见（overview/koishi-plugins/access）
 [ ] 日志页能读到 Koishi 日志
 [ ] 权限页读写 policy 正常
 ```

@@ -28,20 +28,31 @@ dsh-qqbot/
 ├── host/
 │   ├── kernel/              # 插件注册、贡献点、路由/工具/Feature/Tab
 │   ├── contracts/           # AI/status/config/panel/plugin-manifest schema
-│   ├── platform/mac/        # 路径、进程、端口、能力
-│   ├── services/            # napcat / koishi / setup / ai / persona / profiles / access
-│   │   └── game-core/       # 共享玩家存储 + games/fishing 等游戏包
+│   ├── platform/            # 平台层：平台差异只允许出现在这里
+│   │   ├── index.js         # 门面：本分支只接入 mac 实现
+│   │   ├── common/          # 平台无关：paths / data-paths / http / settings
+│   │   └── mac/             # macOS 实现：路径、进程、端口、QQ/NapCat 探测
+│   ├── services/            # napcat / koishi / lifecycle / setup / ai / persona /
+│   │   │                    # profiles / access / group-loop
+│   │   ├── game-core/       # 共享账号 + 玩家存储 + 游戏注册表
+│   │   └── game-fishing/    # 钓鱼游戏包（数值、事务、渲染、管理台）
 │   └── plugins/             # lifecycle / napcat / koishi / install / ai / persona /
-│                            # access / messages / features / tools / game-core
+│                            # access / messages / features / tools /
+│                            # game-core / game-fishing / group-loop
 ├── client/
 │   ├── index.js             # 仅注册 Client 插件
 │   ├── runtime/             # api / store / styles / locale
 │   ├── components/
-│   └── plugins/             # overview / ai / messages / access / plugins / features / logs / games
+│   └── plugins/             # overview / ai / messages / access / plugins / features /
+│                            # logs / games / tokens
 ├── template/                # Koishi 运行时模板（从 qq-bot 同步）
 ├── vendor/napcat/           # NapCat 离线 payload
 └── scripts/                 # 构建、校验、冒烟、安装
 ```
+
+平台层规则（ADR-0008 / 0009）：`process.platform` 只允许出现在
+`host/platform/`；本分支只携带 macOS 实现，`host/platform/win`、Docker NapCat
+后端和 Windows 离线包属于 `dshbot-win64` 分支，不得带回本分支。
 
 ### DSH Host 插件模型
 
@@ -74,16 +85,11 @@ node scripts/build-client.mjs --check
 `template/plugins/` 是 Koishi 侧源码：
 
 ```text
-core / access-control / health / welcome / echo
-ai/
-├── gateway.ts     # DSH HTTP 契约
-├── trigger.ts     # 概率/@/回复/跟进
-├── context.ts     # 背景/图片
-├── media.ts
-├── message.ts
-├── delivery.ts
-├── config.ts
-└── index.ts       # 编排
+core / access-control / health / welcome / echo   # 基础插件
+group-listener/    # 群聊监听：缓冲、触发、队列、发送、账号命令
+game-fishing/      # /钓鱼 命令入口，转发 DSH
+runtime/           # 事件运行时内核（shadow，暂不接入线上链路）
+shared/            # DSH transport / 游戏结果发送 / URL 安全
 ```
 
 插件之间通过 `ctx.qqbot.*` 服务通信，不 deep import 内部实现。
@@ -106,9 +112,9 @@ ai/
 
 ```text
 QQ 群消息
-→ Koishi group-listener 识别 /钓鱼
-→ POST /qqbot/game/command
-→ DSH game-core 执行事务
+→ Koishi game-fishing 识别 /钓鱼
+→ POST /qqbot/games/fishing/command
+→ DSH game-fishing 执行事务
 → 返回文字 / base64 图片
 → Koishi 发回群
 ```
@@ -120,20 +126,24 @@ QQ 群消息
 ### 2. 代码位置
 
 ```text
-host/services/game-core/
-├── games/
-│   └── fishing/               # 当前游戏参考实现
-│       ├── index.js           # FishingGame 门面：装配服务与帮助
-│       ├── data.js            # 鱼种数值、鱼饵系数
-│       ├── admin.js           # 管理台快照、UP 校验、GAMES
-│       ├── up-store.js        # 按群 UP 持久化
-│       ├── gacha-config.js    # 默认 UP
-│       ├── modules/           # 命令、状态迁移、事务
-│       └── render/            # 抽卡/卡池/鱼仓/上鱼图片
+host/services/game-core/       # 共享账号与游戏注册表
 ├── modules/players.js         # 共享账号：注册/签到/账号背包
 ├── player-store.js            # 按群玩家状态，原子写入
 ├── registry.js
 └── index.js                   # 装配共享模块和游戏包
+
+host/services/game-fishing/    # 当前游戏参考实现
+├── index.js                   # FishingGame 门面：装配服务与帮助
+├── data.js                    # 鱼种数值、鱼饵系数
+├── admin.js                   # 管理台快照、UP 校验、GAMES
+├── up-store.js                # 按群 UP 持久化
+├── gacha-config.js            # 默认 UP
+├── modules/                   # 命令、状态迁移、事务
+└── render/                    # 抽卡/卡池/鱼仓/上鱼图片
+
+host/plugins/game-fishing/     # 路由：/qqbot/games/fishing/*、管理台
+host/plugins/game-core/        # 路由：/qqbot/game/command（共享账号命令）
+template/plugins/game-fishing/ # Koishi 侧 /钓鱼 命令入口
 
 client/plugins/games/          # 小游戏管理台（群 → 游戏 → 玩家）
 assets/<gameId>/               # 游戏专属 sprite/catalog
@@ -141,8 +151,9 @@ assets/frames/                 # 共用边框
 assets/items/                  # 共用特殊物品/券
 ```
 
-新增游戏逻辑放在 `games/<gameId>/modules/`，通过
-`games/<gameId>/index.js` 暴露游戏门面。不要写进 Koishi listener，也不要写进
+新增游戏逻辑放在 `host/services/<gameId>/modules/`，通过
+`host/services/<gameId>/index.js` 暴露游戏门面；路由放
+`host/plugins/<gameId>/`。不要写进 Koishi listener，也不要写进
 `players.js` 的账号背包逻辑。
 
 ### 3. 状态与配置
@@ -204,15 +215,16 @@ data/config/games/<gameId>.json
 失败消息要说明缺少什么，不泄露内部状态文件路径
 ```
 
-Koishi 只维护命令白名单：
+Koishi 只维护命令入口：
 
 ```text
+template/plugins/game-fishing/          # 游戏命令：/钓鱼、/兑换钓鱼币
 template/plugins/group-listener/game-commands.ts
-  GAME_COMMANDS
-  ARGUMENT_COMMANDS
+  GAME_COMMANDS        # 账号命令白名单（/注册 /签到 /账号背包）
+  ARGUMENT_COMMANDS    # 带自然语言参数的账号命令（当前为空）
 ```
 
-新增游戏时在这里加入命令，不要复制一套游戏逻辑到 Koishi。
+新增游戏时在 Koishi 只加命令入口和转发，不要复制一套游戏逻辑到 Koishi。
 
 ### 5. 图片约定
 
@@ -306,12 +318,14 @@ GameAdminService.GAMES 中的 id / name / description
 配置：
 
 ```text
+napcatBackend        local（本分支固定使用本地 QQ.app + NapCat）
 napcatPort           6099
 napcatToken          空
 qqPath               空
 napcatDir            空
 offlineVendorDir     空
 offlineNapcatVersion 空
+lifecycleGuard       true（DSH 退出时结束 Koishi 进程）
 ```
 
 NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
@@ -339,6 +353,13 @@ autoInstallDeps    true
 autoSyncSelfId     true
 logLines           200
 ```
+
+启动前会把 `settings.koishiPort` 同步进 `koishi.yml` 的 `server` 端口。
+
+生命周期：DSH 正常退出或卸载插件时，插件会停止 Koishi 与 NapCat（本地 QQ
+进程）；`lifecycleGuard=true`（默认）时另有一个脱离 DSH 的 watchdog，在 DSH
+崩溃/被杀时结束本项目的 Koishi 进程。NapCat 是本地 `QQ.app`，watchdog 不会
+结束它，避免误杀用户自己的 QQ 会话。
 
 ## 安装
 
@@ -379,9 +400,10 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test
+npm test                 # 302 个 host/client 测试
+npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
-npm run smoke:host
+npm run smoke:host       # 53 routes / 6 tools / 3 features
 npm run smoke:client
 npm run check:architecture
 npm run check:template
@@ -401,6 +423,8 @@ npm run check            # 全部
 
 详细文档：
 
+- [当前架构总览](docs/architecture/README.md)
+- [分支对比与同步状态](docs/architecture/branches.md)
 - [模块盘点](docs/archive/refactor-v2/00-module-inventory.md)
 - [重构计划](docs/archive/refactor-v2/01-plan.md)
 - [文件架构](docs/archive/refactor-v2/02-file-layout.md)
@@ -411,10 +435,16 @@ npm run check            # 全部
 - 外部命令使用 argv 数组，不拼 shell
 - 离线包 size/SHA-256 校验失败即拒绝
 - 权限策略由 Koishi `access-control` 执行
+- 平台差异只落在 `host/platform/`，其他分支的平台实现不进入本分支
 - 当前分支只支持 macOS / Apple Silicon
 
 - [事件运行时架构计划](docs/decisions/0001-event-runtime-plan.md)
 - [运行时内核 v1 详细设计](docs/decisions/0002-runtime-v1-detailed-design.md)
 - [小核心人格 + 记忆驱动 + 情绪微调](docs/decisions/0003-character-memory-design.md)
 - [群消息监听与反馈闭环](docs/decisions/0004-group-listener-loop-design.md)
+- [确定性游戏核心](docs/decisions/0005-game-core.md)
+- [小游戏插件架构](docs/decisions/0006-game-plugin-architecture.md)
+- [多平台分支策略](docs/decisions/0007-multiplatform-branch-strategy.md)
+- [main 作为 guidance-only 分支](docs/decisions/0008-main-guidance-only.md)
+- [功能流与发布约定](docs/decisions/0009-feature-flow-and-release-convention.md)
 - [群聊监听状态机 HTML 图](docs/design/group-listener-state-machine.html)

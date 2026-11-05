@@ -29,6 +29,10 @@ node scripts/install-profile.mjs --profile desktop --install
 
 NapCat 安装需要一次 macOS 管理员授权。
 
+生命周期：DSH 正常退出/重载插件时会停止 Koishi 与 NapCat（本地 QQ 进程）；
+DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程（本地 QQ 不会被结束）。
+不需要该行为时可在配置中设置 `lifecycleGuard: false`。
+
 ## 3. 登录
 
 1. 打开面板「概览」
@@ -90,9 +94,11 @@ Koishi `access-control` 立即读取。
 
 ```bash
 npm test
+npm run test:template     # Koishi 模板测试（需先 npm ci --prefix template）
 npm run build:client
 npm run smoke:host
 npm run smoke:client
 npm run check:architecture
+npm run check:template
 npm run offline:verify
 ```

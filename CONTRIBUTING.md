@@ -31,7 +31,9 @@
 ### dsh-qqbot
 
 ```text
-dshbot-mac          当前开发主线
+main                项目级导航/决策/路线图/release metadata，无插件代码
+dshbot-mac          功能开发主线 + macOS 平台代码
+dshbot-win64        Windows 同步/平台适配（下游分支）
 feat/<topic>        新功能
 fix/<topic>         修复
 chore/<topic>       构建/文档/依赖
@@ -42,6 +44,12 @@ refactor/<topic>    结构性重构
 - 合并前必须 fast-forward 或 squash 到 `dshbot-mac`。
 - 禁止在 `dshbot-mac` 上直接做大范围重构。
 - 一个分支只做一件事；不要同时重构 + 加玩法 + 换 UI。
+- `main` 只接收文档/决策/路线图/release metadata，不接收代码；不要整体
+  merge `main` 进平台分支，需要共享文档时用
+  `git checkout main -- docs/ README.md`（详见 [0008](docs/decisions/0008-main-guidance-only.md)）。
+- 平台无关的改动尽量独立成 commit，便于 `dshbot-win64` 用
+  `git cherry-pick -x` 同步；Windows 分支不独立开发跨平台功能
+  （详见 [0009](docs/decisions/0009-feature-flow-and-release-convention.md)）。
 
 ### qq-bot
 
@@ -76,7 +84,10 @@ fix/<topic>
 index.js                 只组装，<=80 行
 host/kernel/             插件注册和贡献点
 host/contracts/          HTTP/插件契约
-host/platform/mac/       平台路径/进程/端口/能力
+host/platform/           平台层（平台差异只允许出现在这里）
+  index.js               门面：本分支只接入 mac 实现
+  common/                平台无关：paths / data-paths / http / settings
+  mac/                   macOS：路径/进程/端口/QQ/NapCat 探测
 host/services/           业务服务，不得依赖 plugins/client
 host/plugins/            能力插件，index.js <=80 行
 client/                  Client 源码
@@ -100,6 +111,10 @@ client/runtime ← client/components ← client/plugins ← client/index.js
 - 禁止 `host/services` import `host/plugins`。
 - 禁止 `client` import `host`。
 - 禁止 `process.platform` 出现在 `host/platform/` 之外。
+- 平台层只使用 `host/platform/index.js` 门面；`host/platform/common/` 放平台
+  无关实现，`host/platform/mac/` 只放 macOS 差异。
+- 本分支不得引入 `host/platform/win`、Docker NapCat 后端、`vendor/napcat`
+  之外的 Windows 离线资源；这些属于 `dshbot-win64`。
 - 普通源码文件 <=500 行；入口 <=80 行。
 - 有循环依赖直接拒绝合并。
 
@@ -235,6 +250,14 @@ smoke:host
 smoke:client
 check:architecture
 offline:verify
+check:template
+```
+
+Koishi 模板测试单独跑（CI 会执行）：
+
+```bash
+npm ci --prefix template
+npm run test:template
 ```
 
 ### qq-bot
@@ -290,7 +313,8 @@ rsync -a --delete \
 4. 在 dsh 仓库跑 `npm run check`。
 5. 一起提交，不单独提交 template。
 
-未来必须补 CI 漂移检查；当前先人工对比。
+CI 已执行漂移检查：`.github/workflows/checks.yml` 会以 `qq-bot@main` 为源
+运行 `node scripts/sync-template.mjs --check`。
 
 ## 11. 发布流程
 
