@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { FISH_STATS } from '../../host/services/game-fishing/data.js'
 import { buildCodex, formatAcquiredAt, formatWeight } from '../../host/services/game-fishing/modules/codex.js'
+import { buildHistoryRows, buildHistorySummary, formatHistoryTime, SOURCE_LABELS } from '../../host/services/game-fishing/modules/gacha-history.js'
 import { recordBaitAcquired, recordFishCaught, recordRodAcquired } from '../../host/services/game-fishing/modules/fishing-state.js'
 import { createGame } from './game-harness.js'
 
@@ -140,10 +141,56 @@ test('help includes fishing exchange commands', async () => {
   assert.match(help.replies[0], /钓鱼 抽卡/u)
   assert.match(help.replies[0], /钓鱼 十连/u)
   assert.match(help.replies[0], /钓鱼 图鉴/u)
+  assert.match(help.replies[0], /钓鱼 抽卡记录/u)
   await rm(root, { recursive: true, force: true })
 })
 
 const ASSETS_DIR = join(process.cwd(), 'assets')
+
+test('gacha history rows are newest first with source and pity labels', () => {
+  const byId = new Map([
+    ['bamboo_hand', { id: 'bamboo_hand', name: '竹制手竿', tier: 1 }],
+    ['dough', { id: 'dough', name: '面团饵', tier: 1 }],
+    ['taigong', { id: 'taigong', name: '太公竿', tier: 4 }],
+  ])
+  const rows = buildHistoryRows([
+    { at: '2026-11-04T17:05:00.000Z', drawNo: 1, source: 'singleTicket', itemId: 'bamboo_hand', itemName: '竹制手竿', kind: 'rod', rarity: 'Lv.1', pityTriggered: null, duplicateSold: 0 },
+    { at: '2026-11-05T02:00:00.000Z', drawNo: 2, source: 'coin', itemId: 'taigong', itemName: '太公竿', kind: 'rod', rarity: 'Legendary', pityTriggered: 'legendaryRod', duplicateSold: 100 },
+  ], byId)
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].drawNo, 2)
+  assert.equal(rows[0].rarityLabel, '传奇')
+  assert.equal(rows[0].tier, 4)
+  assert.equal(rows[0].pity, true)
+  assert.equal(rows[0].duplicateSold, 100)
+  assert.equal(rows[0].sourceLabel, SOURCE_LABELS.coin)
+  assert.equal(rows[0].timeLabel, '11-05 10:00')
+  assert.equal(rows[1].pity, false)
+  assert.equal(rows[1].sourceLabel, '单抽券')
+  assert.equal(rows[1].timeLabel, '11-05 01:05')
+})
+
+test('gacha history summary counts legendaries, duplicates and pity progress', () => {
+  const gacha = { totalDraws: 123, rodPity: 3, lv3RodPity: 12, legendaryBaitPity: 20, legendaryRodPity: 145 }
+  const rows = [
+    { tier: 4, duplicateSold: 100 },
+    { tier: 1, duplicateSold: 0 },
+    { tier: 2, duplicateSold: 3 },
+  ]
+  const summary = buildHistorySummary(rows, gacha, { rod: 10, lv3Rod: 50, legendaryBait: 60, legendaryRod: 150 })
+  assert.equal(summary.totalDraws, 123)
+  assert.equal(summary.shown, 3)
+  assert.equal(summary.legendary, 1)
+  assert.equal(summary.duplicateCoins, 103)
+  assert.deepEqual(summary.pity.rod, { value: 3, limit: 10 })
+  assert.deepEqual(summary.pity.legendaryRod, { value: 145, limit: 150 })
+})
+
+test('gacha history time formatting uses Shanghai time', () => {
+  assert.equal(formatHistoryTime('2026-11-04T17:05:00.000Z'), '11-05 01:05')
+  assert.equal(formatHistoryTime('bad'), '—')
+})
+
 
 test('codex records first acquisition times without overwriting them', () => {
   const fishing = {}
@@ -512,6 +559,31 @@ test('the fishing codex command renders a long collection image', async () => {
   assert.equal(result.image?.mime, 'image/png')
   assert.equal(result.image?.width, 1080)
   assert.ok(result.image?.height > 1800)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('gacha history command renders the recent draws as a long image', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  await seedPlayer(game, { fishingCoins: 100, fishing: { tickets: { singleTickets: 1, tenTickets: 0 } } })
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡' })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡记录' })
+  assert.equal(result.ok, true)
+  assert.match(result.replies[0], /抽卡记录/u)
+  assert.match(result.replies[0], /总抽数 1/u)
+  assert.match(result.replies[0], /保底进度/u)
+  assert.equal(result.image?.mime, 'image/png')
+  assert.equal(result.image?.width, 1080)
+  assert.ok(result.image?.height > 1200)
+  await rm(root, { recursive: true, force: true })
+})
+
+test('gacha history command explains the empty state before the first draw', async () => {
+  const { root, game } = await gachaWorkspace()
+  await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/注册' })
+  const result = await game.command({ groupId: 'g1', userId: '20000', nickname: '小明', command: '/钓鱼 抽卡记录' })
+  assert.match(result.replies[0], /还没有抽卡记录/u)
+  assert.equal(result.image, undefined)
   await rm(root, { recursive: true, force: true })
 })
 

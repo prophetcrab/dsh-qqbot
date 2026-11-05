@@ -3,12 +3,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CURRENT_UP } from '../gacha-config.js'
+import { buildHistoryRows, buildHistorySummary } from './gacha-history.js'
 import { recordBaitAcquired, recordRodAcquired } from './fishing-state.js'
 import { renderGachaCard } from '../render/gacha-card.js'
+import { renderGachaHistoryCard } from '../render/gacha-history-card.js'
 
 export const gachaHelp = Object.freeze([
   ['/钓鱼 抽卡', '单抽，优先消耗单抽券，否则 10 钓鱼币'],
   ['/钓鱼 十连', '十连，优先十连券，其次单抽券，最后 90 钓鱼币'],
+  ['/钓鱼 抽卡记录', '查看最近 50 抽记录长图'],
 ])
 
 const SINGLE_COST = 10
@@ -248,6 +251,7 @@ export class GachaService {
     this.assetsDir = assetsDir ?? (existsSync(join(projectDir, 'assets', 'rods', 'catalog.json')) ? join(projectDir, 'assets') : PACKAGE_ASSETS)
     this.rods = { 1: [], 2: [], 3: [], 4: [] }
     this.baits = { 1: [], 2: [], 3: [], 4: [] }
+    this.itemById = new Map()
     this.loaded = false
     this.active = new Set()
   }
@@ -257,15 +261,52 @@ export class GachaService {
     for (const rod of readCatalog(this.assetsDir, 'rods', 'rods')) this.rods[rod.tier].push(rod)
     for (const bait of readCatalog(this.assetsDir, 'baits', 'baits')) this.baits[bait.tier].push(bait)
     for (const tier of [1, 2, 3, 4]) {
+      for (const rod of this.rods[tier]) this.itemById.set(rod.id, rod)
+      for (const bait of this.baits[tier]) this.itemById.set(bait.id, bait)
+    }
+    for (const tier of [1, 2, 3, 4]) {
       if (this.rods[tier].length === 0) throw new Error(`missing rod tier ${tier}`)
       if (this.baits[tier].length === 0) throw new Error(`missing bait tier ${tier}`)
     }
     this.loaded = true
   }
 
+  async history({ groupId, userId, store }) {
+    try {
+      this.load()
+    } catch (error) {
+      this.logger?.warn?.('gacha history catalog failed: %s', String(error?.message ?? error))
+      return { ok: false, error: 'gacha catalog unavailable' }
+    }
+    const state = await store.read(groupId)
+    const player = state.players[userId]
+    if (player === undefined) return { ok: true, replies: ['你还没有在本群注册，先发送 /注册。'] }
+    const fishing = ensureFishing(player)
+    const rows = buildHistoryRows(fishing.gacha.history, this.itemById)
+    if (rows.length === 0) return { ok: true, replies: ['还没有抽卡记录。发送 /钓鱼 抽卡 开始第一次抽卡。'] }
+    const summary = buildHistorySummary(rows, fishing.gacha, PITY)
+    const text = [
+      '抽卡记录',
+      `总抽数 ${summary.totalDraws} · 最近 ${summary.shown} 条 · 传奇 ${summary.legendary} · 重复回收 ${summary.duplicateCoins} 钓鱼币`,
+      `保底进度：${formatPity(fishing.gacha)}`,
+    ].join('\n')
+    let image
+    try {
+      image = await renderGachaHistoryCard({ nickname: player.nickname || userId, rows, summary, assetsDir: this.assetsDir })
+    } catch (error) {
+      this.logger?.warn?.('gacha history image failed: %s', String(error?.message ?? error))
+    }
+    return { ok: true, replies: [text], ...(image === undefined ? {} : { image }) }
+  }
+
   async execute({ rawCommand, groupId, userId, store, random, now }) {
     const parts = String(rawCommand).trim().split(/\s+/u)
-    if (parts[0] !== '/钓鱼' || (parts[1] !== '抽卡' && parts[1] !== '十连')) return null
+    if (parts[0] !== '/钓鱼') return null
+    if (parts[1] === '抽卡记录') {
+      if (parts.length !== 2) return { ok: true, replies: ['用法：/钓鱼 抽卡记录'] }
+      return this.history({ groupId, userId, store })
+    }
+    if (parts[1] !== '抽卡' && parts[1] !== '十连') return null
     if (parts.length !== 2) return { ok: true, replies: ['用法：\n/钓鱼 抽卡\n/钓鱼 十连'] }
     const lockKey = String(userId)
     if (this.active.has(lockKey)) return { ok: true, replies: ['正在抽卡，请稍等待。'] }
