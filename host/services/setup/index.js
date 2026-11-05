@@ -12,7 +12,7 @@ import { existsSync as fsExistsSync } from 'node:fs'
 import { copyFile, cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { RingLog, dataPaths, migrateDataLayout, npmExecutable, portPid, readJson, run } from '../../platform/mac/index.js'
+import { RingLog, bundleKey, dataPaths, migrateDataLayout, npmExecutable, portPid, readJson, run } from '../../platform/index.js'
 import { setServerPort } from '../koishi/server-port.js'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -26,7 +26,7 @@ const SKIP_NAMES = new Set(['node_modules', 'data', 'logs', 'runtime', 'runtime-
 export class SetupManager {
   /**
    * @param {object} options
-   * @param {ReturnType<import('../../platform/mac/index.js').resolveSettings>} options.settings
+   * @param {ReturnType<import('../../platform/index.js').resolveSettings>} options.settings
    * @param {{ info: Function, warn: Function, error: Function }} options.logger
    * @param {{ spawn?: Function, templateDir?: string, projectDir?: string }} [options.deps] test seams
    */
@@ -44,7 +44,7 @@ export class SetupManager {
     this.spawn = typeof this.deps.spawn === 'function' ? this.deps.spawn : spawn
     this.run = typeof this.deps.run === 'function' ? this.deps.run : run
     this.npmExecutable = typeof this.deps.npmExecutable === 'function' ? this.deps.npmExecutable : npmExecutable
-    this.bundleKey = typeof this.deps.bundleKey === 'string' ? this.deps.bundleKey : 'darwin-arm64'
+    this.bundleKey = typeof this.deps.bundleKey === 'string' ? this.deps.bundleKey : bundleKey()
     this.logRing = new RingLog(400)
     /** @type {boolean} */
     this.installing = false

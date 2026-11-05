@@ -56,7 +56,9 @@ const ctx = {
 }
 
 assert.equal(name, 'qqbot')
-await apply(ctx, { projectDir: '/Users/crab/project/qq-bot' })
+// Read-only smoke: never bootstrap (scaffold/install) or spawn the DSH-exit
+// watchdog against the real qq-bot project.
+await apply(ctx, { projectDir: '/Users/crab/project/qq-bot', bootstrap: false, lifecycleGuard: false })
 
 /** Every route path that existed before the host refactor (40 total). */
 const LEGACY_ROUTES = [

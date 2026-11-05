@@ -2,7 +2,7 @@
  * Persona plugin: the AI character card and its named presets.
  */
 
-import { dataPaths } from '../../platform/mac/index.js'
+import { dataPaths } from '../../platform/index.js'
 import {
   DEFAULT_PERSONA,
   buildPersonaPrompt,

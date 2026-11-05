@@ -4,7 +4,7 @@
  * failure never breaks the panel.
  */
 
-import { dataPaths, ensureDir, writeFileAtomic } from '../../platform/mac/index.js'
+import { dataPaths, ensureDir, writeFileAtomic } from '../../platform/index.js'
 
 /** @param {object} api plugin API @param {object} ai AiChatService */
 export function createDiscovery(api, ai) {

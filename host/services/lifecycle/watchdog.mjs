@@ -50,7 +50,7 @@ async function stopCompose(composePath) {
 async function stopKoishi(config) {
   const projectDir = typeof config.projectDir === 'string' ? config.projectDir : ''
   if (projectDir === '') return
-  if (process.platform === 'win32') {
+  if (config.platform === 'windows') {
     const escaped = projectDir.replace(/\//gu, '\\').replace(/'/gu, "''")
     const script = [
       `$path = '${escaped}'`,

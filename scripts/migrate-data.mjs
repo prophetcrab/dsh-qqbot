@@ -12,7 +12,7 @@
 
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { migrateDataLayout } from '../host/platform/mac/data-paths.js'
+import { migrateDataLayout } from '../host/platform/index.js'
 
 const args = process.argv.slice(2)
 const includeDatabase = args.includes('--database')

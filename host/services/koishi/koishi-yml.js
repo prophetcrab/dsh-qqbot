@@ -19,7 +19,7 @@ import {
   readText,
   run,
   writeFileAtomic,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 
 export const PLUGIN_ROOT = 'plugins'
 

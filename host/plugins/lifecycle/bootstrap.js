@@ -6,7 +6,7 @@
  */
 
 import { join } from 'node:path'
-import { ensureDir, fileMtime, writeFileAtomic } from '../../platform/mac/index.js'
+import { ensureDir, fileMtime, writeFileAtomic } from '../../platform/index.js'
 
 /** How long a failed offline install attempt suppresses repeated admin prompts. */
 const RETRY_WINDOW_MS = 10 * 60 * 1000

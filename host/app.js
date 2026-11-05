@@ -22,7 +22,7 @@ import {
   napcatQrPath,
   platformInfo,
   resolveSettings,
-} from './platform/mac/index.js'
+} from './platform/index.js'
 
 /** Platform capability object exposed to plugins as the `platform` service. */
 const PLATFORM_SERVICE = Object.freeze({

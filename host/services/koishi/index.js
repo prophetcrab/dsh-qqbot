@@ -23,7 +23,7 @@ import {
   portPid as platformPortPid,
   run,
   sleep as defaultSleep,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import { adoptKoishiProcess } from './adopt.js'
 import {
   DEFAULT_HEALTH_TIMEOUT_MS,

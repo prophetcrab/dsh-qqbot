@@ -7,7 +7,7 @@
  */
 
 import { dirname, join } from 'node:path'
-import { fileMtime, maskToken, sha256Hex } from '../../platform/mac/index.js'
+import { fileMtime, maskToken, sha256Hex } from '../../platform/index.js'
 import {
   failure,
   firstString,

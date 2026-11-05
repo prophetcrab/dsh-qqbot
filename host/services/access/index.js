@@ -6,8 +6,8 @@
  */
 
 import { join } from 'node:path'
-import { dataPaths } from '../../platform/mac/data-paths.js'
-import { readText, writeFileAtomic } from '../../platform/mac/index.js'
+import { dataPaths } from '../../platform/index.js'
+import { readText, writeFileAtomic } from '../../platform/index.js'
 
 /** Allowed scope modes. */
 export const MODES = ['all', 'whitelist', 'blacklist']

@@ -3,7 +3,7 @@
  * the Koishi health plugin's ring buffer.
  */
 
-import { httpJson } from '../../platform/mac/index.js'
+import { httpJson } from '../../platform/index.js'
 
 /**
  * Fetch the recent message buffer from the local Koishi project.

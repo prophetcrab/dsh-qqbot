@@ -13,8 +13,8 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { NapcatManager } from '../host/services/napcat/index.js'
 import { listWebsocketClients, maskOnebotConfig, upsertWebsocketClient } from '../host/services/napcat/onebot-config.js'
-import { resolveSettings } from '../host/platform/mac/index.js'
-import { maskToken, sha256Hex } from '../host/platform/mac/paths.js'
+import { resolveSettings } from '../host/platform/index.js'
+import { maskToken, sha256Hex } from '../host/platform/index.js'
 
 const noopLogger = { info() {}, warn() {}, error() {} }
 

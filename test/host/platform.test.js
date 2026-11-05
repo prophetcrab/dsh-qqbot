@@ -16,7 +16,7 @@ import {
   macInfo,
   platformInfo,
   resolveSettings,
-} from '../../host/platform/mac/index.js'
+} from '../../host/platform/index.js'
 
 const ROOT = new URL('../..', import.meta.url)
 

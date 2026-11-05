@@ -14,7 +14,7 @@ import {
   readText,
   run,
   writeFileAtomic,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import { setServerPort } from './server-port.js'
 
 /** Absolute lsof path on macOS; used by the legacy (injected exec) PID path. */

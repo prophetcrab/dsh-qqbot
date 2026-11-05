@@ -9,6 +9,7 @@
 import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { hostPlatform } from '../../platform/index.js'
 
 const WATCHDOG_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'watchdog.mjs')
 
@@ -37,6 +38,9 @@ export function startLifecycleWatchdog(settings = {}, deps = {}) {
   const config = {
     parentPid: process.pid,
     projectDir: settings.projectDir,
+    // The watchdog is a standalone script; hand it the platform id so the OS
+    // check stays inside the platform layer.
+    platform: hostPlatform(),
     composePath: composePathFor(settings),
   }
   let child

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { loginProbe } from '../../host/services/napcat/webui.js'
-import { sha256Hex } from '../../host/platform/mac/index.js'
+import { sha256Hex } from '../../host/platform/index.js'
 
 test('loginProbe drops a stale cached WebUI credential on code != 0', async () => {
   const token = 'test-token'

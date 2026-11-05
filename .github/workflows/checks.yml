@@ -2,7 +2,7 @@ name: Architecture and tests
 
 on:
   push:
-    branches: [dshbot-mac, dshbot-win64]
+    branches: [dshbot-mac]
   pull_request:
 
 permissions:
@@ -25,8 +25,6 @@ jobs:
           node-version: 24
       - name: Install SVG renderer
         run: brew install librsvg
-      - name: Install host dependencies
-        run: npm install --no-audit --no-fund
       - name: Unit and contract tests
         run: npm test
       - name: Install template dependencies

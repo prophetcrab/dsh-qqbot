@@ -17,7 +17,7 @@ import {
   run as execFileRun,
   sleep as sleepFor,
   writeFileAtomic,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 import { normalizeLogger } from './common.js'
 import { configure } from './configure.js'
 import { qrImagePath } from './detect.js'
@@ -32,7 +32,7 @@ import {
   killPid,
   napcatQrPath,
   resolveSettings,
-} from '../../platform/mac/index.js'
+} from '../../platform/index.js'
 
 /** Default filesystem seam; tests may override individual members. */
 const defaultFs = {
