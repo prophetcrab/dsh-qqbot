@@ -14,12 +14,12 @@ Koishi 模板测试（`npm run test:template`，67 个）和模板漂移检查�
 | Lifecycle / 启动顺序 | 全部停止 → 全部启动，Koishi 先启动，NapCat 后启动 |
 | NapCat / QR / 账号 | 登录状态正确；切换账号后 selfId 自动同步 |
 | Koishi / 权限 | 白名单群能收到消息，非白名单不处理 |
-| AI / 契约 | 真实群消息能触发一次 AI 回复 |
-| data / 配置 | 重启后权限、人设、AI 设置仍保留 |
+| 群聊闭环 / 契约 | 真实群消息能触发一次 analyze/compose |
+| data / 配置 | 重启后权限、人设、画像仍保留 |
 | template / 安装 | 临时项目能从 template 创建并启动 |
 | 离线包 | `offline:verify` + 干净目录解压测试 |
 
-小改动可以只跑受影响项；生命周期、安装、AI 契约、数据路径改动必须跑真实环境。
+小改动可以只跑受影响项；生命周期、安装、群聊契约、数据路径改动必须跑真实环境。
 
 ## 2. 发布前完整清单
 
@@ -56,30 +56,28 @@ Koishi 模板测试（`npm run test:template`，67 个）和模板漂移检查�
 [ ] /api/qqbot/health ok=true
 [ ] bot online=true
 [ ] 白名单群消息进入监控
-[ ] @机器人 触发
-[ ] 普通消息按概率触发
+[ ] @机器人 触发 analyze
+[ ] 计数/时间触发可保持沉默
 [ ] 连续消息只合并回复一次
 [ ] 引用图片后 @机器人 能分析
-[ ] 人设自检可拒绝回复
 ```
 
-### D. AI
+### D. 群聊闭环
 
 ```text
-[ ] /qqbot/ai/status 可用
-[ ] 真实群消息产生一次 AI 回复
-[ ] /qqbot/ai/last-prompt 显示完整 system/messages
+[ ] /qqbot/group/analyze 对真实素材返回 speak
+[ ] /qqbot/group/compose 返回 parts（可含工具调用）
+[ ] /qqbot/group/state-update 写入 memory / 画像 / 情绪
 [ ] 人设卡保存后下一条回复生效
-[ ] 画像保存后进入提示词
-[ ] AI 设置概率/跟进/批量保存后热加载
-[ ] BUSY/错误不会向群里刷原始错误
+[ ] /qqbot/group/dashboard 可见最近 loop
+[ ] 模型错误不会向群里刷原始错误
 ```
 
 ### E. 数据
 
 ```text
-[ ] data/config/ 有 access/ai-settings/persona
-[ ] data/state/ 有 ai.json/ai-chat-state/koishi.db
+[ ] data/config/ 有 access/persona
+[ ] data/state/ 有 ai.json/koishi.db
 [ ] data/assets/ 有 presets/profiles
 [ ] 重启 Koishi 后数据仍能读
 [ ] 迁移脚本在临时项目可重复执行且不覆盖新文件

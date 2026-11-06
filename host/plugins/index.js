@@ -6,7 +6,7 @@
  */
 
 import access from './access/index.js'
-import ai from './ai/index.js'
+import discovery from './discovery/index.js'
 import features from './features/index.js'
 import gameCore from './game-core/index.js'
 import gameFishing from './game-fishing/index.js'
@@ -22,7 +22,7 @@ import tools from './tools/index.js'
 /** @type {any[]} */
 export const BUILTIN_PLUGINS = [
   access,
-  ai,
+  discovery,
   features,
   gameCore,
   gameFishing,

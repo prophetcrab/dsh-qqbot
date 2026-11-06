@@ -16,12 +16,6 @@
     "bootstrap": { "type": "boolean" },
     "offlineVendorDir": { "type": "string" },
     "offlineNapcatVersion": { "type": "string" },
-    "aiProvider": { "type": "string" },
-    "aiModel": { "type": "string" },
-    "aiSystemPrompt": { "type": "string" },
-    "aiMaxTokens": { "type": "integer", "minimum": 64, "maximum": 4096 },
-    "aiTemperature": { "type": "number", "minimum": 0, "maximum": 2 },
-    "aiSelfCheck": { "type": "boolean" },
     "autoRestartKoishi": { "type": "boolean" },
     "autoInstallDeps": { "type": "boolean" },
     "logLines": { "type": "integer", "minimum": 20, "maximum": 2000 }

@@ -385,11 +385,9 @@ node scripts/install-profile.mjs --profile desktop --install
 ~/project/qq-bot/data/
 ├── config/
 │   ├── access.json
-│   ├── ai-settings.json
 │   └── persona.json
 ├── state/
-│   ├── ai.json
-│   ├── ai-chat-state.json
+│   ├── ai.json          # DSH discovery endpoint（Koishi 插件读取）
 │   ├── koishi.db
 │   └── napcat-login-qr.png
 ├── assets/

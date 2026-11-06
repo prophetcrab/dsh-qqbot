@@ -318,7 +318,6 @@ export class Kernel {
       get koishi() { return kernel.get('koishi') },
       get plugins() { return kernel.get('koishiPlugins') },
       get setup() { return kernel.get('setup') },
-      get ai() { return kernel.get('ai') },
       get persona() { return kernel.get('persona') },
       get access() { return kernel.get('access') },
       get platform() { return kernel.get('platform') },

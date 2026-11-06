@@ -49,13 +49,11 @@
       },
       "required": ["online"]
     },
-    "ai": { "type": "object", "properties": { "available": { "type": "boolean" }, "provider": { "type": "string" }, "model": { "type": "string" } }, "required": ["available"] },
-    "aiSettings": { "type": "object" },
     "persona": { "type": "object", "properties": { "name": { "type": "string" } } },
     "features": { "type": "array" },
     "clientTabs": { "type": "array" },
     "updatedAt": { "type": "string" }
   },
-  "required": ["platform", "settings", "qq", "napcat", "koishi", "bot", "ai", "features", "updatedAt"],
+  "required": ["platform", "settings", "qq", "napcat", "koishi", "bot", "features", "updatedAt"],
   "additionalProperties": true
 }

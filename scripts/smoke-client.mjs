@@ -117,15 +117,6 @@ const STATUS = {
     logs: [],
   },
   bot: { online: true, selfId: '10001', platform: 'qq', uptime: null },
-  ai: {
-    available: true,
-    provider: 'deepseek',
-    model: 'deepseek-chat',
-    source: 'harness-default',
-    systemPromptConfigured: true,
-    endpoint: 'http://127.0.0.1:3000/qqbot/ai/chat',
-    ready: true,
-  },
   features: [],
   updatedAt: '2026-10-30T00:00:00.000Z',
 }
@@ -268,8 +259,6 @@ let personaState = {
   path: '~/project/qq-bot/data/persona.json',
 }
 
-const AI_SETTINGS_DEFAULTS = { enabled: true, replyProbability: 0.15, followUpMinutes: 3, historyLimit: 100, batchWindowMs: 2500, batchMaxWaitMs: 10000 }
-let aiSettingsState = { ...AI_SETTINGS_DEFAULTS }
 const GROUP_DASHBOARD = {
   character: {
     core: { name: '天青色瞪眼鱼', identity: '天青色瞪眼鱼，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
@@ -306,40 +295,6 @@ const GROUP_DASHBOARD = {
   },
 }
 
-const PROFILE_FIXTURE = [
-  {
-    key: '1026855069:5550001',
-    groupId: '1026855069',
-    qq: '5550001',
-    nickname: '小明',
-    summary: '爱开黑的老群友',
-    personality: '外向',
-    style: '简短直接',
-    relationship: '熟人',
-    interests: ['游戏', '电影'],
-    recent: '昨天约了开黑',
-    interactions: 12,
-    firstSeen: '2026-10-01T10:00:00.000Z',
-    updatedAt: '2026-10-30T10:00:00.000Z',
-  },
-  {
-    key: '1026855069:676512192',
-    groupId: '1026855069',
-    qq: '676512192',
-    nickname: '天青色瞪眼鱼',
-    summary: '喜欢聊天',
-    personality: '温和',
-    style: '细腻',
-    relationship: '普通群友',
-    interests: ['音乐'],
-    recent: '',
-    interactions: 3,
-    firstSeen: '2026-10-02T10:00:00.000Z',
-    updatedAt: '2026-10-30T10:00:00.000Z',
-  },
-]
-let profilesState = PROFILE_FIXTURE.slice()
-
 const PERSONA_PRESET = {
   id: 'preset-1',
   name: '默认卡',
@@ -355,28 +310,6 @@ const PERSONA_PRESET = {
   updatedAt: '2026-10-30T10:00:00.000Z',
 }
 let personaPresetsState = [PERSONA_PRESET]
-
-const LAST_PROMPT = {
-  at: '2026-10-30T15:00:00.000Z',
-  provider: 'deepseek-account',
-  model: 'deepseek-flash',
-  groupId: '1026855069',
-  userId: '20000',
-  userName: '小明',
-  mentionSelf: false,
-  mentionOthers: ['小红'],
-  mentionAll: false,
-  replyToBot: false,
-  system: '【角色设定】\n名称：群友小助手\n\n【用户画像】\n昵称：小明\n\n【最近群聊背景】\n大家聊了周末计划',
-  messages: [
-    { role: 'user', text: '@小红 晚上开黑吗', imageCount: 0 },
-    { role: 'assistant', text: '好呀，八点见！', imageCount: 0 },
-  ],
-  imageCount: 1,
-  maxTokens: 800,
-  temperature: 0.7,
-}
-let lastPromptData = LAST_PROMPT
 
 const fetchLog = []
 let failStatus = false
@@ -419,47 +352,6 @@ globalThis.fetch = async (url, init) => {
     const groupId = url.searchParams.get('groupId')
     const data = groupId === null ? { ...GROUP_DASHBOARD, profiles: [] } : { ...GROUP_DASHBOARD, profiles: GROUP_DASHBOARD.profiles.filter((profile) => profile.groupId === groupId) }
     return json({ ok: true, data })
-  }
-  if (path === '/qqbot/ai/chat') {
-    return json({ ok: true, reply: 'AI 面板测试成功', provider: 'deepseek', model: 'deepseek-chat' })
-  }
-  if (path === '/qqbot/ai/last-prompt') {
-    return json({ ok: true, data: { prompt: lastPromptData } })
-  }
-  if (path === '/qqbot/ai/settings') {
-    if (method === 'POST') {
-      const body = JSON.parse(String(init.body))
-      aiSettingsState = {
-        enabled: body.enabled === true,
-        replyProbability: Number(body.replyProbability) || 0,
-        followUpMinutes: Number(body.followUpMinutes) || 0,
-        historyLimit: Number(body.historyLimit) || 0,
-        batchWindowMs: Number(body.batchWindowMs) || 0,
-        batchMaxWaitMs: Number(body.batchMaxWaitMs) || 0,
-      }
-    }
-    return json({ ok: true, data: { settings: aiSettingsState, defaults: AI_SETTINGS_DEFAULTS, path: '~/project/qq-bot/data/ai-settings.json' } })
-  }
-  if (path.startsWith('/qqbot/profiles?')) {
-    const query = new URL(path, 'http://localhost').searchParams.get('search') || ''
-    const filtered = profilesState.filter((profile) => query === ''
-      || profile.nickname.includes(query)
-      || profile.qq.includes(query))
-    return json({ ok: true, data: { profiles: filtered, path: '~/project/qq-bot/data/profiles.json' } })
-  }
-  if (path === '/qqbot/profiles/save') {
-    const body = JSON.parse(String(init.body))
-    const profile = body.profile
-    const index = profilesState.findIndex((item) => item.key === profile.key)
-    const saved = { ...profile, interactions: index >= 0 ? profilesState[index].interactions : 0 }
-    if (index >= 0) profilesState[index] = saved
-    else profilesState.push(saved)
-    return json({ ok: true, data: { profile: saved, path: '~/project/qq-bot/data/profiles.json' } })
-  }
-  if (path === '/qqbot/profiles/delete') {
-    const body = JSON.parse(String(init.body))
-    profilesState = profilesState.filter((item) => item.key !== body.key)
-    return json({ ok: true, data: { deleted: true, path: '~/project/qq-bot/data/profiles.json' } })
   }
   if (path === '/qqbot/persona/presets') {
     return json({ ok: true, data: { presets: personaPresetsState, active: personaState.persona, path: '~/project/qq-bot/data/persona-presets.json' } })

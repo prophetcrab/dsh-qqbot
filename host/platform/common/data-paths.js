@@ -21,12 +21,10 @@ export function dataPaths(projectDir) {
     root,
     config: {
       access: join(root, 'config', 'access.json'),
-      aiSettings: join(root, 'config', 'ai-settings.json'),
       persona: join(root, 'config', 'persona.json'),
     },
     state: {
       aiDiscovery: join(root, 'state', 'ai.json'),
-      aiChat: join(root, 'state', 'ai-chat-state.json'),
       koishiDb: join(root, 'state', 'koishi.db'),
       napcatQr: join(root, 'state', 'napcat-login-qr.png'),
     },
@@ -41,12 +39,10 @@ export function dataPaths(projectDir) {
 /** One-time legacy -> new layout moves. */
 const MOVES = [
   ['access.json', 'config', 'access.json'],
-  ['ai-settings.json', 'config', 'ai-settings.json'],
   ['persona.json', 'config', 'persona.json'],
   ['persona-presets.json', 'assets', 'persona-presets.json'],
   ['profiles.json', 'assets', 'profiles.json'],
   ['ai.json', 'state', 'ai.json'],
-  ['ai-chat-state.json', 'state', 'ai-chat-state.json'],
   ['napcat-login-qr.png', 'state', 'napcat-login-qr.png'],
 ]
 

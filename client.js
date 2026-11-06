@@ -3145,83 +3145,6 @@ window.__ModuleLoader__.load({
         return date.toLocaleTimeString()
       }
 
-      function aiSettingsDraftFrom(settings) {
-        const source = settings !== null && typeof settings === 'object' ? settings : {}
-        const probability = Number(source.replyProbability)
-        const followUp = Number(source.followUpMinutes)
-        const history = Number(source.historyLimit)
-        const batchWindow = Number(source.batchWindowMs)
-        const batchMaxWait = Number(source.batchMaxWaitMs)
-        return {
-          enabled: source.enabled !== false,
-          replyProbabilityPercent: Number.isFinite(probability) ? Math.round(probability * 10000) / 100 : 15,
-          followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
-          historyLimit: Number.isFinite(history) ? history : 100,
-          batchWindowMs: Number.isFinite(batchWindow) ? batchWindow : 2500,
-          batchMaxWaitMs: Number.isFinite(batchMaxWait) ? batchMaxWait : 10000,
-        }
-      }
-
-      function aiSettingsBodyFrom(draft) {
-        const percent = Number(draft.replyProbabilityPercent)
-        const probability = Number.isFinite(percent) ? Math.min(1, Math.max(0, percent / 100)) : 0.15
-        const followUp = Number(draft.followUpMinutes)
-        const history = Number(draft.historyLimit)
-        const batchWindow = Number(draft.batchWindowMs)
-        const batchMaxWait = Number(draft.batchMaxWaitMs)
-        return {
-          enabled: draft.enabled === true,
-          replyProbability: Math.round(probability * 1000) / 1000,
-          followUpMinutes: Number.isFinite(followUp) ? followUp : 3,
-          historyLimit: Number.isFinite(history) ? history : 100,
-          batchWindowMs: Number.isFinite(batchWindow) ? Math.min(10000, Math.max(0, batchWindow)) : 2500,
-          batchMaxWaitMs: Number.isFinite(batchMaxWait) ? Math.min(30000, Math.max(0, batchMaxWait)) : 10000,
-        }
-      }
-
-      function profileDraftFrom(profile) {
-        const source = profile !== null && typeof profile === 'object' ? profile : {}
-        const text = (value) => (typeof value === 'string' ? value : '')
-        return {
-          key: text(source.key),
-          groupId: text(source.groupId),
-          qq: text(source.qq),
-          nickname: text(source.nickname),
-          summary: text(source.summary),
-          personality: text(source.personality),
-          style: text(source.style),
-          relationship: text(source.relationship),
-          interests: Array.isArray(source.interests) ? source.interests.map((item) => String(item)).join(', ') : '',
-          recent: text(source.recent),
-          interactions: Number(source.interactions) || 0,
-        }
-      }
-
-      function parseInterests(text) {
-        if (typeof text !== 'string' || text.trim() === '') return []
-        const seen = new Set()
-        for (const part of text.split(/[,，、;；]+/u)) {
-          const value = part.trim()
-          if (value !== '') seen.add(value)
-        }
-        return [...seen]
-      }
-
-      function profileBodyFrom(draft) {
-        return {
-          key: draft.key,
-          groupId: draft.groupId,
-          qq: draft.qq,
-          nickname: draft.nickname,
-          summary: draft.summary,
-          personality: draft.personality,
-          style: draft.style,
-          relationship: draft.relationship,
-          interests: parseInterests(draft.interests),
-          recent: draft.recent,
-        }
-      }
-
       function draftFromPersona(persona) {
         const source = persona !== null && typeof persona === 'object' ? persona : {}
         const text = (value) => (typeof value === 'string' ? value : '')
@@ -3297,7 +3220,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      return { POLL_MS, LOG_LINES, ACCESS_MODES, AI_TEST_PROMPT, MAX_PERSONA_EXAMPLES, SETUP_STEP_KEYS, messageOf, requestJson, pickText, compactValue, pluginKey, pluginLabel, formatTime, aiSettingsDraftFrom, aiSettingsBodyFrom, profileDraftFrom, parseInterests, profileBodyFrom, draftFromPersona, personaBody, normalizeMode, scopeIds, parsePrefixes, draftFromPolicy }
+      return { POLL_MS, LOG_LINES, ACCESS_MODES, AI_TEST_PROMPT, MAX_PERSONA_EXAMPLES, SETUP_STEP_KEYS, messageOf, requestJson, pickText, compactValue, pluginKey, pluginLabel, formatTime, draftFromPersona, personaBody, normalizeMode, scopeIds, parsePrefixes, draftFromPolicy }
     },
     "client/runtime/locale.js": (__require) => {
       /**
@@ -4317,33 +4240,6 @@ window.__ModuleLoader__.load({
         const [setupResultMsg, setSetupResultMsg] = React.useState(null)
         const [setupPolling, setSetupPolling] = React.useState(false)
         const [setupExpanded, setSetupExpanded] = React.useState(true)
-        const [aiReply, setAiReply] = React.useState(null)
-        const [aiError, setAiError] = React.useState(null)
-        const [personaDraft, setPersonaDraft] = React.useState(null)
-        const [personaPreview, setPersonaPreview] = React.useState('')
-        const [personaPath, setPersonaPath] = React.useState(null)
-        const [personaPhase, setPersonaPhase] = React.useState('idle')
-        const [personaError, setPersonaError] = React.useState(null)
-        const [personaPreviewOpen, setPersonaPreviewOpen] = React.useState(true)
-        const [aiSettingsDraft, setAiSettingsDraft] = React.useState(null)
-        const [aiSettingsDefaults, setAiSettingsDefaults] = React.useState(null)
-        const [aiSettingsPath, setAiSettingsPath] = React.useState(null)
-        const [aiSettingsPhase, setAiSettingsPhase] = React.useState('idle')
-        const [aiSettingsError, setAiSettingsError] = React.useState(null)
-        const [profiles, setProfiles] = React.useState(null)
-        const [profilesPhase, setProfilesPhase] = React.useState('idle')
-        const [profilesError, setProfilesError] = React.useState(null)
-        const [profilesSearch, setProfilesSearch] = React.useState('')
-        const [profilesPath, setProfilesPath] = React.useState(null)
-        const [selectedProfileKey, setSelectedProfileKey] = React.useState(null)
-        const [profileDraft, setProfileDraft] = React.useState(null)
-        const [personaPresets, setPersonaPresets] = React.useState(null)
-        const [personaPresetsPhase, setPersonaPresetsPhase] = React.useState('idle')
-        const [personaPresetsError, setPersonaPresetsError] = React.useState(null)
-        const [personaPresetsPath, setPersonaPresetsPath] = React.useState(null)
-        const [personaPresetName, setPersonaPresetName] = React.useState('')
-        const [lastPromptState, setLastPromptState] = React.useState({ phase: 'idle', prompt: null, error: null })
-        const [fullPromptOpen, setFullPromptOpen] = React.useState(true)
 
         // Refs keep the 2s pollers from capturing stale state and from overlapping.
         const tabRef = React.useRef(tab)
@@ -4445,15 +4341,6 @@ window.__ModuleLoader__.load({
           messagesUpdatedAt, setMessagesUpdatedAt, setupInfo, setSetupInfo, setupPhase, setSetupPhase,
           setupError, setSetupError, setupLogs, setSetupLogs, setupSteps, setSetupSteps,
           setupResultMsg, setSetupResultMsg, setupPolling, setSetupPolling, setupExpanded, setSetupExpanded,
-          aiReply, setAiReply, aiError, setAiError, personaDraft, setPersonaDraft,
-          personaPreview, setPersonaPreview, personaPath, setPersonaPath, personaPhase, setPersonaPhase,
-          personaError, setPersonaError, personaPreviewOpen, setPersonaPreviewOpen, aiSettingsDraft, setAiSettingsDraft,
-          aiSettingsDefaults, setAiSettingsDefaults, aiSettingsPath, setAiSettingsPath, aiSettingsPhase, setAiSettingsPhase,
-          aiSettingsError, setAiSettingsError, profiles, setProfiles, profilesPhase, setProfilesPhase,
-          profilesError, setProfilesError, profilesSearch, setProfilesSearch, profilesPath, setProfilesPath,
-          selectedProfileKey, setSelectedProfileKey, profileDraft, setProfileDraft, personaPresets, setPersonaPresets,
-          personaPresetsPhase, setPersonaPresetsPhase, personaPresetsError, setPersonaPresetsError, personaPresetsPath, setPersonaPresetsPath,
-          personaPresetName, setPersonaPresetName, lastPromptState, setLastPromptState, fullPromptOpen, setFullPromptOpen,
           tabRef, loggedInRef, loginPollRef, contactsBusyRef, messagesPollRef, setupActionRef,
           busyOf,
           lifecycleBusy,

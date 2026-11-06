@@ -2,8 +2,8 @@
  * Route-table contract tests for the refactored host.
  *
  * Loads the real built-in plugin list against a temporary project directory and
- * asserts that every legacy route/tool/feature is still contributed, that the
- * AI contract gates requests, and that unloading a plugin removes its routes.
+ * asserts that every legacy route/tool/feature is still contributed, and that
+ * unloading a plugin removes its routes.
  */
 
 import assert from 'node:assert/strict'
@@ -47,34 +47,6 @@ test('host: client tabs are contributed by plugins', async (t) => {
   }
 })
 
-test('AI contract: chat route rejects future apiVersion and preserves legacy calls', async (t) => {
-  const { routes } = await loadHost(t)
-  const handler = routes.get('/qqbot/ai/chat')
-  assert.equal(typeof handler, 'function')
-
-  const future = await invokeRoute(handler, {
-    method: 'POST',
-    url: '/qqbot/ai/chat',
-    body: JSON.stringify({ apiVersion: 99, messages: [] }),
-  })
-  assert.equal(future.status, 400)
-  assert.equal(future.body.ok, false)
-  assert.equal(future.body.code, 'BAD_REQUEST')
-
-  const legacy = await invokeRoute(handler, {
-    method: 'POST',
-    url: '/qqbot/ai/chat',
-    body: JSON.stringify({ messages: [] }),
-  })
-  assert.equal(legacy.status, 200)
-  assert.equal(legacy.body.ok, false)
-  assert.equal(legacy.body.code, 'EMPTY_MESSAGES')
-  assert.equal(legacy.body.apiVersion, 1)
-
-  const wrongMethod = await invokeRoute(handler, { method: 'GET', url: '/qqbot/ai/chat' })
-  assert.equal(wrongMethod.status, 405)
-})
-
 test('kernel: unloading a plugin removes its routes/tools/features', async (t) => {
   const { routes, tools, host } = await loadHost(t)
   assert.equal(host.kernel.unload('qqbot-napcat'), true)
@@ -88,9 +60,6 @@ test('kernel: unloading a plugin removes its routes/tools/features', async (t) =
   assert.equal(routes.has('/qqbot/features'), false)
   assert.equal(host.kernel.featureRegistry.list().length, 0)
 
-  assert.equal(host.kernel.unload('qqbot-ai'), true)
-  assert.equal(routes.has('/qqbot/ai/chat'), false)
-  assert.equal(host.kernel.get('ai'), undefined)
 })
 
 test('kernel: route methods are enforced by the shared http helper', async (t) => {

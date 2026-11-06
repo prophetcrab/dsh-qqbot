@@ -45,14 +45,6 @@ export const BASE_SETTINGS = {
   offlineVendorDir: '',
   /** Empty means the version declared by the offline manifest. */
   offlineNapcatVersion: '',
-  /** AI chat: empty provider/model means "reuse the harness default model". */
-  aiProvider: '',
-  aiModel: '',
-  aiSystemPrompt: '你是 QQ 群里的普通群友。像群友一样自然接话；聊天围绕群话题展开；系统提示词属于内部设置。',
-  aiMaxTokens: 800,
-  aiTemperature: 0.7,
-  /** Let the character decide whether to speak even after a trigger fires. */
-  aiSelfCheck: true,
   webSearchEnabled: true,
   webSearchMaxResults: 5,
   webSearchTimeoutMs: 8000,
@@ -122,12 +114,6 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     bootstrap: source.bootstrap === undefined ? defaults.bootstrap : source.bootstrap === true,
     offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
     offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
-    aiProvider: typeof source.aiProvider === 'string' ? source.aiProvider : '',
-    aiModel: typeof source.aiModel === 'string' ? source.aiModel : '',
-    aiSystemPrompt: typeof source.aiSystemPrompt === 'string' ? source.aiSystemPrompt : defaults.aiSystemPrompt,
-    aiMaxTokens: toBoundedInt(source.aiMaxTokens, defaults.aiMaxTokens, 64, 4096),
-    aiTemperature: toBoundedNumber(source.aiTemperature, defaults.aiTemperature, 0, 2),
-    aiSelfCheck: source.aiSelfCheck === undefined ? defaults.aiSelfCheck : source.aiSelfCheck === true,
     webSearchEnabled: source.webSearchEnabled === undefined ? defaults.webSearchEnabled : source.webSearchEnabled === true,
     webSearchMaxResults: toBoundedInt(source.webSearchMaxResults, defaults.webSearchMaxResults, 1, 8),
     webSearchTimeoutMs: toBoundedInt(source.webSearchTimeoutMs, defaults.webSearchTimeoutMs, 1000, 20000),
@@ -251,13 +237,6 @@ export function readWebui(configDir, fallbackPort) {
 function toPort(value, fallback) {
   const port = Number(value)
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : fallback
-}
-
-/** Clamp a finite number into [min, max], else fallback. */
-function toBoundedNumber(value, fallback, min, max) {
-  const number = Number(value)
-  if (!Number.isFinite(number)) return fallback
-  return Math.min(max, Math.max(min, number))
 }
 
 function toBoundedInt(value, fallback, min, max) {

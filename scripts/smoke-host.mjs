@@ -77,13 +77,6 @@ const LEGACY_ROUTES = [
   '/qqbot/persona/presets/delete',
   '/qqbot/persona',
   '/qqbot/persona/save',
-  '/qqbot/ai/settings',
-  '/qqbot/profiles',
-  '/qqbot/profiles/save',
-  '/qqbot/profiles/delete',
-  '/qqbot/ai/last-prompt',
-  '/qqbot/ai/status',
-  '/qqbot/ai/chat',
   '/qqbot/setup',
   '/qqbot/setup/koishi',
   '/qqbot/setup/full',
@@ -103,8 +96,8 @@ const LEGACY_ROUTES = [
   '/qqbot/koishi/plugins/install',
   '/qqbot/koishi/plugins/uninstall',
 ]
-assert.equal(LEGACY_ROUTES.length, 40, 'legacy route list must stay at 40')
-assert.ok(routes.size >= 40, `expected at least 40 routes, got ${routes.size}`)
+assert.equal(LEGACY_ROUTES.length, 33, 'legacy route list must stay at 33')
+assert.ok(routes.size >= 33, `expected at least 33 routes, got ${routes.size}`)
 for (const required of LEGACY_ROUTES) assert.ok(routes.has(required), `missing route ${required}`)
 assert.ok(routes.has('/qqbot/client/tabs'), 'missing client tab contribution route')
 
@@ -172,57 +165,6 @@ try {
   assert.equal(typeof contactsBody.ok, 'boolean')
   assert.ok(Array.isArray(contactsBody.groups))
   assert.ok(Array.isArray(contactsBody.friends))
-
-  const aiSettingsResponse = await fetch(`${base}/qqbot/ai/settings`)
-  const aiSettingsBody = await aiSettingsResponse.json()
-  assert.equal(aiSettingsBody.ok, true)
-  assert.equal(typeof aiSettingsBody.data.settings.replyProbability, 'number')
-
-  const profilesResponse = await fetch(`${base}/qqbot/profiles`)
-  const profilesBody = await profilesResponse.json()
-  assert.equal(profilesBody.ok, true)
-  assert.ok(Array.isArray(profilesBody.data.profiles))
-
-  const presetsResponse = await fetch(`${base}/qqbot/persona/presets`)
-  const presetsBody = await presetsResponse.json()
-  assert.equal(presetsBody.ok, true)
-  assert.ok(Array.isArray(presetsBody.data.presets))
-
-  const personaResponse = await fetch(`${base}/qqbot/persona`)
-  const personaBody = await personaResponse.json()
-  assert.equal(personaBody.ok, true)
-  assert.equal(typeof personaBody.data.persona.name, 'string')
-  assert.ok(Array.isArray(personaBody.data.persona.examples))
-  assert.match(personaBody.data.promptPreview, /【角色设定】/u)
-
-  const lastPromptResponse = await fetch(`${base}/qqbot/ai/last-prompt`)
-  const lastPromptBody = await lastPromptResponse.json()
-  assert.equal(lastPromptBody.ok, true)
-  assert.ok('prompt' in lastPromptBody.data)
-
-  const aiStatusResponse = await fetch(`${base}/qqbot/ai/status`)
-  const aiStatusBody = await aiStatusResponse.json()
-  assert.equal(aiStatusBody.ok, true)
-  assert.equal(typeof aiStatusBody.data.available, 'boolean')
-  assert.equal(typeof aiStatusBody.data.provider, 'string')
-  assert.equal(typeof aiStatusBody.data.model, 'string')
-
-  const aiEmptyResponse = await fetch(`${base}/qqbot/ai/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ messages: [] }),
-  })
-  const aiEmptyBody = await aiEmptyResponse.json()
-  assert.equal(aiEmptyBody.ok, false)
-  assert.equal(aiEmptyBody.code, 'EMPTY_MESSAGES')
-  assert.equal(aiEmptyBody.apiVersion, 1)
-
-  const aiFutureResponse = await fetch(`${base}/qqbot/ai/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ apiVersion: 99, messages: [] }),
-  })
-  assert.equal(aiFutureResponse.status, 400)
 
   const setupResponse = await fetch(`${base}/qqbot/setup`)
   const setupBody = await setupResponse.json()

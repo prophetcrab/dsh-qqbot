@@ -74,7 +74,7 @@ fix/<topic>
 
 - `host/services/napcat` 之外的代码不得直接操作 QQ 进程、QQ 容器、WebUI。
 - `host/services/koishi` 之外的代码不得直接 spawn Koishi 或解析 Koishi 进程。
-- Koishi 插件不得直接调用 DSH LLM；只能调用 `/qqbot/ai/chat` 契约。
+- Koishi 插件不得直接调用 DSH LLM；只能调用 `/qqbot/group/*`、游戏与工具契约。
 - DSH 不得直接解析 OneBot 消息；消息来自 Koishi health API。
 - AI 触发、上下文、图片、引用留在 Koishi；模型、人设、画像、自检留在 DSH。
 
@@ -211,7 +211,6 @@ data/
 所有跨端请求/响应必须经过 `host/contracts/`：
 
 ```text
-ai-chat.schema.json
 status.schema.json
 panel.schema.json
 config.schema.json
@@ -273,10 +272,11 @@ npx tsc --noEmit
 - 保留全部 data-testid、路由、中文/英文 key。
 - Client smoke 必须通过。
 
-### 涉及 AI
+### 涉及 AI / 群聊闭环
 
-- 契约测试必须覆盖成功、skip、BUSY、旧请求（如 `quote:null`）。
+- 契约测试必须覆盖 analyze / compose / state-update 的成功、参数校验和降级错误。
 - 不能把模型错误原文直接发群；使用结构化错误码。
+- 模型调用统一走 DSH Host，Koishi 侧只传素材与发送结果。
 
 ### 涉及安装/离线
 
@@ -290,7 +290,7 @@ npx tsc --noEmit
 
 - 合并前：至少按改动范围跑 [docs/system-test.md](docs/system-test.md) 中对应项
 - 发布前：必须跑完整个功能性系统测试清单
-- 生命周期、安装、AI 契约、数据路径改动必须在真实 macOS 环境验证
+- 生命周期、安装、群聊契约、数据路径改动必须在真实 macOS 环境验证
 
 ## 10. 模板同步
 

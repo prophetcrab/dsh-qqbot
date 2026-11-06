@@ -14,8 +14,6 @@ test('resolveSettings: defaults, ~ expansion, port clamping', () => {
   const defaults = resolveSettings()
   assert.equal(defaults.koishiPort, DEFAULT_SETTINGS.koishiPort)
   assert.equal(defaults.reversePath, '/onebot')
-  assert.match(defaults.aiSystemPrompt, /普通群友/u)
-  assert.ok(!defaults.aiSystemPrompt.includes('你是一个 QQ 群里的助手'))
   const custom = resolveSettings({
     projectDir: '~/project/qq-bot',
     koishiPort: '6000',

@@ -25,6 +25,7 @@ export default {
     })
     api.provide('groupLoop', loop)
     api.registerRoutes(routes(api, loop))
+    api.registerClientTab({ id: 'ai', title: { zh: 'AI', en: 'AI' }, order: 1 })
     api.registerClientTab({ id: 'tokens', title: { zh: 'Token', en: 'Tokens' }, order: 8 })
   },
 }

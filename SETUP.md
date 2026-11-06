@@ -59,16 +59,16 @@ DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程（本地 QQ
 
 Koishi `access-control` 立即读取。
 
-### AI
+### AI / 群聊闭环
 
 面板「AI」页：
 
-- 回复概率、跟进分钟数、上下文条数、批量窗口
+- 群聊监听器状态、群列表与每轮 loop 摘要
 - 人设卡 / 预设卡
-- 人物画像
-- 完整提示词预览
+- 人物画像、记忆和群状态
 
-写入 `data/config/ai-settings.json`、`data/config/persona*.json`、`data/assets/profiles.json`。
+写入 `data/config/persona*.json`、`data/assets/profiles.json`、`data/state/group-loop/*`。
+DSH 的 HTTP endpoint 由 `data/state/ai.json` 发布给 Koishi 插件。
 
 ### Koishi 插件
 
@@ -88,7 +88,7 @@ Koishi `access-control` 立即读取。
 | 二维码不显示 | NapCat 是否运行；端口 6099 |
 | 机器人离线 | Koishi 5140、OneBot 反向 WS `/onebot` |
 | 权限不生效 | `data/config/access.json` 是否写入；Koishi access-control 是否启用 |
-| AI 不可用 | DSH 是否运行；`data/state/ai.json` endpoint |
+| Koishi 连不上 DSH | DSH 是否运行；`data/state/ai.json` 的 endpoint/端口 |
 | 面板不更新 | 刷新 DSH 页面；检查插件是否重载 |
 
 ## 6. 开发校验

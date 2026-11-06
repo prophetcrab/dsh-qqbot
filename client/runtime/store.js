@@ -130,33 +130,7 @@ export function useStore(t) {
   const [setupResultMsg, setSetupResultMsg] = React.useState(null)
   const [setupPolling, setSetupPolling] = React.useState(false)
   const [setupExpanded, setSetupExpanded] = React.useState(true)
-  const [aiReply, setAiReply] = React.useState(null)
-  const [aiError, setAiError] = React.useState(null)
-  const [personaDraft, setPersonaDraft] = React.useState(null)
-  const [personaPreview, setPersonaPreview] = React.useState('')
-  const [personaPath, setPersonaPath] = React.useState(null)
-  const [personaPhase, setPersonaPhase] = React.useState('idle')
-  const [personaError, setPersonaError] = React.useState(null)
-  const [personaPreviewOpen, setPersonaPreviewOpen] = React.useState(true)
-  const [aiSettingsDraft, setAiSettingsDraft] = React.useState(null)
-  const [aiSettingsDefaults, setAiSettingsDefaults] = React.useState(null)
-  const [aiSettingsPath, setAiSettingsPath] = React.useState(null)
-  const [aiSettingsPhase, setAiSettingsPhase] = React.useState('idle')
-  const [aiSettingsError, setAiSettingsError] = React.useState(null)
-  const [profiles, setProfiles] = React.useState(null)
-  const [profilesPhase, setProfilesPhase] = React.useState('idle')
-  const [profilesError, setProfilesError] = React.useState(null)
-  const [profilesSearch, setProfilesSearch] = React.useState('')
-  const [profilesPath, setProfilesPath] = React.useState(null)
-  const [selectedProfileKey, setSelectedProfileKey] = React.useState(null)
-  const [profileDraft, setProfileDraft] = React.useState(null)
-  const [personaPresets, setPersonaPresets] = React.useState(null)
-  const [personaPresetsPhase, setPersonaPresetsPhase] = React.useState('idle')
-  const [personaPresetsError, setPersonaPresetsError] = React.useState(null)
-  const [personaPresetsPath, setPersonaPresetsPath] = React.useState(null)
-  const [personaPresetName, setPersonaPresetName] = React.useState('')
-  const [lastPromptState, setLastPromptState] = React.useState({ phase: 'idle', prompt: null, error: null })
-  const [fullPromptOpen, setFullPromptOpen] = React.useState(true)
+
 
   // Refs keep the 2s pollers from capturing stale state and from overlapping.
   const tabRef = React.useRef(tab)
@@ -258,15 +232,6 @@ export function useStore(t) {
     messagesUpdatedAt, setMessagesUpdatedAt, setupInfo, setSetupInfo, setupPhase, setSetupPhase,
     setupError, setSetupError, setupLogs, setSetupLogs, setupSteps, setSetupSteps,
     setupResultMsg, setSetupResultMsg, setupPolling, setSetupPolling, setupExpanded, setSetupExpanded,
-    aiReply, setAiReply, aiError, setAiError, personaDraft, setPersonaDraft,
-    personaPreview, setPersonaPreview, personaPath, setPersonaPath, personaPhase, setPersonaPhase,
-    personaError, setPersonaError, personaPreviewOpen, setPersonaPreviewOpen, aiSettingsDraft, setAiSettingsDraft,
-    aiSettingsDefaults, setAiSettingsDefaults, aiSettingsPath, setAiSettingsPath, aiSettingsPhase, setAiSettingsPhase,
-    aiSettingsError, setAiSettingsError, profiles, setProfiles, profilesPhase, setProfilesPhase,
-    profilesError, setProfilesError, profilesSearch, setProfilesSearch, profilesPath, setProfilesPath,
-    selectedProfileKey, setSelectedProfileKey, profileDraft, setProfileDraft, personaPresets, setPersonaPresets,
-    personaPresetsPhase, setPersonaPresetsPhase, personaPresetsError, setPersonaPresetsError, personaPresetsPath, setPersonaPresetsPath,
-    personaPresetName, setPersonaPresetName, lastPromptState, setLastPromptState, fullPromptOpen, setFullPromptOpen,
     tabRef, loggedInRef, loginPollRef, contactsBusyRef, messagesPollRef, setupActionRef,
     busyOf,
     lifecycleBusy,
