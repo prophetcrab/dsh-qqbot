@@ -12,12 +12,6 @@ export const LOG_LINES = 200
 /** Scope modes accepted by the Host access policy. */
 export const ACCESS_MODES = ['all', 'whitelist', 'blacklist']
 
-/** Fixed smoke-style prompt used by the panel's AI self-test. */
-export const AI_TEST_PROMPT = '请只回复：AI 面板测试成功'
-
-/** The persona card supports at most 8 few-shot examples. */
-export const MAX_PERSONA_EXAMPLES = 8
-
 /** Locale keys for the `/qqbot/setup/full` step ids. */
 export const SETUP_STEP_KEYS = {
   'koishi-project': 'setupStepProject',
@@ -110,36 +104,6 @@ export function formatTime(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleTimeString()
-}
-
-export function draftFromPersona(persona) {
-  const source = persona !== null && typeof persona === 'object' ? persona : {}
-  const text = (value) => (typeof value === 'string' ? value : '')
-  const examples = Array.isArray(source.examples)
-    ? source.examples
-      .filter((item) => item !== null && typeof item === 'object')
-      .slice(0, MAX_PERSONA_EXAMPLES)
-      .map((item) => ({ user: text(item.user), assistant: text(item.assistant) }))
-    : []
-  return {
-    name: text(source.name),
-    role: text(source.role),
-    tone: text(source.tone),
-    personality: text(source.personality),
-    rules: text(source.rules),
-    examples,
-  }
-}
-
-export function personaBody(draft) {
-  return {
-    name: draft.name,
-    role: draft.role,
-    tone: draft.tone,
-    personality: draft.personality,
-    rules: draft.rules,
-    examples: draft.examples.map((example) => ({ user: example.user, assistant: example.assistant })),
-  }
 }
 
 export function normalizeMode(value) {

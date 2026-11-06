@@ -3045,12 +3045,6 @@ window.__ModuleLoader__.load({
       /** Scope modes accepted by the Host access policy. */
       const ACCESS_MODES = ['all', 'whitelist', 'blacklist']
 
-      /** Fixed smoke-style prompt used by the panel's AI self-test. */
-      const AI_TEST_PROMPT = '请只回复：AI 面板测试成功'
-
-      /** The persona card supports at most 8 few-shot examples. */
-      const MAX_PERSONA_EXAMPLES = 8
-
       /** Locale keys for the `/qqbot/setup/full` step ids. */
       const SETUP_STEP_KEYS = {
         'koishi-project': 'setupStepProject',
@@ -3145,36 +3139,6 @@ window.__ModuleLoader__.load({
         return date.toLocaleTimeString()
       }
 
-      function draftFromPersona(persona) {
-        const source = persona !== null && typeof persona === 'object' ? persona : {}
-        const text = (value) => (typeof value === 'string' ? value : '')
-        const examples = Array.isArray(source.examples)
-          ? source.examples
-            .filter((item) => item !== null && typeof item === 'object')
-            .slice(0, MAX_PERSONA_EXAMPLES)
-            .map((item) => ({ user: text(item.user), assistant: text(item.assistant) }))
-          : []
-        return {
-          name: text(source.name),
-          role: text(source.role),
-          tone: text(source.tone),
-          personality: text(source.personality),
-          rules: text(source.rules),
-          examples,
-        }
-      }
-
-      function personaBody(draft) {
-        return {
-          name: draft.name,
-          role: draft.role,
-          tone: draft.tone,
-          personality: draft.personality,
-          rules: draft.rules,
-          examples: draft.examples.map((example) => ({ user: example.user, assistant: example.assistant })),
-        }
-      }
-
       function normalizeMode(value) {
         return ACCESS_MODES.includes(value) ? value : 'all'
       }
@@ -3220,7 +3184,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      return { POLL_MS, LOG_LINES, ACCESS_MODES, AI_TEST_PROMPT, MAX_PERSONA_EXAMPLES, SETUP_STEP_KEYS, messageOf, requestJson, pickText, compactValue, pluginKey, pluginLabel, formatTime, draftFromPersona, personaBody, normalizeMode, scopeIds, parsePrefixes, draftFromPolicy }
+      return { POLL_MS, LOG_LINES, ACCESS_MODES, SETUP_STEP_KEYS, messageOf, requestJson, pickText, compactValue, pluginKey, pluginLabel, formatTime, normalizeMode, scopeIds, parsePrefixes, draftFromPolicy }
     },
     "client/runtime/locale.js": (__require) => {
       /**

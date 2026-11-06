@@ -118,54 +118,6 @@ export function ensureProfile(store, { groupId, userId, userName }) {
  * Render a profile as the second system-prompt segment. Basic empty cards
  * still expose the person's name/QQ so the model knows who it is replying to.
  */
-export function buildProfilePrompt(profile) {
-  if (profile === null || typeof profile !== 'object') return ''
-  const lines = []
-  if (profile.nickname !== '') lines.push(`昵称：${profile.nickname}`)
-  if (profile.qq !== '') lines.push(`QQ：${profile.qq}`)
-  if (profile.summary !== '') lines.push(`人物概要：${profile.summary}`)
-  if (profile.personality !== '') lines.push(`性格印象：${profile.personality}`)
-  if (profile.style !== '') lines.push(`说话风格：${profile.style}`)
-  if (profile.relationship !== '') lines.push(`与机器人的关系：${profile.relationship}`)
-  if (profile.interests.length > 0) lines.push(`兴趣话题：${profile.interests.join('、')}`)
-  if (profile.recent !== '') lines.push(`近期互动：${profile.recent}`)
-  if (lines.length === 0) return ''
-  return `【用户画像】\n${lines.join('\n')}\n（画像仅作为背景理解，不要直接复述，也不要声称你记得画像里的所有细节。）`
-}
-
-/** Build the prompt used to merge an exchange into an existing profile. */
-export function buildProfileUpdatePrompt(profile, exchange, reply) {
-  const history = exchange
-    .slice(-6)
-    .map((message) => `${message.role === 'assistant' ? '机器人' : '群友'}：${String(message.text ?? '').slice(0, 500)}`)
-    .join('\n')
-  return [
-    '你负责维护 QQ 群成员的人物画像。根据【现有画像】和【最新对话】更新画像。',
-    '只输出一个 JSON 对象，不要输出 Markdown 或解释。字段：',
-    '{"summary":"一句话人物概要（可空）","personality":"性格印象（可空）","style":"说话风格（可空）","relationship":"与机器人的关系（可空）","interests":["兴趣1","兴趣2"],"recent":"最近一次互动的简短摘要（可空）"}',
-    '要求：只记录对话中明确体现或强烈暗示的信息，不要编造；每个字段不超过 200 字；interests 最多 8 个短词。',
-    '',
-    `【现有画像】\n${buildProfilePrompt(profile) || '（暂无）'}`,
-    `【最新对话】\n${history}\n机器人：${String(reply ?? '').slice(0, 500)}`,
-  ].join('\n')
-}
-
-/** Parse a model's JSON profile patch, tolerating code fences and surrounding text. */
-export function parseProfilePatch(text) {
-  const raw = String(text ?? '').trim()
-  if (raw === '') return null
-  const start = raw.indexOf('{')
-  const end = raw.lastIndexOf('}')
-  if (start < 0 || end <= start) return null
-  try {
-    const parsed = JSON.parse(raw.slice(start, end + 1))
-    return parsed !== null && typeof parsed === 'object' ? parsed : null
-  } catch {
-    return null
-  }
-}
-
-/** Merge a JSON patch into a profile with bounded fields. */
 export function mergeProfile(profile, patch, reply) {
   const next = normalizeProfile(profile)
   if (patch !== null && typeof patch === 'object') {

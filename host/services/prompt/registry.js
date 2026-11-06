@@ -31,19 +31,10 @@ export class PromptRegistry {
     return normalized
   }
 
-  registerAll(sections) {
-    for (const section of sections) this.register(section)
-    return this
-  }
-
   get(id) {
     const section = this.sections.get(id)
     if (section === undefined) throw new Error(`unknown prompt section: ${id}`)
     return section
-  }
-
-  has(id) {
-    return this.sections.has(id)
   }
 
   ids() {

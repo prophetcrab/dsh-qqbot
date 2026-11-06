@@ -1,6 +1,6 @@
 /** Load the group-chat prompt config from disk, with defaults and hot reload. */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compilePromptConfig } from '../../prompt/index.js'
 import { dataPaths } from '../../../platform/index.js'

@@ -297,7 +297,7 @@ export class GroupLoopService {
     }
     if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) {
       const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: true })
-      return this.composeWithTools({ input, speak, character, baseUser: prompt.user, system: prompt.system, images, budget })
+      return this.composeWithTools({ input, speak, baseUser: prompt.user, system: prompt.system, images, budget })
     }
     try {
       const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: false })
@@ -310,7 +310,7 @@ export class GroupLoopService {
     }
   }
 
-  async composeWithTools({ input, speak, character, baseUser, system, images, budget }) {
+  async composeWithTools({ input, speak, baseUser, system, images, budget }) {
     const toolCalls = []
     const executed = new Set()
     let observations = ''

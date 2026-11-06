@@ -116,7 +116,7 @@ compose: { ... }           // 共享 user base；工具说明为条件 section
 - 未知 section / 重复 plan 校验
 - 配置 bootstrap、自定义配置、mtime 热更新、坏配置保留上一版
 
-`npm test`：316 tests；architecture ok。
+`npm test`：313 tests；architecture ok。
 
 ## 后果
 

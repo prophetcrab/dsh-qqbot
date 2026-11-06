@@ -38,9 +38,7 @@ function compileLeaf(condition) {
 /** Compile `{field, equals}` / `{all}` / `{any}` / `{not}` into a predicate. */
 export function compileCondition(condition) {
   if (condition === undefined || condition === null) return null
-  if (condition === null || typeof condition !== 'object' || Array.isArray(condition)) {
-    throw new Error('condition must be an object')
-  }
+  if (typeof condition !== 'object' || Array.isArray(condition)) throw new Error('condition must be an object')
   if (Array.isArray(condition.all)) {
     const parts = condition.all.map((item) => compileCondition(item))
     return (ctx) => parts.every((part) => part(ctx))
