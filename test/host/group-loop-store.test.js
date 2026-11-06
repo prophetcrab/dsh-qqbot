@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { GroupLoopStore } from '../../host/services/group-loop/store.js'
-import { memoryPrompt } from '../../host/services/group-loop/prompts.js'
+import { memoryPrompt } from '../../host/services/group-loop/prompt/index.js'
 import { validateAnalyze, validateCompose, validateStateUpdate } from '../../host/services/group-loop/contracts.js'
 
 const logger = { warn() {} }

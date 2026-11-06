@@ -19,5 +19,6 @@
 | [0008](0008-main-guidance-only.md) | main 只做导向管理 | Current | 已完成迁移 |
 | [0009](0009-feature-flow-and-release-convention.md) | 功能流与独立发布 | Current | mac 上游，win 同步/适配 |
 | [0010](0010-server-editions.md) | 服务器版本 A/B2 | Proposed | 服务器版规划，尚未实现 |
+| [0011](0011-prompt-assembly.md) | 提示词装配架构 | Current | 通用引擎 + 群聊 section/stage 计划；golden 测试锁定输出 |
 
 新增决策使用 `NNNN-<title>.md`，并在本表登记。

@@ -37,7 +37,7 @@ DSH Client（面板）
 | `host/kernel` | 插件注册、贡献点、路由/工具/Feature/Tab、状态聚合 |
 | `host/contracts` | status/config/panel/plugin-manifest 契约与 schema |
 | `host/platform` | 路径、进程、端口、HTTP、数据布局；平台差异只在这一层 |
-| `host/services` | napcat、koishi、setup、persona、profiles、access、game-core、group-loop 等业务服务 |
+| `host/services` | napcat、koishi、setup、persona、profiles、access、game-core、group-loop、prompt 等业务服务 |
 | `host/plugins` | 把服务暴露为 DSH 能力：路由、工具、状态 provider、Client Tab |
 | `template/` | 创建 Koishi 运行时的模板，包含平台离线依赖包 |
 | `client/` | 面板 UI，构建成单个 `client.js` |

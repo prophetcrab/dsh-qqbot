@@ -27,17 +27,17 @@ dsh-qqbot/
 ├── index.js                 # 仅组装
 ├── host/
 │   ├── kernel/              # 插件注册、贡献点、路由/工具/Feature/Tab
-│   ├── contracts/           # AI/status/config/panel/plugin-manifest schema
+│   ├── contracts/           # status/config/panel/plugin-manifest schema
 │   ├── platform/            # 平台层：平台差异只允许出现在这里
 │   │   ├── index.js         # 门面：本分支只接入 mac 实现
 │   │   ├── common/          # 平台无关：paths / data-paths / http / settings
 │   │   └── mac/             # macOS 实现：路径、进程、端口、QQ/NapCat 探测
-│   ├── services/            # napcat / koishi / lifecycle / setup / ai / persona /
-│   │   │                    # profiles / access / group-loop
+│   ├── services/            # napcat / koishi / lifecycle / setup / persona /
+│   │   │                    # profiles / access / group-loop / prompt
 │   │   ├── game-core/       # 共享账号 + 玩家存储 + 游戏注册表
 │   │   └── game-fishing/    # 钓鱼游戏包（数值、事务、渲染、管理台）
-│   └── plugins/             # lifecycle / napcat / koishi / install / ai / persona /
-│                            # access / messages / features / tools /
+│   └── plugins/             # lifecycle / napcat / koishi / install / discovery /
+│                            # persona / access / messages / features / tools /
 │                            # game-core / game-fishing / group-loop
 ├── client/
 │   ├── index.js             # 仅注册 Client 插件
@@ -401,7 +401,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 333 个 host/client 测试
+npm test                 # 311 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
 npm run smoke:host       # 53 routes / 6 tools / 3 features

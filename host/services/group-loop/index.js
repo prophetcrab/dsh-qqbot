@@ -3,7 +3,7 @@ import { buildCharacterPrompt } from '../persona/index.js'
 import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { normalizeUsage, TokenStatsStore } from './token-stats.js'
-import { analyzeSystem, composeReActSystem, composeSystem, emotionPrompt, memoryPrompt, stateUpdateSystem, userMaterial } from './prompts.js'
+import { buildAnalyzePrompt, buildComposePrompt, buildStateUpdatePrompt, emotionPrompt, memoryPrompt } from './prompt/index.js'
 import { getWeather } from './weather.js'
 import { searchWeb } from './web-search.js'
 import { evaluateExpression } from './calculator.js'
@@ -256,7 +256,17 @@ export class GroupLoopService {
     const character = await this.characterSnapshot()
     try { await this.store.archiveMaterial(groupId, material) } catch (error) { this.logger.warn?.('group-loop message archive failed: %s', String(error?.message ?? error)) }
     try {
-      const raw = await this.stream(analyzeSystem(character.prompt, direct, emotionPrompt(character.character.emotion)), userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(groupId), await this.memoryContext(groupId)), { maxTokens: 420, temperature: 0.25, images, onUsage: (usage) => this.recordUsage({ groupId, loopId: text(input.loopId), kind: 'analyze', usage }) })
+      const prompt = buildAnalyzePrompt({
+        characterPrompt: character.prompt,
+        statePrompt: emotionPrompt(character.character.emotion),
+        direct,
+        profiles,
+        imageNote: this.imageNote(input),
+        background: await this.groupBackground(groupId),
+        memory: await this.memoryContext(groupId),
+        material,
+      })
+      const raw = await this.stream(prompt.system, prompt.user, { maxTokens: 420, temperature: 0.25, images, onUsage: (usage) => this.recordUsage({ groupId, loopId: text(input.loopId), kind: 'analyze', usage }) })
       const parsed = parseJson(raw)
       const speak = normalizeSpeak(parsed?.speak)
       return { ok: true, speak, reason: text(parsed?.reason).slice(0, 120), raw: raw.slice(0, 1000) }
@@ -274,10 +284,23 @@ export class GroupLoopService {
     const profiles = await this.profileContext(input.groupId, input.participants)
     const images = [...(input.images ?? []), ...(input.quotedImages ?? []), ...(input.backgroundImages ?? [])]
     const character = await this.characterSnapshot()
-    const baseUser = userMaterial(material, profiles, this.imageNote(input), await this.groupBackground(input.groupId), await this.memoryContext(input.groupId))
-    if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) return this.composeWithTools({ input, speak, character, baseUser, images, budget })
+    const context = {
+      characterPrompt: character.prompt,
+      statePrompt: emotionPrompt(character.character.emotion),
+      profiles,
+      imageNote: this.imageNote(input),
+      background: await this.groupBackground(input.groupId),
+      memory: await this.memoryContext(input.groupId),
+      material,
+      speak,
+    }
+    if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) {
+      const prompt = buildComposePrompt({ ...context, targetBubbles: budget, reactTools: true })
+      return this.composeWithTools({ input, speak, character, baseUser: prompt.user, system: prompt.system, images, budget })
+    }
     try {
-      const raw = await this.stream(composeSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget), baseUser, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
+      const prompt = buildComposePrompt({ ...context, targetBubbles: budget, reactTools: false })
+      const raw = await this.stream(prompt.system, prompt.user, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
       const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
       return { ok: true, text: parts.join(''), parts, speak, toolCalls: [], bubbleBudget: budget }
     } catch (error) {
@@ -286,13 +309,12 @@ export class GroupLoopService {
     }
   }
 
-  async composeWithTools({ input, speak, character, baseUser, images, budget }) {
+  async composeWithTools({ input, speak, character, baseUser, system, images, budget }) {
     const toolCalls = []
     const executed = new Set()
     let observations = ''
     let composeUsage = null
     let stalls = 0
-    const system = composeReActSystem(character.prompt, speak, emotionPrompt(character.character.emotion), budget)
     // No fixed step/tool-call budget: the model keeps calling tools until it
     // decides the goal is met. `stalls` only stops a non-terminating loop.
     for (;;) {
@@ -440,7 +462,8 @@ export class GroupLoopService {
     let degraded = false
     let error = ''
     try {
-      parsed = parseJson(await this.stream(stateUpdateSystem(), `${current}\n\n素材：\n${material}`, { maxTokens: 600, temperature: 0.2, onUsage: (usage) => this.recordUsage({ groupId, loopId, kind: 'state-update', usage }) })) ?? {}
+      const prompt = buildStateUpdatePrompt({ currentText: current, material })
+      parsed = parseJson(await this.stream(prompt.system, prompt.user, { maxTokens: 600, temperature: 0.2, onUsage: (usage) => this.recordUsage({ groupId, loopId, kind: 'state-update', usage }) })) ?? {}
     } catch (cause) {
       degraded = true
       error = String(cause?.message ?? cause)
