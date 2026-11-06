@@ -117,22 +117,23 @@ test('compose attaches images as image content parts', async () => {
 })
 
 test('group prompts describe behavior without explicit prohibition lists', async () => {
-  const { buildAnalyzePrompt, buildComposePrompt, buildStateUpdatePrompt, emotionPrompt } = await import('../../host/services/group-loop/prompt/index.js')
+  const { GroupChatPrompts, emotionPrompt } = await import('../../host/services/group-loop/prompt/index.js')
   const statePrompt = emotionPrompt({ valence: 0.1, energy: 0.5, socialBattery: 0.5, stress: 0.2, arousal: 0.4 })
+  const promptsService = new GroupChatPrompts()
   const context = {
     characterPrompt: '角色',
     statePrompt,
     direct: false,
-    profiles: [],
+    profilesText: '',
     imageNote: '',
     background: '',
-    memory: '',
+    memoryText: '',
     material: '素材',
   }
   const prompts = [
-    buildAnalyzePrompt(context).system,
-    buildComposePrompt({ ...context, speak: { kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: [] } }, targetBubbles: null, reactTools: false }).system,
-    buildStateUpdatePrompt({ currentText: '角色：x', material: '素材' }).system,
+    promptsService.buildAnalyze(context).system,
+    promptsService.buildCompose({ ...context, speak: { kind: 'reply', replyType: 'normal', target: { messageIds: [], userIds: [] } }, targetBubbles: null, reactTools: false }).system,
+    promptsService.buildStateUpdate({ currentText: '角色：x', material: '素材' }).system,
   ]
   for (const prompt of prompts) assert.doesNotMatch(prompt, /不要|禁止/u)
 })

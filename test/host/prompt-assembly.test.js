@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { PromptAssembler, PromptRegistry, defineSection, fitBudget } from '../../host/services/prompt/index.js'
 import {
-  buildAnalyzePrompt, buildComposePrompt, buildStateUpdatePrompt, emotionPrompt, memoryPrompt, profileData,
+  GroupChatPrompts, emotionPrompt, memoryPrompt, profileData,
 } from '../../host/services/group-loop/prompt/index.js'
 
 const golden = JSON.parse(readFileSync(join(process.cwd(), 'test', 'fixtures', 'prompt-golden.json'), 'utf8'))
@@ -30,58 +30,60 @@ const speakAt = { enabled: true, kind: 'reply', replyType: 'at', target: { messa
 const speakStatement = { enabled: true, kind: 'statement', replyType: null, target: { messageIds: [], userIds: [] } }
 const current = ['角色：鱼鱼 / 杭州漫画家', '情绪：{"valence":0.12}', '本轮 speak：{"enabled":true}', '发送结果：{"sent":true}'].join('\n')
 
+const prompts = new GroupChatPrompts()
+
 function context(extra = {}) {
   return {
     characterPrompt,
     statePrompt: emotionText,
-    profiles,
+    profilesText: profileData(profiles),
     imageNote,
     background,
-    memory: memoryText,
+    memoryText,
     material,
     ...extra,
   }
 }
 
 test('prompt assembly matches the pre-refactor golden output', () => {
-  const direct = buildAnalyzePrompt(context({ direct: true }))
+  const direct = prompts.buildAnalyze(context({ direct: true }))
   assert.equal(direct.system, golden.analyze_direct.system)
   assert.equal(direct.user, golden.analyze_direct.user)
 
-  const normal = buildAnalyzePrompt(context({ direct: false }))
+  const normal = prompts.buildAnalyze(context({ direct: false }))
   assert.equal(normal.system, golden.analyze_normal.system)
   assert.equal(normal.user, golden.analyze_normal.user)
 
-  const plainNormal = buildComposePrompt(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: false }))
+  const plainNormal = prompts.buildCompose(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: false }))
   assert.equal(plainNormal.system, golden.compose_plain_normal.system)
   assert.equal(plainNormal.user, golden.compose_plain_normal.user)
 
-  const plainAt = buildComposePrompt(context({ speak: speakAt, targetBubbles: null, reactTools: false }))
+  const plainAt = prompts.buildCompose(context({ speak: speakAt, targetBubbles: null, reactTools: false }))
   assert.equal(plainAt.system, golden.compose_plain_at.system)
   assert.equal(plainAt.user, golden.compose_plain_at.user)
 
-  const plainStatement = buildComposePrompt(context({ speak: speakStatement, targetBubbles: 1, reactTools: false }))
+  const plainStatement = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: 1, reactTools: false }))
   assert.equal(plainStatement.system, golden.compose_plain_statement.system)
   assert.equal(plainStatement.user, golden.compose_plain_statement.user)
 
-  const react = buildComposePrompt(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: true }))
+  const react = prompts.buildCompose(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: true }))
   assert.equal(react.system, golden.compose_react_normal.system)
   assert.equal(`${react.user}\n\n【工具观察】测试观察`, golden.compose_react_normal.user)
 
-  const stateUpdate = buildStateUpdatePrompt({ currentText: current, material })
+  const stateUpdate = prompts.buildStateUpdate({ currentText: current, material })
   assert.equal(stateUpdate.system, golden.state_update.system)
   assert.equal(stateUpdate.user, golden.state_update.user)
 })
 
 test('prompt meta reports ordered sections and conditions', () => {
-  const built = buildAnalyzePrompt(context({ direct: true }))
+  const built = prompts.buildAnalyze(context({ direct: true }))
   assert.equal(built.meta.stage, 'analyze')
   assert.deepEqual(built.meta.sections.filter((section) => section.tier === 'system').map((section) => section.id), [
     'character', 'emotion', 'analyze-task', 'analyze-image', 'analyze-contract', 'analyze-direct',
   ])
   assert.ok(built.meta.dropped.some((entry) => entry.id === 'analyze-nondirect'))
 
-  const compose = buildComposePrompt(context({ speak: speakStatement, targetBubbles: null, reactTools: false }))
+  const compose = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: null, reactTools: false }))
   assert.ok(!compose.meta.sections.some((section) => section.id === 'compose-reply-normal'))
   assert.ok(compose.meta.dropped.some((entry) => entry.id === 'compose-bubble'))
 })

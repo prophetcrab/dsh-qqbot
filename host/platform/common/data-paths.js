@@ -22,6 +22,8 @@ export function dataPaths(projectDir) {
     config: {
       access: join(root, 'config', 'access.json'),
       persona: join(root, 'config', 'persona.json'),
+      prompts: join(root, 'config', 'prompts'),
+      promptConfig: join(root, 'config', 'prompts', 'group-chat.json'),
     },
     state: {
       aiDiscovery: join(root, 'state', 'ai.json'),

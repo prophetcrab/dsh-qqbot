@@ -1,21 +1,26 @@
-/** Group-chat prompt assembly entry point. */
-import { PromptAssembler, PromptRegistry } from '../../prompt/index.js'
-import { SECTIONS, emotionPrompt, memoryPrompt, profileData } from './sections.js'
-import { STAGES } from './stages.js'
+/** Group-chat prompt service backed by a config file. */
+import { PromptConfigStore } from './store.js'
 
-export { SECTIONS, STAGES, emotionPrompt, memoryPrompt, profileData }
+export { profileData, emotionPrompt, memoryPrompt } from './format.js'
 
-export const promptRegistry = new PromptRegistry(SECTIONS)
-export const promptAssembler = new PromptAssembler({ registry: promptRegistry, stages: STAGES })
+export class GroupChatPrompts {
+  constructor({ projectDir = null, logger = null, configPath = null } = {}) {
+    this.store = new PromptConfigStore({ projectDir, logger, configPath })
+  }
 
-export function buildAnalyzePrompt(context) {
-  return promptAssembler.build('analyze', context)
-}
+  buildAnalyze(context) {
+    return this.store.build('analyze', context)
+  }
 
-export function buildComposePrompt(context) {
-  return promptAssembler.build('compose', context)
-}
+  buildCompose(context) {
+    return this.store.build('compose', context)
+  }
 
-export function buildStateUpdatePrompt(context) {
-  return promptAssembler.build('state-update', context)
+  buildStateUpdate(context) {
+    return this.store.build('state-update', context)
+  }
+
+  status() {
+    return this.store.status()
+  }
 }

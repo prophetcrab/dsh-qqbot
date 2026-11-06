@@ -1,7 +1,7 @@
 # 0011 提示词装配架构
 
 - 状态：已采纳
-- 日期：2026-11-06
+- 日期：2026-11-06（同日补充配置化）
 - 相关：群聊闭环（analyze / compose / state-update）
 
 ## 背景
@@ -30,17 +30,38 @@ state-update 看不到上下文、无法观测每次请求各段占多少、没�
 ### 代码结构
 
 ```text
-host/services/prompt/              # 通用引擎，不依赖群聊业务
-├── registry.js                    # section 注册与校验
-├── assembler.js                   # stage plan -> system/user/meta
-├── budget.js                      # 字符预算、required 保护、截断
+host/services/prompt/                  # 通用引擎，不依赖群聊业务
+├── registry.js                        # section 注册与校验
+├── assembler.js                       # stage plan -> system/user/meta
+├── budget.js                          # 字符预算、required 保护、截断
+├── template.js                        # {{path}} / {{path|json}} 模板
+├── conditions.js                      # 声明式 when 条件
+├── config.js                          # JSON config -> registry + assembler
 └── index.js
 
-host/services/group-loop/prompt/   # 群聊业务
-├── sections.js                    # 角色/情绪/画像/记忆/素材/契约等 section
-├── stages.js                      # analyze / compose / state-update 计划
-└── index.js                       # registry + assembler 入口
+host/services/group-loop/prompt/       # 群聊业务
+├── group-chat.prompts.json            # 默认配置（随包发布）
+├── store.js                           # 运行配置加载/热更新/回退
+├── format.js                          # 画像/情绪/记忆上下文格式化
+└── index.js                           # GroupChatPrompts 服务
 ```
+
+### 配置化
+
+提示词文本和 stage plan **不再写在 JS 里**，而是从 JSON 配置加载：
+
+```text
+<projectDir>/data/config/prompts/group-chat.json   # 运行时配置，可编辑
+host/services/group-loop/prompt/group-chat.prompts.json  # 随包默认配置
+```
+
+- 首次启动如果运行配置不存在，从默认配置复制一份；
+- 每次 build 检查文件 mtime，变化即重新编译；编辑后下一条消息生效，无需重启 DSH；
+- 配置解析/校验失败时保留上一份有效配置（首次失败则回退默认配置）并写 warning；
+- 配置结构：`{ version, sections[], stages{} }`；
+- section 支持 `template`（`{{path}}`、`{{path|json}}`）、`when` 条件 AST
+  （`equals / notEquals / in / truthy / exists / isInteger / all / any / not`）；
+- 代码只保留上下文格式化（画像 JSON、情绪等级、记忆标签）和引擎，不再保存 prompt 文案。
 
 ### Section 契约
 
@@ -86,15 +107,16 @@ compose: { ... }           // 共享 user base；工具说明为条件 section
 
 ## 测试
 
-`test/host/prompt-assembly.test.js`：
+`test/host/prompt-assembly.test.js` 与 `test/host/prompt-config.test.js`：
 
 - golden 输出（analyze direct/normal、compose plain normal/at/statement、compose react、state-update）
 - section 顺序与条件省略
 - 画像/记忆的 untrusted 包装
 - 预算淘汰、required 保护、maxChars 截断
 - 未知 section / 重复 plan 校验
+- 配置 bootstrap、自定义配置、mtime 热更新、坏配置保留上一版
 
-`npm test`：311 tests；architecture ok。
+`npm test`：316 tests；architecture ok。
 
 ## 后果
 

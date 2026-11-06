@@ -3,7 +3,7 @@ import { buildCharacterPrompt } from '../persona/index.js'
 import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { normalizeUsage, TokenStatsStore } from './token-stats.js'
-import { buildAnalyzePrompt, buildComposePrompt, buildStateUpdatePrompt, emotionPrompt, memoryPrompt } from './prompt/index.js'
+import { GroupChatPrompts, emotionPrompt, memoryPrompt, profileData } from './prompt/index.js'
 import { getWeather } from './weather.js'
 import { searchWeb } from './web-search.js'
 import { evaluateExpression } from './calculator.js'
@@ -134,6 +134,7 @@ export class GroupLoopService {
     this.logger = logger
     this.store = new GroupLoopStore({ projectDir: settings.projectDir, personaPath, profilesPath, logger })
     this.tokenStats = new TokenStatsStore({ projectDir: settings.projectDir, logger })
+    this.prompts = new GroupChatPrompts({ projectDir: settings.projectDir, logger })
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
     this.inFlight = new Map()
     this.webSearch = webSearch
@@ -256,14 +257,14 @@ export class GroupLoopService {
     const character = await this.characterSnapshot()
     try { await this.store.archiveMaterial(groupId, material) } catch (error) { this.logger.warn?.('group-loop message archive failed: %s', String(error?.message ?? error)) }
     try {
-      const prompt = buildAnalyzePrompt({
+      const prompt = this.prompts.buildAnalyze({
         characterPrompt: character.prompt,
         statePrompt: emotionPrompt(character.character.emotion),
         direct,
-        profiles,
+        profilesText: profileData(profiles),
         imageNote: this.imageNote(input),
         background: await this.groupBackground(groupId),
-        memory: await this.memoryContext(groupId),
+        memoryText: await this.memoryContext(groupId),
         material,
       })
       const raw = await this.stream(prompt.system, prompt.user, { maxTokens: 420, temperature: 0.25, images, onUsage: (usage) => this.recordUsage({ groupId, loopId: text(input.loopId), kind: 'analyze', usage }) })
@@ -287,19 +288,19 @@ export class GroupLoopService {
     const context = {
       characterPrompt: character.prompt,
       statePrompt: emotionPrompt(character.character.emotion),
-      profiles,
+      profilesText: profileData(profiles),
       imageNote: this.imageNote(input),
       background: await this.groupBackground(input.groupId),
-      memory: await this.memoryContext(input.groupId),
+      memoryText: await this.memoryContext(input.groupId),
       material,
       speak,
     }
     if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) {
-      const prompt = buildComposePrompt({ ...context, targetBubbles: budget, reactTools: true })
+      const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: true })
       return this.composeWithTools({ input, speak, character, baseUser: prompt.user, system: prompt.system, images, budget })
     }
     try {
-      const prompt = buildComposePrompt({ ...context, targetBubbles: budget, reactTools: false })
+      const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: false })
       const raw = await this.stream(prompt.system, prompt.user, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
       const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
       return { ok: true, text: parts.join(''), parts, speak, toolCalls: [], bubbleBudget: budget }
@@ -462,7 +463,7 @@ export class GroupLoopService {
     let degraded = false
     let error = ''
     try {
-      const prompt = buildStateUpdatePrompt({ currentText: current, material })
+      const prompt = this.prompts.buildStateUpdate({ currentText: current, material })
       parsed = parseJson(await this.stream(prompt.system, prompt.user, { maxTokens: 600, temperature: 0.2, onUsage: (usage) => this.recordUsage({ groupId, loopId, kind: 'state-update', usage }) })) ?? {}
     } catch (cause) {
       degraded = true

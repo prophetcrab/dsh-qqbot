@@ -39,5 +39,6 @@ test('dataPaths: stable canonical layout', () => {
   const paths = dataPaths('/tmp/project')
   assert.ok(paths.config.access.endsWith('data/config/access.json'))
   assert.ok(paths.state.aiDiscovery.endsWith('data/state/ai.json'))
+  assert.ok(paths.config.promptConfig.endsWith('data/config/prompts/group-chat.json'))
   assert.ok(paths.assets.profiles.endsWith('data/assets/profiles.json'))
 })

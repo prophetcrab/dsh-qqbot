@@ -1,20 +1,32 @@
 # Group-chat prompt catalog
 
-Section catalog and stage plans for the group loop:
+The prompt text and stage plans live in `group-chat.prompts.json` (bundled
+default). At runtime the service reads
+`<projectDir>/data/config/prompts/group-chat.json`; the file is bootstrapped
+from the bundled default on first use and hot-reloaded by mtime.
 
-- `sections.js`: character/emotion/profiles/group/memory/material plus the
-  analyze, compose and state-update contracts.
-- `stages.js`: ordered section ids for each stage. `compose` shares the user
-  base with `analyze`; the ReAct tool block is a conditional section.
-- `index.js`: registry + assembler instance and `buildAnalyzePrompt` /
-  `buildComposePrompt` / `buildStateUpdatePrompt`.
+Config shape:
 
-The character section renders the persona block from `buildCharacterPrompt`,
-whose header is `[SETTING LOAD]`.
+```json
+{
+  "version": 1,
+  "sections": [
+    { "id": "character", "tier": "system", "priority": 100, "required": true, "template": "{{characterPrompt}}" },
+    { "id": "material", "tier": "user", "required": true, "template": "【本轮群聊素材】\n{{material}}" }
+  ],
+  "stages": {
+    "analyze": { "system": ["character"], "user": ["material"], "budget": null }
+  }
+}
+```
 
-Rules:
-
-- required contract sections must never be removed by budgets;
-- adding a stage means adding a plan + sections, not editing the service;
-- prompt text changes require updating `test/fixtures/prompt-golden.json`
-  deliberately.
+- Context keys are produced by `format.js` + the service:
+  `characterPrompt`, `statePrompt`, `profilesText`, `imageNote`, `background`,
+  `memoryText`, `material`, `direct`, `speak`, `targetBubbles`, `reactTools`,
+  `currentText`.
+- Conditions are declarative, e.g. `{ "field": "direct", "equals": true }` or
+  `{ "field": "targetBubbles", "isInteger": true }`.
+- Invalid edits keep the last valid config (or the bundled default on first
+  load); the error is exposed by `GroupChatPrompts#status()`.
+- `test/fixtures/prompt-golden.json` and `test/host/prompt-config.test.js` guard
+  output and config behavior.
