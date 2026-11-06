@@ -40,7 +40,7 @@ test('buildPersonaPrompt: persona block first with role fields and few-shot exam
     rules: '句尾带喵',
     examples: [{ user: '你好', assistant: '你好喵' }],
   })
-  assert.match(prompt, /^【角色设定】/u)
+  assert.match(prompt, /^\[SETTING LOAD\]/u)
   assert.match(prompt, /名称：猫娘/u)
   assert.match(prompt, /【对话示例】/u)
   assert.match(prompt, /用户：你好\n回应：你好喵/u)

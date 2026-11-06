@@ -76,7 +76,7 @@ export function buildPersonaPrompt(persona) {
   if (card.rules !== '') lines.push(`行为准则：${card.rules}`)
   if (card.keywords.length > 0) lines.push(`兴趣关键词：${card.keywords.join('、')}`)
   const sections = []
-  if (lines.length > 0) sections.push(`【角色设定】\n${lines.join('\n')}`)
+  if (lines.length > 0) sections.push(`[SETTING LOAD]\n${lines.join('\n')}`)
   if (card.examples.length > 0) {
     const examples = card.examples.map((example) => `用户：${example.user}\n回应：${example.assistant}`).join('\n\n')
     sections.push(`【对话示例】\n${examples}`)

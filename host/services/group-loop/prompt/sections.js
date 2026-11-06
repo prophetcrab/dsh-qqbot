@@ -83,7 +83,7 @@ const REACT_TOOLS = [
 export const SECTIONS = [
   // ---------------------------------------------------------------- system --
   {
-    id: 'character', title: '角色设定', tier: 'system', priority: 100, required: true,
+    id: 'character', title: '人设设定', tier: 'system', priority: 100, required: true,
     render: (ctx) => ctx.characterPrompt,
   },
   {

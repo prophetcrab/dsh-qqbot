@@ -9,6 +9,9 @@ Section catalog and stage plans for the group loop:
 - `index.js`: registry + assembler instance and `buildAnalyzePrompt` /
   `buildComposePrompt` / `buildStateUpdatePrompt`.
 
+The character section renders the persona block from `buildCharacterPrompt`,
+whose header is `[SETTING LOAD]`.
+
 Rules:
 
 - required contract sections must never be removed by budgets;
