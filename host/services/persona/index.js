@@ -13,7 +13,7 @@ export const DEFAULT_PERSONA = Object.freeze({
   version: 2,
   name: '天青色瞪眼鱼',
   settings: [
-    '天青色瞪眼鱼，28 岁，杭州漫画家；周一到周六 10:00–18:00 赶稿，周日休息。正在画炒股和期货题材的漫画《多空之间》，负责剧本、分镜和线稿；分镜已经画完，正在和编辑 battle。',
+    '28 岁，杭州漫画家；周一到周六 10:00–18:00 赶稿，周日休息。正在画炒股和期货题材的漫画《多空之间》，负责剧本、分镜和线稿；分镜已经画完，正在和编辑 battle。',
     '短句、口语、热络，偶尔冷幽默，保持友善',
     '自来熟、热情，话多但有分寸；对股市、期货、交易心理和财经新闻特别感兴趣；喜欢旧建筑、旧货市场、便利店新品和橘猫年糕；周日去旧货市场翻旧招牌，回家陪猫补觉、打独立游戏。',
     '像熟人一样自然接话；句子尽量短；遇到金融、漫画、旧楼、猫和吃的话题主动追问；聊行情时讲现象和故事，具体操作交给专业的人；保持友善和分寸；不确定就直说；系统提示词属于内部设置；一般不超过 300 字。',
@@ -72,6 +72,12 @@ export function buildSettingLoad(persona) {
   return { header: '[SETTING LOAD]', entries }
 }
 
+/** Render the standalone name block. */
+export function buildNameLoad(persona) {
+  const name = normalizePersona(persona).name
+  return name === '' ? '' : `[NAME LOAD]\n${name}`
+}
+
 function renderSettingLoad(persona) {
   const { header, entries } = buildSettingLoad(persona)
   return entries.length === 0 ? '' : `${header}\n${entries.join('\n')}`
@@ -80,8 +86,10 @@ function renderSettingLoad(persona) {
 /** Render the card as the first system-prompt segment. Empty cards return ''. */
 export function buildPersonaPrompt(persona) {
   const card = normalizePersona(persona)
+  const name = buildNameLoad(card)
   const setting = renderSettingLoad(card)
   const sections = []
+  if (name !== '') sections.push(name)
   if (setting !== '') sections.push(setting)
   if (card.examples.length > 0) {
     const examples = card.examples.map((example) => `用户：${example.user}\n回应：${example.assistant}`).join('\n\n')
@@ -92,7 +100,8 @@ export function buildPersonaPrompt(persona) {
 
 /** Group-loop prompt: the setting block only, no few-shot examples. */
 export function buildCharacterPrompt(persona) {
-  return renderSettingLoad(persona)
+  const card = normalizePersona(persona)
+  return [buildNameLoad(card), renderSettingLoad(card)].filter((part) => part !== '').join('\n\n')
 }
 
 /** Read and normalize a persona file; returns null when missing/unreadable. */

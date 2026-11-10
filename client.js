@@ -931,7 +931,7 @@ window.__ModuleLoader__.load({
         const personaCard = h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
           settingsCardHead(h, 'PERSONA', '完整人格设定', 'persona.json'),
           h('div', { className: 'qqbot-ai-info-grid' },
-            infoField(h, '名称', name)),
+            infoField(h, '[NAME LOAD]', name, 'is-full')),
           h('div', { className: 'qqbot-ai-rule-block', 'data-testid': 'qqbot-ai-persona-rules' },
             h('span', null, '[SETTING LOAD]'),
             ...(settings.length === 0

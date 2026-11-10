@@ -39,6 +39,8 @@ test('buildSettingLoad: header plus one entry per line, no labels', () => {
     entries: ['young girl', 'whale musume'],
   })
   assert.equal(buildCharacterPrompt({ settings: ['young girl', 'whale musume'] }), '[SETTING LOAD]\nyoung girl\nwhale musume')
+  assert.equal(buildCharacterPrompt({ name: '猫娘', settings: ['young girl', 'whale musume'] }), '[NAME LOAD]\n猫娘\n\n[SETTING LOAD]\nyoung girl\nwhale musume')
+  assert.equal(buildCharacterPrompt({ name: '猫娘' }), '[NAME LOAD]\n猫娘')
   assert.equal(buildCharacterPrompt({}), '')
 })
 
@@ -48,7 +50,7 @@ test('buildPersonaPrompt: setting block followed by few-shot examples', () => {
     settings: ['young girl', 'whale musume'],
     examples: [{ user: '你好', assistant: '你好喵' }],
   })
-  assert.match(prompt, /^\[SETTING LOAD\]\nyoung girl\nwhale musume/u)
+  assert.match(prompt, /^\[NAME LOAD\]\n猫娘\n\n\[SETTING LOAD\]\nyoung girl\nwhale musume/u)
   assert.match(prompt, /【对话示例】/u)
   assert.match(prompt, /用户：你好\n回应：你好喵/u)
 })

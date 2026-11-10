@@ -235,7 +235,7 @@ test('compose reads personality and rules from persona.json without few-shot/key
   }), 'utf8')
   const result = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })
   assert.equal(result.ok, true)
-  assert.match(captured.system, /\[SETTING LOAD\]\n群里的测试角色\n短句\n热情、好奇\n像熟人一样接话/u)
+  assert.match(captured.system, /\[NAME LOAD\]\n测试角色\n\n\[SETTING LOAD\]\n群里的测试角色\n短句\n热情、好奇\n像熟人一样接话/u)
   assert.doesNotMatch(captured.system, /兴趣关键词|对话示例|股票/u)
   await rm(root, { recursive: true, force: true })
 })
