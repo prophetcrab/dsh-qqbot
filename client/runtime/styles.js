@@ -440,10 +440,13 @@ export const CSS = `
 
 .qqbot-ai-persona-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .qqbot-ai-name-value { margin: 12px 0 4px; color: var(--dsw-alias-label-primary); font-size: 24px; font-weight: 650; letter-spacing: -.03em; word-break: break-word; }
-.qqbot-ai-setting-load { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
-.qqbot-ai-setting-load > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
-.qqbot-ai-setting-load p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
-.qqbot-ai-setting-load-name { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 600; }
+.qqbot-ai-persona-stack { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.qqbot-ai-name-card, .qqbot-ai-setting-card { padding: 13px 14px; }
+.qqbot-ai-block-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+.qqbot-ai-block-tag { color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 700; letter-spacing: .06em; } .qqbot-ai-block-meta { color: var(--dsw-alias-label-tertiary); font-size: 10px; } .qqbot-ai-block-edit { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-brand-primary); font-size: 10px; font-weight: 600; cursor: pointer; padding: 2px 0; }
+.qqbot-ai-block-edit:hover { text-decoration: underline; } .qqbot-ai-name-value { margin: 5px 0 1px; color: var(--dsw-alias-label-primary); font-size: 17px; font-weight: 650; letter-spacing: -.02em; word-break: break-word; }
+.qqbot-ai-setting-list { display: flex; flex-direction: column; gap: 3px; margin-top: 7px; }
+.qqbot-ai-setting-list p { margin: 0; padding-left: 11px; position: relative; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; } .qqbot-ai-setting-list p::before { content: '·'; position: absolute; left: 1px; color: var(--dsw-alias-brand-primary); font-weight: 700; }
 .qqbot-ai-persona-editor { display: flex; flex-direction: column; gap: 11px; margin-top: 10px; }
 .qqbot-ai-persona-field { display: flex; flex-direction: column; gap: 5px; }
 .qqbot-ai-persona-field > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
