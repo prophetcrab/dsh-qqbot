@@ -61,7 +61,10 @@ host/services/group-loop/prompt/group-chat.prompts.json  # 随包默认配置
 - 配置结构：`{ version, sections[], stages{} }`；
 - section 支持 `template`（`{{path}}`、`{{path|json}}`）、`when` 条件 AST
   （`equals / notEquals / in / truthy / exists / isInteger / all / any / not`）；
-- 代码只保留上下文格式化（画像 JSON、情绪等级、记忆标签）和引擎，不再保存 prompt 文案。
+- 代码只保留上下文格式化（画像 JSON、情绪等级、记忆标签）和引擎，不再保存 prompt 文案；
+- 角色设定升级为 v2：`persona.settings: string[]` 是 `[SETTING LOAD]` 的唯一内容来源，
+  每个元素一行；`role/tone/personality/rules` 已从 schema 移除，prompt/加载都不再做字段兜底；
+  现有运行时 persona 与预设卡已迁移到 v2。
 
 ### Section 契约
 
@@ -116,7 +119,7 @@ compose: { ... }           // 共享 user base；工具说明为条件 section
 - 未知 section / 重复 plan 校验
 - 配置 bootstrap、自定义配置、mtime 热更新、坏配置保留上一版
 
-`npm test`：314 tests；architecture ok。
+`npm test`：313 tests；architecture ok。
 
 ## 后果
 

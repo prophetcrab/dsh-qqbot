@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { loadPresetStore, normalizePreset, removePreset, savePresetStore, upsertPreset } from '../host/services/persona/presets.js'
 
-const persona = { name: '猫娘', role: '群里的猫娘', tone: '软萌', personality: '好奇', rules: '句尾带喵', examples: [] }
+const persona = { version: 2, name: '猫娘', settings: ['群里的猫娘', '软萌'], keywords: [], examples: [] }
 
 test('normalizePreset: fills id/name/timestamps and bounds fields', () => {
   const preset = normalizePreset({ name: '  测试预设 ', persona })
@@ -20,12 +20,12 @@ test('upsertPreset: creates then updates while preserving id/createdAt', () => {
   const store = { version: 1, presets: [] }
   const created = upsertPreset(store, { name: '预设 A', persona })
   assert.equal(store.presets.length, 1)
-  const updated = upsertPreset(store, { id: created.id, name: '预设 B', persona: { ...persona, tone: '高冷' } })
+  const updated = upsertPreset(store, { id: created.id, name: '预设 B', persona: { ...persona, settings: ['群里的猫娘', '高冷'] } })
   assert.equal(store.presets.length, 1)
   assert.equal(updated.id, created.id)
   assert.equal(updated.name, '预设 B')
   assert.equal(updated.createdAt, created.createdAt)
-  assert.equal(updated.persona.tone, '高冷')
+  assert.deepEqual(updated.persona.settings, ['群里的猫娘', '高冷'])
 })
 
 test('removePreset: deletes by id', () => {

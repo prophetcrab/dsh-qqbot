@@ -921,10 +921,8 @@ window.__ModuleLoader__.load({
         const profiles = arr(data.profiles).filter((profile) => selectedId === null || String(profile.groupId) === String(selectedId))
         const memories = arr(data.memories).slice(-50).reverse()
         const name = text(persona.name) || text(core.name) || '未命名角色'
-        const role = text(persona.role) || text(core.identity)
-        const tone = text(persona.tone) || text(core.voice)
-        const personality = text(persona.personality)
-        const rules = text(persona.rules)
+        const role = text(core.identity)
+        const settings = arr(persona.settings)
         const keywords = arr(persona.keywords).length > 0 ? arr(persona.keywords) : arr(core.keywords)
         const examples = arr(persona.examples)
         const updatedAt = persona.updatedAt || character.updatedAt || data.updatedAt
@@ -933,13 +931,12 @@ window.__ModuleLoader__.load({
         const personaCard = h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
           settingsCardHead(h, 'PERSONA', '完整人格设定', 'persona.json'),
           h('div', { className: 'qqbot-ai-info-grid' },
-            infoField(h, '名称', name),
-            infoField(h, '语气', tone),
-            infoField(h, '性格', personality, 'is-wide'),
-            infoField(h, '身份', role, 'is-full')),
+            infoField(h, '名称', name)),
           h('div', { className: 'qqbot-ai-rule-block', 'data-testid': 'qqbot-ai-persona-rules' },
-            h('span', null, '行为准则'),
-            h('p', null, rules || '暂无行为准则')),
+            h('span', null, '[SETTING LOAD]'),
+            ...(settings.length === 0
+              ? [h('p', null, '暂无设定条目')]
+              : settings.map((entry, index) => h('p', { key: `${index}-${entry}` }, entry)))),
           keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
             h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, '触发用 · 不进入提示词')),
             h('div', { className: 'qqbot-ai-keyword-tags' }, ...keywords.map((keyword) => h('span', { key: keyword }, keyword)))) : null,

@@ -219,12 +219,7 @@ export class GroupLoopService {
   async characterSnapshot() {
     const character = await this.store.loadCharacter()
     const persona = await this.store.loadPersona()
-    const prompt = buildCharacterPrompt({
-      ...(persona !== null && typeof persona === 'object' ? persona : {}),
-      name: persona?.name || character.core.name,
-      role: persona?.role || character.core.identity,
-      tone: persona?.tone || character.core.voice,
-    })
+    const prompt = buildCharacterPrompt(persona !== null && typeof persona === 'object' ? persona : {})
     return { character, prompt }
   }
 

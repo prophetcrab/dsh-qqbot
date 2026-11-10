@@ -229,7 +229,8 @@ test('compose reads personality and rules from persona.json without few-shot/key
   }
   const { root, service } = await setup(stream)
   await writeFile(join(root, 'persona.json'), JSON.stringify({
-    name: '测试角色', role: '群里的测试角色', tone: '短句', personality: '热情、好奇', rules: '像熟人一样接话',
+    version: 2, name: '测试角色',
+    settings: ['群里的测试角色', '短句', '热情、好奇', '像熟人一样接话'],
     keywords: ['股票'], examples: [{ user: '你好', assistant: '在' }],
   }), 'utf8')
   const result = await service.compose({ groupId: 'g1', material: '素材', participants: [], speak: { enabled: true, kind: 'reply', replyType: 'normal', target: {} } })

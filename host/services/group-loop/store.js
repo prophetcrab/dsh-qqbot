@@ -62,11 +62,9 @@ export class GroupLoopStore {
     const core = {
       ...base.core,
       ...(saved?.core ?? {}),
-      ...(saved === null && persona !== null ? {
-        name: persona.name || base.core.name,
-        identity: persona.role || base.core.identity,
-        voice: persona.tone || base.core.voice,
-      } : {}),
+      ...(saved === null && persona !== null && typeof persona.name === 'string' && persona.name !== ''
+        ? { name: persona.name }
+        : {}),
     }
     if (!Array.isArray(core.keywords)) core.keywords = Array.isArray(persona?.keywords) ? persona.keywords : []
     const character = { core, emotion: { ...base.emotion, ...(saved?.emotion ?? {}) }, updatedAt: saved?.updatedAt ?? null }
