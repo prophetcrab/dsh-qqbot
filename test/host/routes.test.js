@@ -84,3 +84,26 @@ test('group loop routes reject invalid requests with 400 before touching state',
     assert.equal(response.body.code, 'BAD_REQUEST')
   }
 })
+
+test('persona settings route saves v2 name/settings and keeps other fields', async (t) => {
+  const { routes } = await loadHost(t)
+  const save = await invokeRoute(routes.get('/qqbot/persona/settings'), {
+    method: 'POST',
+    url: '/qqbot/persona/settings',
+    body: JSON.stringify({ name: '小鱼', settings: ['十岁，小学四年级。', '喜欢画画。'] }),
+  })
+  assert.equal(save.status, 200)
+  assert.equal(save.body.ok, true)
+  assert.equal(save.body.data.persona.name, '小鱼')
+  assert.deepEqual(save.body.data.persona.settings, ['十岁，小学四年级。', '喜欢画画。'])
+  assert.ok(Array.isArray(save.body.data.persona.keywords))
+  assert.ok(Array.isArray(save.body.data.persona.examples))
+
+  const read = await invokeRoute(routes.get('/qqbot/persona/settings'), {
+    method: 'GET',
+    url: '/qqbot/persona/settings',
+  })
+  assert.equal(read.status, 200)
+  assert.equal(read.body.data.persona.name, '小鱼')
+  assert.deepEqual(read.body.data.persona.settings, ['十岁，小学四年级。', '喜欢画画。'])
+})

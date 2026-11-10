@@ -809,22 +809,20 @@ window.__ModuleLoader__.load({
             const settings = String(view.draftSettings ?? '').split(/\r?\n/u).map((entry) => entry.trim()).filter(Boolean)
             setView((prev) => ({ ...prev, saving: true, saveError: null, saveMessage: null }))
             try {
-              await requestJson('/qqbot/persona/save', {
+              await requestJson('/qqbot/persona/settings', {
                 method: 'POST',
-                body: {
-                  persona: {
-                    version: 2,
-                    name: draftName,
-                    settings,
-                    keywords: arr(persona.keywords),
-                    examples: arr(persona.examples),
-                  },
-                },
+                body: { name: draftName, settings },
               })
               await load(false, selectedRef.current)
               setView((prev) => ({ ...prev, editing: null, saving: false, saveMessage: '设定已保存' }))
             } catch (error) {
-              setView((prev) => ({ ...prev, saving: false, saveError: String(error?.message ?? error) }))
+              const message = String(error?.message ?? error)
+              const staleHost = /HTTP 404|not found|not_found|找不到/u.test(message)
+              setView((prev) => ({
+                ...prev,
+                saving: false,
+                saveError: staleHost ? 'Host 还在旧版本，请重启 DSH 后再保存设定。' : message,
+              }))
             }
           },
         })

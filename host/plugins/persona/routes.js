@@ -67,6 +67,26 @@ export function routes(api, persona) {
       }),
     },
     {
+      path: '/qqbot/persona/settings',
+      handler: (req, res) => only(req, res, ['GET', 'POST'], async () => {
+        const get = req.method === 'GET'
+        const body = get ? null : await readBody(req)
+        const current = await activePersona()
+        if (get) {
+          sendJson(res, 200, { ok: true, data: { persona: current, promptPreview: persona.buildPrompt(current), path: persona.path } })
+          return
+        }
+        const input = body.persona !== null && typeof body.persona === 'object' ? body.persona : body
+        const saved = await persona.write({
+          ...current,
+          version: 2,
+          name: input.name !== undefined ? input.name : current.name,
+          settings: input.settings !== undefined ? input.settings : current.settings,
+        })
+        sendJson(res, 200, { ok: true, data: { persona: saved, promptPreview: persona.buildPrompt(saved), path: persona.path } })
+      }),
+    },
+    {
       path: '/qqbot/persona',
       handler: (req, res) => only(req, res, ['GET'], async () => {
         const card = await activePersona()

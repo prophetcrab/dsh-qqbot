@@ -75,6 +75,7 @@ const LEGACY_ROUTES = [
   '/qqbot/persona/presets/save',
   '/qqbot/persona/presets/load',
   '/qqbot/persona/presets/delete',
+  '/qqbot/persona/settings',
   '/qqbot/persona',
   '/qqbot/persona/save',
   '/qqbot/setup',
@@ -96,8 +97,8 @@ const LEGACY_ROUTES = [
   '/qqbot/koishi/plugins/install',
   '/qqbot/koishi/plugins/uninstall',
 ]
-assert.equal(LEGACY_ROUTES.length, 33, 'legacy route list must stay at 33')
-assert.ok(routes.size >= 33, `expected at least 33 routes, got ${routes.size}`)
+assert.equal(LEGACY_ROUTES.length, 34, 'legacy route list must stay at 34')
+assert.ok(routes.size >= 34, `expected at least 34 routes, got ${routes.size}`)
 for (const required of LEGACY_ROUTES) assert.ok(routes.has(required), `missing route ${required}`)
 assert.ok(routes.has('/qqbot/client/tabs'), 'missing client tab contribution route')
 

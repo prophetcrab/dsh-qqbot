@@ -24,6 +24,7 @@ export const LEGACY_ROUTE_PATHS = [
   '/qqbot/persona/presets/save',
   '/qqbot/persona/presets/load',
   '/qqbot/persona/presets/delete',
+  '/qqbot/persona/settings',
   '/qqbot/persona',
   '/qqbot/persona/save',
   '/qqbot/group/analyze',

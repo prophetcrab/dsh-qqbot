@@ -386,6 +386,23 @@ globalThis.fetch = async (url, init) => {
   if (path === '/qqbot/persona') {
     return json({ ok: true, data: personaState })
   }
+  if (path === '/qqbot/persona/settings') {
+    const body = JSON.parse(String(init.body))
+    const current = GROUP_DASHBOARD.persona
+    const persona = {
+      ...current,
+      version: 2,
+      name: body.name !== undefined ? body.name : current.name,
+      settings: body.settings !== undefined ? body.settings : current.settings,
+    }
+    GROUP_DASHBOARD.persona = persona
+    personaState = {
+      persona,
+      promptPreview: `[NAME LOAD]\n${String(persona.name ?? '')}`,
+      path: personaState.path,
+    }
+    return json({ ok: true, data: { persona, promptPreview: personaState.promptPreview, path: personaState.path } })
+  }
   if (path === '/qqbot/persona/save') {
     const body = JSON.parse(String(init.body))
     if (body.reset === true) {
