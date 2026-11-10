@@ -4,38 +4,10 @@ import { fitBubbleBudget, shapeBubbleParts } from './bubbles.js'
 import { GroupLoopStore } from './store.js'
 import { normalizeUsage, TokenStatsStore } from './token-stats.js'
 import { GroupChatPrompts, emotionPrompt, memoryPrompt, profileData } from './prompt/index.js'
-import { getWeather } from './weather.js'
-import { searchWeb } from './web-search.js'
-import { evaluateExpression } from './calculator.js'
-import { getMarketQuote } from './market-quote.js'
-import { getFinanceCalendar } from './finance-calendar.js'
-import { fetchWeb } from './web-fetch.js'
-import { parseToolCalls, renderObservation, toolQuery, toolSignature } from './tool-call.js'
 
 const SPEAK_KINDS = new Set(['statement', 'reply'])
 const REPLY_TYPES = new Set(['normal', 'quote', 'action', 'at'])
 const MATERIAL_LIMITS = { analyze: 16000, compose: 8000, stateUpdate: 10000 }
-/**
- * Safety valve, not a budget: after this many consecutive compose turns with
- * neither a tool result nor final parts the loop gives up. Tool calls and
- * steps themselves are unlimited; the model decides when the goal is met.
- */
-const REACT_STALL_LIMIT = 3
-
-function mergeUsage(left, right) {
-  if (left === null || left === undefined) return right
-  if (right === null || right === undefined) return left
-  return {
-    input: left.input + right.input,
-    output: left.output + right.output,
-    cacheRead: left.cacheRead + right.cacheRead,
-    cacheWrite: left.cacheWrite + right.cacheWrite,
-    reasoning: left.reasoning + right.reasoning,
-    total: left.total + right.total,
-  }
-}
-
-
 function bubbleBudget(random) {
   const roll = random()
   return roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3
@@ -128,7 +100,7 @@ function knownParticipants(participants) {
 }
 
 export class GroupLoopService {
-  constructor({ ctx, settings, logger, personaPath, profilesPath, webSearch = searchWeb, weather = getWeather, marketQuote = getMarketQuote, financeCalendar = getFinanceCalendar, webFetch: webFetchTool = fetchWeb, random = Math.random }) {
+  constructor({ ctx, settings, logger, personaPath, profilesPath, random = Math.random }) {
     this.ctx = ctx
     this.settings = settings
     this.logger = logger
@@ -137,11 +109,6 @@ export class GroupLoopService {
     this.prompts = new GroupChatPrompts({ projectDir: settings.projectDir, logger })
     this.listenerPath = `${settings.projectDir}/data/state/group-listener-status.json`
     this.inFlight = new Map()
-    this.webSearch = webSearch
-    this.weather = weather
-    this.marketQuote = marketQuote
-    this.financeCalendar = financeCalendar
-    this.webFetch = webFetchTool
     this.random = random
   }
 
@@ -290,142 +257,14 @@ export class GroupLoopService {
       material,
       speak,
     }
-    if (this.settings.webSearchEnabled === true || this.settings.weatherEnabled === true) {
-      const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: true })
-      return this.composeWithTools({ input, speak, baseUser: prompt.user, system: prompt.system, images, budget })
-    }
     try {
-      const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget, reactTools: false })
+      const prompt = this.prompts.buildCompose({ ...context, targetBubbles: budget })
       const raw = await this.stream(prompt.system, prompt.user, { maxTokens: 500, temperature: 0.7, images, onUsage: (usage) => this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage, recent: true }) })
       const parts = fitBubbleBudget(normalizeParts(parseJson(raw), raw), budget)
-      return { ok: true, text: parts.join(''), parts, speak, toolCalls: [], bubbleBudget: budget }
+      return { ok: true, text: parts.join(''), parts, speak, bubbleBudget: budget }
     } catch (error) {
       this.logger.warn?.('group-loop compose failed: %s', String(error?.message ?? error))
       return { ok: false, error: String(error?.message ?? error), text: '' }
-    }
-  }
-
-  async composeWithTools({ input, speak, baseUser, system, images, budget }) {
-    const toolCalls = []
-    const executed = new Set()
-    let observations = ''
-    let composeUsage = null
-    let stalls = 0
-    // No fixed step/tool-call budget: the model keeps calling tools until it
-    // decides the goal is met. `stalls` only stops a non-terminating loop.
-    for (;;) {
-      let raw = ''
-      try {
-        raw = await this.stream(system, `${baseUser}${observations ? `\n\n${observations}` : ''}`, { maxTokens: 600, temperature: 0.7, images, onUsage: (usage) => { composeUsage = mergeUsage(composeUsage, usage) } })
-      } catch (error) {
-        this.logger.warn?.('group-loop react compose failed: %s', String(error?.message ?? error))
-        return { ok: false, error: String(error?.message ?? error), text: '', toolCalls }
-      }
-      const parsed = parseJson(raw)
-      const calls = parseToolCalls(raw, parsed)
-      if (calls.length > 0) {
-        let progressed = false
-        for (const call of calls) {
-          const signature = toolSignature(call)
-          if (executed.has(signature)) {
-            observations += '\n\n【工具观察】这个工具参数已经执行过，请基于已有 observation 继续或给 final parts。'
-            continue
-          }
-          const started = Date.now()
-          let result
-          try {
-            result = await this.runTool(call, input.groupId)
-          } catch (error) {
-            result = { ok: false, error: String(error?.message ?? error) }
-          }
-          executed.add(signature)
-          progressed = true
-          const query = toolQuery(call)
-          const count = Array.isArray(result?.messages) ? result.messages.length : Array.isArray(result?.events) ? result.events.length : Array.isArray(result?.results) ? result.results.length : result?.ok === true ? 1 : 0
-          toolCalls.push({
-            tool: call.tool,
-            query,
-            source: result?.source ?? (call.tool === 'group_search' ? 'local' : call.tool === 'calculator' ? 'local' : 'unknown'),
-            ok: result?.ok === true,
-            results: count,
-            latencyMs: Date.now() - started,
-            ...(result?.ok === true ? {} : { error: String(result?.error ?? 'tool failed') }),
-          })
-          observations += `\n\n${renderObservation(call.tool, result).slice(0, 14000)}`
-        }
-        if (progressed) {
-          stalls = 0
-          continue
-        }
-        // Only already-executed calls were requested: nudge once, then stop if
-        // the model keeps requesting the same thing.
-        stalls += 1
-        if (stalls >= REACT_STALL_LIMIT) break
-        continue
-      }
-      if (/tool_call|<\|\|DSML|DSML/iu.test(raw)) {
-        stalls += 1
-        observations += '\n\n【工具观察】工具调用格式无法解析，请重新输出合法 tool_call，或直接给 final parts。'
-        if (stalls >= REACT_STALL_LIMIT) break
-        continue
-      }
-      const parts = fitBubbleBudget(normalizeParts(parsed, raw), budget)
-      if (parts.length > 0) {
-        await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage, recent: true })
-        return { ok: true, text: parts.join(''), parts, speak, toolCalls, bubbleBudget: budget }
-      }
-      stalls += 1
-      observations += '\n\n【工具观察】请输出 final parts，或调用可用工具。'
-      if (stalls >= REACT_STALL_LIMIT) break
-    }
-    await this.recordUsage({ groupId: input.groupId, loopId: input.loopId, kind: 'compose', usage: composeUsage })
-    return { ok: false, error: 'ReAct 未生成最终发言', text: '', toolCalls }
-  }
-
-  async runTool(call, groupId) {
-    const args = call.args ?? {}
-    switch (call.tool) {
-      case 'web_search': {
-        const query = text(args.query).slice(0, 160)
-        if (query === '') return { ok: false, error: 'query 为空' }
-        return this.webSearch(query, {
-          maxResults: this.settings.webSearchMaxResults,
-          timeoutMs: this.settings.webSearchTimeoutMs,
-          enrich: this.settings.webFetchEnabled !== false,
-          pageLimit: this.settings.webFetchPages,
-          pageTimeoutMs: this.settings.webFetchTimeoutMs,
-          pageMaxChars: this.settings.webFetchMaxChars,
-        })
-      }
-      case 'weather': {
-        const location = text(args.location).slice(0, 80)
-        if (location === '') return { ok: false, error: 'location 为空' }
-        return this.weather(location, { timeoutMs: this.settings.weatherTimeoutMs, date: text(args.date).slice(0, 20) })
-      }
-      case 'group_search': {
-        const query = text(args.query).slice(0, 80)
-        const limit = Math.max(1, Math.min(20, Number(args.limit) || 10))
-        const messages = await this.store.searchMessages(groupId, query, limit)
-        return { ok: true, messages, source: 'local' }
-      }
-      case 'web_fetch': {
-        const url = text(args.url).slice(0, 2000)
-        if (url === '') return { ok: false, error: 'url 为空' }
-        return this.webFetch(url, { timeoutMs: this.settings.webFetchTimeoutMs, maxChars: this.settings.webFetchMaxChars, fetchImpl: globalThis.fetch })
-      }
-      case 'market_quote': {
-        const symbol = text(args.symbol).slice(0, 40)
-        if (symbol === '') return { ok: false, error: 'symbol 为空' }
-        return this.marketQuote(symbol, { market: text(args.market).slice(0, 30), timeoutMs: this.settings.marketQuoteTimeoutMs })
-      }
-      case 'calculator': {
-        return evaluateExpression(text(args.expression).slice(0, 240))
-      }
-      case 'finance_calendar': {
-        return this.financeCalendar({ date: text(args.date).slice(0, 20), start: text(args.start).slice(0, 20), end: text(args.end).slice(0, 20), type: text(args.type).slice(0, 20), limit: Number(args.limit) || 20 }, { timeoutMs: this.settings.financeCalendarTimeoutMs })
-      }
-      default:
-        return { ok: false, error: `未知工具：${call.tool}` }
     }
   }
 

@@ -54,21 +54,17 @@ test('prompt assembly matches the pre-refactor golden output', () => {
   assert.equal(normal.system, golden.analyze_normal.system)
   assert.equal(normal.user, golden.analyze_normal.user)
 
-  const plainNormal = prompts.buildCompose(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: false }))
+  const plainNormal = prompts.buildCompose(context({ speak: speakReplyNormal, targetBubbles: 2 }))
   assert.equal(plainNormal.system, golden.compose_plain_normal.system)
   assert.equal(plainNormal.user, golden.compose_plain_normal.user)
 
-  const plainAt = prompts.buildCompose(context({ speak: speakAt, targetBubbles: null, reactTools: false }))
+  const plainAt = prompts.buildCompose(context({ speak: speakAt, targetBubbles: null }))
   assert.equal(plainAt.system, golden.compose_plain_at.system)
   assert.equal(plainAt.user, golden.compose_plain_at.user)
 
-  const plainStatement = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: 1, reactTools: false }))
+  const plainStatement = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: 1 }))
   assert.equal(plainStatement.system, golden.compose_plain_statement.system)
   assert.equal(plainStatement.user, golden.compose_plain_statement.user)
-
-  const react = prompts.buildCompose(context({ speak: speakReplyNormal, targetBubbles: 2, reactTools: true }))
-  assert.equal(react.system, golden.compose_react_normal.system)
-  assert.equal(`${react.user}\n\n【工具观察】测试观察`, golden.compose_react_normal.user)
 
   const stateUpdate = prompts.buildStateUpdate({ currentText: current, material })
   assert.equal(stateUpdate.system, golden.state_update.system)
@@ -83,7 +79,7 @@ test('prompt meta reports ordered sections and conditions', () => {
   ])
   assert.ok(built.meta.dropped.some((entry) => entry.id === 'analyze-nondirect'))
 
-  const compose = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: null, reactTools: false }))
+  const compose = prompts.buildCompose(context({ speak: speakStatement, targetBubbles: null }))
   assert.ok(!compose.meta.sections.some((section) => section.id === 'compose-reply-normal'))
   assert.ok(compose.meta.dropped.some((entry) => entry.id === 'compose-bubble'))
 })

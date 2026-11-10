@@ -66,7 +66,7 @@ Koishi 模板测试（`npm run test:template`，67 个）和模板漂移检查�
 
 ```text
 [ ] /qqbot/group/analyze 对真实素材返回 speak
-[ ] /qqbot/group/compose 返回 parts（可含工具调用）
+[ ] /qqbot/group/compose 返回 parts
 [ ] /qqbot/group/state-update 写入 memory / 画像 / 情绪
 [ ] 人设卡保存后下一条回复生效
 [ ] /qqbot/group/dashboard 可见最近 loop
