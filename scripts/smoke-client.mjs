@@ -255,7 +255,7 @@ const DEFAULT_PERSONA = {
 }
 let personaState = {
   persona: PERSONA,
-  promptPreview: '[SETTING LOAD]\n名称：群友小助手',
+  promptPreview: '[SETTING LOAD]\n群友小助手',
   path: '~/project/qq-bot/data/persona.json',
 }
 
@@ -377,7 +377,7 @@ globalThis.fetch = async (url, init) => {
       data: {
         preset,
         persona: preset.persona,
-        promptPreview: `[SETTING LOAD]\n名称：${preset.persona.name}`,
+        promptPreview: `[SETTING LOAD]\n${preset.persona.name}`,
         presets: personaPresetsState,
         path: '~/project/qq-bot/data/persona.json',
       },
@@ -396,14 +396,14 @@ globalThis.fetch = async (url, init) => {
     if (body.reset === true) {
       personaState = {
         persona: DEFAULT_PERSONA,
-        promptPreview: '[SETTING LOAD]\n名称：默认人设',
+        promptPreview: '[SETTING LOAD]\n默认人设',
         path: personaState.path,
       }
     } else {
       const persona = body.persona !== null && typeof body.persona === 'object' ? body.persona : {}
       personaState = {
         persona,
-        promptPreview: `[SETTING LOAD]\n名称：${String(persona.name ?? '')}`,
+        promptPreview: `[SETTING LOAD]\n${String(persona.name ?? '')}`,
         path: personaState.path,
       }
     }

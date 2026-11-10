@@ -16,7 +16,7 @@ async function tempProject(t) {
 
 function analyzeContext() {
   return {
-    characterPrompt: '[SETTING LOAD]\n名称：鱼鱼',
+    characterPrompt: '[SETTING LOAD]\n鱼鱼',
     statePrompt: emotionPrompt({ valence: 0.1, energy: 0.5, socialBattery: 0.5, stress: 0.2, arousal: 0.4 }),
     profilesText: profileData([]),
     imageNote: '',

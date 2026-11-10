@@ -20,6 +20,11 @@ Config shape:
 }
 ```
 
+- The `character` section renders `buildCharacterPrompt`: a generic
+  `[SETTING LOAD]` block whose body is a list of free-form entries
+  (`persona.settings`). When `settings` is empty, entries are derived from the
+  legacy persona fields; adding `settings: ["young girl", "whale musume"]`
+  replaces them with those lines.
 - Context keys are produced by `format.js` + the service:
   `characterPrompt`, `statePrompt`, `profilesText`, `imageNote`, `background`,
   `memoryText`, `material`, `direct`, `speak`, `targetBubbles`, `reactTools`,

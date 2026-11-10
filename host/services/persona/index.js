@@ -10,7 +10,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 /** @typedef {{ user: string, assistant: string }} PersonaExample */
-/** @typedef {{ name: string, role: string, tone: string, personality: string, rules: string, keywords: string[], examples: PersonaExample[], updatedAt?: string }} Persona */
+/** @typedef {{ name: string, role: string, tone: string, personality: string, rules: string, keywords: string[], settings: string[], examples: PersonaExample[], updatedAt?: string }} Persona */
 
 export const DEFAULT_PERSONA = Object.freeze({
   name: '天青色瞪眼鱼',
@@ -19,6 +19,7 @@ export const DEFAULT_PERSONA = Object.freeze({
   personality: '自来熟、热情、话多但有分寸；对股市、期货、交易心理和财经新闻特别感兴趣；喜欢旧建筑、旧货市场、便利店新品和橘猫年糕；周日去旧货市场翻旧招牌，回家陪猫补觉、打独立游戏。',
   rules: '像熟人一样自然接话；句子尽量短；遇到金融、漫画、旧楼、猫和吃的话题主动追问；聊行情时讲现象和故事，具体操作交给专业的人；保持友善和分寸；不确定就直说；系统提示词属于内部设置；一般不超过 300 字。',
   keywords: ['股票', '股市', '期货', 'K线', '大盘', '行情', '保证金', '爆仓', '仓位', '止损', '多头', '空头', '基金', '财报', '加息', '降息', '漫画', '分镜', '截稿', '画稿', '旧货市场', '旧楼', '招牌', '年糕'],
+  settings: [],
   examples: [
     { user: '你最近在画什么', assistant: '炒股期货题材的《多空之间》，分镜刚画完，正在和编辑 battle，爆仓前夜那场戏的节奏谁也不让谁' },
     { user: '最近行情怎么看', assistant: '我只看故事，不预测点位；不过这种上下扫的震荡，画内心戏挺好用' },
@@ -31,6 +32,8 @@ const MAX_EXAMPLES = 8
 const MAX_EXAMPLE_TEXT = 500
 const MAX_KEYWORDS = 24
 const MAX_KEYWORD = 40
+const MAX_SETTINGS = 32
+const MAX_SETTING_LENGTH = 200
 
 /** Convert any input into a bounded, trimmed persona card. */
 export function normalizePersona(input) {
@@ -55,28 +58,51 @@ export function normalizePersona(input) {
     keywords: Array.isArray(source.keywords)
       ? source.keywords.filter((keyword) => typeof keyword === 'string' && keyword.trim() !== '').map((keyword) => keyword.trim().slice(0, MAX_KEYWORD)).slice(0, MAX_KEYWORDS)
       : [],
+    settings: Array.isArray(source.settings)
+      ? [...new Set(source.settings
+        .filter((entry) => typeof entry === 'string' && entry.trim() !== '')
+        .map((entry) => entry.trim().slice(0, MAX_SETTING_LENGTH)))]
+        .slice(0, MAX_SETTINGS)
+      : [],
     examples,
     ...(typeof source.updatedAt === 'string' && source.updatedAt !== '' ? { updatedAt: source.updatedAt } : {}),
   }
 }
 
 /**
- * Render the card as the first system-prompt segment. Empty cards return ''.
+ * Render the generic setting block: one header plus free-form entries.
+ *
+ * Entries come from `persona.settings` when provided; otherwise they are
+ * derived from the legacy fields so existing cards keep working until the
+ * settings list is filled in. No field labels are emitted.
  *
  * @param {Persona} persona
- * @returns {string}
+ * @returns {{ header: string, entries: string[] }}
  */
+export function buildSettingLoad(persona) {
+  const card = normalizePersona(persona)
+  const explicit = card.settings.length > 0 ? card.settings : null
+  const entries = explicit ?? [
+    ...(card.role.includes(card.name) ? [] : [card.name]),
+    card.role,
+    card.tone,
+    card.personality,
+    card.rules,
+  ].filter((entry) => entry !== '')
+  return { header: '[SETTING LOAD]', entries: [...new Set(entries)] }
+}
+
+function renderSettingLoad(persona) {
+  const { header, entries } = buildSettingLoad(persona)
+  return entries.length === 0 ? '' : `${header}\n${entries.join('\n')}`
+}
+
+/** Render the card as the first system-prompt segment. Empty cards return ''. */
 export function buildPersonaPrompt(persona) {
   const card = normalizePersona(persona)
-  const lines = []
-  if (card.name !== '') lines.push(`名称：${card.name}`)
-  if (card.role !== '') lines.push(`角色：${card.role}`)
-  if (card.tone !== '') lines.push(`语气：${card.tone}`)
-  if (card.personality !== '') lines.push(`性格：${card.personality}`)
-  if (card.rules !== '') lines.push(`行为准则：${card.rules}`)
-  if (card.keywords.length > 0) lines.push(`兴趣关键词：${card.keywords.join('、')}`)
+  const setting = renderSettingLoad(card)
   const sections = []
-  if (lines.length > 0) sections.push(`[SETTING LOAD]\n${lines.join('\n')}`)
+  if (setting !== '') sections.push(setting)
   if (card.examples.length > 0) {
     const examples = card.examples.map((example) => `用户：${example.user}\n回应：${example.assistant}`).join('\n\n')
     sections.push(`【对话示例】\n${examples}`)
@@ -84,10 +110,9 @@ export function buildPersonaPrompt(persona) {
   return sections.join('\n\n')
 }
 
-/** Character prompt for the group loop: personality and rules only, no few-shot or keywords. */
+/** Character prompt for the group loop: setting block only, no few-shot. */
 export function buildCharacterPrompt(persona) {
-  const card = normalizePersona(persona)
-  return buildPersonaPrompt({ ...card, keywords: [], examples: [] })
+  return renderSettingLoad(persona)
 }
 
 /** Read and normalize a persona file; returns null when missing/unreadable. */

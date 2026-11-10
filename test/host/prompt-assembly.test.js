@@ -11,7 +11,7 @@ import {
 const golden = JSON.parse(readFileSync(join(process.cwd(), 'test', 'fixtures', 'prompt-golden.json'), 'utf8'))
 const emotion = { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 }
 const emotionText = emotionPrompt(emotion)
-const characterPrompt = '[SETTING LOAD]\n名称：鱼鱼\n角色：杭州漫画家\n语气：短句\n性格：热情\n行为准则：自然接话'
+const characterPrompt = '[SETTING LOAD]\n鱼鱼\n杭州漫画家\n短句\n热情\n自然接话'
 const profiles = [
   { qq: '20000', nickname: '小明', summary: '爱开黑', personality: '外向', style: '直接', relationship: '熟人', interests: ['游戏'], recent: '约了开黑' },
   { qq: '20001', nickname: '小红', summary: '喜欢猫', personality: '温和', style: '软', relationship: '群友', interests: ['猫'], recent: '' },

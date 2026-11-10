@@ -31,7 +31,7 @@ test('normalizePersona: trims fields, drops empty examples, caps lengths', () =>
   assert.deepEqual(card.examples[0], { user: '你好', assistant: '在的' })
 })
 
-test('buildPersonaPrompt: persona block first with role fields and few-shot examples', () => {
+test('buildPersonaPrompt: generic setting entries + few-shot examples', () => {
   const prompt = buildPersonaPrompt({
     name: '猫娘',
     role: '群里的猫娘助手',
@@ -40,8 +40,7 @@ test('buildPersonaPrompt: persona block first with role fields and few-shot exam
     rules: '句尾带喵',
     examples: [{ user: '你好', assistant: '你好喵' }],
   })
-  assert.match(prompt, /^\[SETTING LOAD\]/u)
-  assert.match(prompt, /名称：猫娘/u)
+  assert.match(prompt, /^\[SETTING LOAD\]\n群里的猫娘助手\n软萌\n好奇\n句尾带喵/u)
   assert.match(prompt, /【对话示例】/u)
   assert.match(prompt, /用户：你好\n回应：你好喵/u)
 })
@@ -68,7 +67,7 @@ test('readPersonaFile: missing or invalid file returns null', async () => {
   assert.equal(await readPersonaFile('/definitely/missing/persona.json'), null)
 })
 
-test('buildCharacterPrompt: includes personality/rules but not keywords/examples', () => {
+test('buildCharacterPrompt: generic setting entries only, no keywords/examples', () => {
   const prompt = buildCharacterPrompt({
     name: '猫娘',
     role: '群里的猫娘助手',
@@ -78,7 +77,18 @@ test('buildCharacterPrompt: includes personality/rules but not keywords/examples
     keywords: ['猫', '鱼'],
     examples: [{ user: '你好', assistant: '你好喵' }],
   })
-  assert.match(prompt, /性格：好奇、爱撒娇/u)
-  assert.match(prompt, /行为准则：句尾带喵/u)
+  assert.equal(prompt, '[SETTING LOAD]\n群里的猫娘助手\n软萌\n好奇、爱撒娇\n句尾带喵；遇到不懂的先问')
   assert.doesNotMatch(prompt, /兴趣关键词|猫、鱼|对话示例|你好喵/u)
+})
+
+test('explicit persona.settings replaces derived setting entries', () => {
+  const prompt = buildCharacterPrompt({
+    name: '猫娘',
+    role: '群里的猫娘助手',
+    tone: '软萌',
+    personality: '好奇',
+    rules: '句尾带喵',
+    settings: ['young girl', 'whale musume'],
+  })
+  assert.equal(prompt, '[SETTING LOAD]\nyoung girl\nwhale musume')
 })
