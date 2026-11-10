@@ -64,7 +64,7 @@ Koishi `access-control` 立即读取。
 面板「AI」页：
 
 - 群聊监听器状态、群列表与每轮 loop 摘要
-- 人设卡 / 预设卡
+- 人设卡 / 预设卡；NAME LOAD 与 SETTING LOAD 可直接编辑保存
 - 人物画像、记忆和群状态
 
 写入 `data/config/persona*.json`、`data/assets/profiles.json`、`data/state/group-loop/*`。

@@ -398,9 +398,10 @@ globalThis.fetch = async (url, init) => {
       const persona = body.persona !== null && typeof body.persona === 'object' ? body.persona : {}
       personaState = {
         persona,
-        promptPreview: `[SETTING LOAD]\n${String(persona.name ?? '')}`,
+        promptPreview: `[NAME LOAD]\n${String(persona.name ?? '')}`,
         path: personaState.path,
       }
+      GROUP_DASHBOARD.persona = persona
     }
     return json({ ok: true, data: personaState })
   }
@@ -730,6 +731,16 @@ expectTestId(tree, 'qqbot-ai-settings-memories')
 expectTestId(tree, 'qqbot-ai-settings-groups')
 if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('十岁')) throw new Error('setting entry missing in settings')
 if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('年糕')) throw new Error('setting entry missing in settings')
+clickTestId(tree, 'qqbot-ai-persona-edit')
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-persona-name').props.onChange({ currentTarget: { value: '小鱼' } })
+tree = await settle()
+expectTestId(tree, 'qqbot-ai-persona-settings').props.onChange({ currentTarget: { value: '十岁，小学四年级。\n喜欢画画。' } })
+tree = await settle()
+clickTestId(tree, 'qqbot-ai-persona-save')
+tree = await settle()
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('小鱼')) throw new Error('edited name missing after save')
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('喜欢画画')) throw new Error('edited setting missing after save')
 clickTestId(tree, 'qqbot-ai-settings-back')
 tree = await settle()
 expectTestId(tree, 'qqbot-ai-character')

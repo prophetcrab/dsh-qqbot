@@ -736,7 +736,7 @@ window.__ModuleLoader__.load({
       }
 
       function useAi(panel) {
-        const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null, settings: false })
+        const [view, setView] = React.useState({ phase: 'loading', data: null, error: null, selected: null, overview: false, filter: 'all', expanded: null, settings: false, editing: false, draftName: '', draftSettings: '', saving: false, saveError: null, saveMessage: null })
         const selectedRef = React.useRef(null)
         const load = React.useCallback(async (manual = false, groupId = selectedRef.current) => {
           if (manual) setView((prev) => ({ ...prev, phase: prev.data === null ? 'loading' : 'refreshing', error: null }))
@@ -777,7 +777,45 @@ window.__ModuleLoader__.load({
           setFilter: (filter) => setView((prev) => ({ ...prev, filter })),
           toggleLoop: (id) => setView((prev) => ({ ...prev, expanded: prev.expanded === id ? null : id })),
           openSettings: () => setView((prev) => ({ ...prev, settings: true })),
-          closeSettings: () => setView((prev) => ({ ...prev, settings: false })),
+          closeSettings: () => setView((prev) => ({ ...prev, settings: false, editing: false, saveError: null, saveMessage: null })),
+          startEdit: () => setView((prev) => {
+            const persona = obj(obj(prev.data).persona)
+            return {
+              ...prev,
+              editing: true,
+              draftName: text(persona.name),
+              draftSettings: arr(persona.settings).join('\n'),
+              saveError: null,
+              saveMessage: null,
+            }
+          }),
+          cancelEdit: () => setView((prev) => ({ ...prev, editing: false, saveError: null, saveMessage: null })),
+          changeName: (value) => setView((prev) => ({ ...prev, draftName: String(value ?? '') })),
+          changeSettings: (value) => setView((prev) => ({ ...prev, draftSettings: String(value ?? '') })),
+          savePersona: async () => {
+            const persona = obj(obj(view.data).persona)
+            const draftName = text(view.draftName).trim()
+            const settings = String(view.draftSettings ?? '').split(/\r?\n/u).map((entry) => entry.trim()).filter(Boolean)
+            setView((prev) => ({ ...prev, saving: true, saveError: null, saveMessage: null }))
+            try {
+              await requestJson('/qqbot/persona/save', {
+                method: 'POST',
+                body: {
+                  persona: {
+                    version: 2,
+                    name: draftName,
+                    settings,
+                    keywords: arr(persona.keywords),
+                    examples: arr(persona.examples),
+                  },
+                },
+              })
+              await load(false, selectedRef.current)
+              setView((prev) => ({ ...prev, editing: false, saving: false, saveMessage: '设定已保存' }))
+            } catch (error) {
+              setView((prev) => ({ ...prev, saving: false, saveError: String(error?.message ?? error) }))
+            }
+          },
         })
       }
 
@@ -866,12 +904,6 @@ window.__ModuleLoader__.load({
             h('div', { className: 'qqbot-ai-loop-meta' }, h('span', null, loop.loopId || '—'))) : null)
       }
 
-      function infoField(h, label, value, extra = '') {
-        return h('div', { className: `qqbot-ai-info ${extra}` },
-          h('span', { className: 'qqbot-ai-info-label' }, label),
-          h('p', { className: 'qqbot-ai-info-value' }, text(value) || '—'))
-      }
-
       function exampleBlock(h, example, index) {
         return h('div', { key: `example-${index}`, className: 'qqbot-ai-example' },
           h('div', { className: 'qqbot-ai-example-line' }, h('span', null, '用户'), h('p', null, text(example.user) || '—')),
@@ -928,16 +960,46 @@ window.__ModuleLoader__.load({
         const updatedAt = persona.updatedAt || character.updatedAt || data.updatedAt
         const selectedGroup = groups.find(([id]) => id === selectedId)
         const selectedName = selectedGroup === undefined ? (selectedId || '未选择群') : (text(selectedGroup[1].name) || selectedId)
-        const personaCard = h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
-          settingsCardHead(h, 'PERSONA', '完整人格设定', 'persona.json'),
-          h('div', { className: 'qqbot-ai-info-grid' },
-            infoField(h, '[NAME LOAD]', name, 'is-full')),
-          h('div', { className: 'qqbot-ai-rule-block', 'data-testid': 'qqbot-ai-persona-rules' },
-            h('span', null, '[SETTING LOAD]'),
-            ...(settings.length === 0
-              ? [h('p', null, '暂无设定条目')]
-              : settings.map((entry, index) => h('p', { key: `${index}-${entry}` }, entry)))),
-          keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
+        const personaCard = view.editing
+          ? h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
+            settingsCardHead(h, 'PERSONA', '编辑角色设定', 'persona.json'),
+            h('div', { className: 'qqbot-ai-persona-editor' },
+              h('label', { className: 'qqbot-ai-persona-field' },
+                h('span', null, '[NAME LOAD]'),
+                h('input', {
+                  className: 'qqbot-ai-input',
+                  'data-testid': 'qqbot-ai-persona-name',
+                  value: view.draftName,
+                  onChange: (event) => view.changeName(event.currentTarget.value),
+                  placeholder: '角色名字',
+                })),
+              h('label', { className: 'qqbot-ai-persona-field' },
+                h('span', null, '[SETTING LOAD] · 一行一个事实'),
+                h('textarea', {
+                  className: 'qqbot-ai-textarea',
+                  'data-testid': 'qqbot-ai-persona-settings',
+                  value: view.draftSettings,
+                  onChange: (event) => view.changeSettings(event.currentTarget.value),
+                  rows: 10,
+                  placeholder: '十岁，小学四年级。\n住在杭州。',
+                }))),
+            h('div', { className: 'qqbot-ai-persona-actions' },
+              h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-persona-save', disabled: view.saving, onClick: () => { void view.savePersona() } }, view.saving ? '保存中…' : '保存设定'),
+              h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-persona-cancel', disabled: view.saving, onClick: view.cancelEdit }, '取消')),
+            view.saveError === null ? null : h('p', { className: 'qqbot-ai-persona-error', 'data-testid': 'qqbot-ai-persona-error' }, view.saveError))
+          : h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
+            settingsCardHead(h, 'PERSONA', '角色设定', 'persona.json'),
+            h('div', { className: 'qqbot-ai-setting-load', 'data-testid': 'qqbot-ai-persona-rules' },
+              h('span', null, '[NAME LOAD]'),
+              h('p', { className: 'qqbot-ai-setting-load-name' }, name || '（未设置名字）'),
+              h('span', null, '[SETTING LOAD]'),
+              ...(settings.length === 0
+                ? [h('p', null, '暂无设定条目')]
+                : settings.map((entry, index) => h('p', { key: `${index}-${entry}` }, entry)))),
+            h('div', { className: 'qqbot-ai-persona-actions' },
+              h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-persona-edit', onClick: view.startEdit }, '编辑设定')),
+            view.saveMessage === null ? null : h('p', { className: 'qqbot-ai-persona-saved', 'data-testid': 'qqbot-ai-persona-saved' }, view.saveMessage),
+            keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
             h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, '触发用 · 不进入提示词')),
             h('div', { className: 'qqbot-ai-keyword-tags' }, ...keywords.map((keyword) => h('span', { key: keyword }, keyword)))) : null,
           examples.length > 0 ? h('div', { className: 'qqbot-ai-examples', 'data-testid': 'qqbot-ai-persona-examples' },
@@ -4798,6 +4860,20 @@ window.__ModuleLoader__.load({
       .qqbot-ai-rule-block { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
       .qqbot-ai-rule-block > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
       .qqbot-ai-rule-block p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+
+      .qqbot-ai-setting-load { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+      .qqbot-ai-setting-load > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+      .qqbot-ai-setting-load p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+      .qqbot-ai-setting-load-name { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 600; }
+      .qqbot-ai-persona-editor { display: flex; flex-direction: column; gap: 11px; margin-top: 10px; }
+      .qqbot-ai-persona-field { display: flex; flex-direction: column; gap: 5px; }
+      .qqbot-ai-persona-field > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+      .qqbot-ai-input, .qqbot-ai-textarea { width: 100%; box-sizing: border-box; border: .5px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; padding: 8px 10px; outline: none; }
+      .qqbot-ai-textarea { resize: vertical; min-height: 170px; line-height: 1.6; }
+      .qqbot-ai-input:focus, .qqbot-ai-textarea:focus { border-color: var(--dsw-alias-brand-primary); }
+      .qqbot-ai-persona-actions { display: flex; align-items: center; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+      .qqbot-ai-persona-error { margin: 9px 0 0; color: var(--dsw-alias-label-danger, #b42318); font-size: 10.5px; }
+      .qqbot-ai-persona-saved { margin: 9px 0 0; color: var(--dsw-alias-brand-primary); font-size: 10.5px; }
       .qqbot-ai-settings-keywords { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
       .qqbot-ai-examples { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
       .qqbot-ai-example { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: 8px; background: var(--dsw-alias-bg-base); }

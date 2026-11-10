@@ -437,6 +437,20 @@ export const CSS = `
 .qqbot-ai-rule-block { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
 .qqbot-ai-rule-block > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
 .qqbot-ai-rule-block p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+
+.qqbot-ai-setting-load { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
+.qqbot-ai-setting-load > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+.qqbot-ai-setting-load p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
+.qqbot-ai-setting-load-name { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 600; }
+.qqbot-ai-persona-editor { display: flex; flex-direction: column; gap: 11px; margin-top: 10px; }
+.qqbot-ai-persona-field { display: flex; flex-direction: column; gap: 5px; }
+.qqbot-ai-persona-field > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+.qqbot-ai-input, .qqbot-ai-textarea { width: 100%; box-sizing: border-box; border: .5px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; padding: 8px 10px; outline: none; }
+.qqbot-ai-textarea { resize: vertical; min-height: 170px; line-height: 1.6; }
+.qqbot-ai-input:focus, .qqbot-ai-textarea:focus { border-color: var(--dsw-alias-brand-primary); }
+.qqbot-ai-persona-actions { display: flex; align-items: center; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+.qqbot-ai-persona-error { margin: 9px 0 0; color: var(--dsw-alias-label-danger, #b42318); font-size: 10.5px; }
+.qqbot-ai-persona-saved { margin: 9px 0 0; color: var(--dsw-alias-brand-primary); font-size: 10.5px; }
 .qqbot-ai-settings-keywords { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
 .qqbot-ai-examples { margin-top: 11px; padding-top: 10px; border-top: .5px solid var(--dsw-alias-border-l1); display: flex; flex-direction: column; gap: 7px; }
 .qqbot-ai-example { display: flex; flex-direction: column; gap: 4px; padding: 8px 9px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
