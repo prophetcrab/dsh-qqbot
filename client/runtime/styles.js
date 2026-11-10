@@ -438,6 +438,8 @@ export const CSS = `
 .qqbot-ai-rule-block > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
 .qqbot-ai-rule-block p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }
 
+.qqbot-ai-persona-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.qqbot-ai-name-value { margin: 12px 0 4px; color: var(--dsw-alias-label-primary); font-size: 24px; font-weight: 650; letter-spacing: -.03em; word-break: break-word; }
 .qqbot-ai-setting-load { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding: 10px 11px; border-radius: 10px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 5%, transparent); border: .5px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, var(--dsw-alias-border-l1)); }
 .qqbot-ai-setting-load > span { color: var(--dsw-alias-brand-primary); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
 .qqbot-ai-setting-load p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 10.5px; line-height: 1.65; }

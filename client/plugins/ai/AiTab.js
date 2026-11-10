@@ -260,19 +260,27 @@ function renderAiSettings(panel, view) {
   const updatedAt = persona.updatedAt || character.updatedAt || data.updatedAt
   const selectedGroup = groups.find(([id]) => id === selectedId)
   const selectedName = selectedGroup === undefined ? (selectedId || '未选择群') : (text(selectedGroup[1].name) || selectedId)
-  const personaCard = view.editing
-    ? h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
-      settingsCardHead(h, 'PERSONA', '编辑角色设定', 'persona.json'),
-      h('div', { className: 'qqbot-ai-persona-editor' },
-        h('label', { className: 'qqbot-ai-persona-field' },
-          h('span', null, '[NAME LOAD]'),
-          h('input', {
-            className: 'qqbot-ai-input',
-            'data-testid': 'qqbot-ai-persona-name',
-            value: view.draftName,
-            onChange: (event) => view.changeName(event.currentTarget.value),
-            placeholder: '角色名字',
-          })),
+  const nameCard = h('section', { className: 'qqbot-ai-card qqbot-ai-name-card', 'data-testid': 'qqbot-ai-persona' },
+    settingsCardHead(h, 'NAME', '名字', 'NAME LOAD'),
+    view.editing
+      ? h('label', { className: 'qqbot-ai-persona-field' },
+        h('span', null, '[NAME LOAD]'),
+        h('input', {
+          className: 'qqbot-ai-input',
+          'data-testid': 'qqbot-ai-persona-name',
+          value: view.draftName,
+          onChange: (event) => view.changeName(event.currentTarget.value),
+          placeholder: '角色名字',
+        }))
+      : h('p', { className: 'qqbot-ai-name-value' }, name || '（未设置名字）'),
+    view.editing
+      ? null
+      : h('div', { className: 'qqbot-ai-persona-actions' },
+        h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-name-edit', onClick: view.startEdit }, '编辑名字')))
+  const settingCard = h('section', { className: 'qqbot-ai-card qqbot-ai-setting-card', 'data-testid': 'qqbot-ai-persona-rules' },
+    settingsCardHead(h, 'SETTING', '角色设定', `SETTING LOAD · ${settings.length} 条`),
+    view.editing
+      ? h('div', { className: 'qqbot-ai-persona-editor' },
         h('label', { className: 'qqbot-ai-persona-field' },
           h('span', null, '[SETTING LOAD] · 一行一个事实'),
           h('textarea', {
@@ -282,29 +290,27 @@ function renderAiSettings(panel, view) {
             onChange: (event) => view.changeSettings(event.currentTarget.value),
             rows: 10,
             placeholder: '十岁，小学四年级。\n住在杭州。',
-          }))),
-      h('div', { className: 'qqbot-ai-persona-actions' },
-        h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-persona-save', disabled: view.saving, onClick: () => { void view.savePersona() } }, view.saving ? '保存中…' : '保存设定'),
-        h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-persona-cancel', disabled: view.saving, onClick: view.cancelEdit }, '取消')),
-      view.saveError === null ? null : h('p', { className: 'qqbot-ai-persona-error', 'data-testid': 'qqbot-ai-persona-error' }, view.saveError))
-    : h('section', { className: 'qqbot-ai-card qqbot-ai-persona-panel', 'data-testid': 'qqbot-ai-persona' },
-      settingsCardHead(h, 'PERSONA', '角色设定', 'persona.json'),
-      h('div', { className: 'qqbot-ai-setting-load', 'data-testid': 'qqbot-ai-persona-rules' },
-        h('span', null, '[NAME LOAD]'),
-        h('p', { className: 'qqbot-ai-setting-load-name' }, name || '（未设置名字）'),
+          })))
+      : h('div', { className: 'qqbot-ai-setting-load' },
         h('span', null, '[SETTING LOAD]'),
         ...(settings.length === 0
           ? [h('p', null, '暂无设定条目')]
           : settings.map((entry, index) => h('p', { key: `${index}-${entry}` }, entry)))),
-      h('div', { className: 'qqbot-ai-persona-actions' },
+    view.editing
+      ? h('div', { className: 'qqbot-ai-persona-actions' },
+        h('button', { type: 'button', className: 'qqbot-ai-btn qqbot-ai-btn-primary', 'data-testid': 'qqbot-ai-persona-save', disabled: view.saving, onClick: () => { void view.savePersona() } }, view.saving ? '保存中…' : '保存设定'),
+        h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-persona-cancel', disabled: view.saving, onClick: view.cancelEdit }, '取消'))
+      : h('div', { className: 'qqbot-ai-persona-actions' },
         h('button', { type: 'button', className: 'qqbot-ai-btn', 'data-testid': 'qqbot-ai-persona-edit', onClick: view.startEdit }, '编辑设定')),
-      view.saveMessage === null ? null : h('p', { className: 'qqbot-ai-persona-saved', 'data-testid': 'qqbot-ai-persona-saved' }, view.saveMessage),
-      keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
+    view.saveError === null ? null : h('p', { className: 'qqbot-ai-persona-error', 'data-testid': 'qqbot-ai-persona-error' }, view.saveError),
+    view.saveMessage === null ? null : h('p', { className: 'qqbot-ai-persona-saved', 'data-testid': 'qqbot-ai-persona-saved' }, view.saveMessage),
+    keywords.length > 0 ? h('div', { className: 'qqbot-ai-settings-keywords' },
       h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '兴趣关键词'), h('span', null, '触发用 · 不进入提示词')),
       h('div', { className: 'qqbot-ai-keyword-tags' }, ...keywords.map((keyword) => h('span', { key: keyword }, keyword)))) : null,
     examples.length > 0 ? h('div', { className: 'qqbot-ai-examples', 'data-testid': 'qqbot-ai-persona-examples' },
       h('div', { className: 'qqbot-ai-profile-head' }, h('span', null, '对话示例'), h('span', null, '仅展示 · 不进入提示词')),
       ...examples.slice(0, 6).map((example, index) => exampleBlock(h, example, index))) : null)
+  const personaStack = h('div', { className: 'qqbot-ai-persona-stack' }, nameCard, settingCard)
   const emotionCard = h('section', { className: 'qqbot-ai-card' },
     settingsCardHead(h, 'EMOTION', '当前状态', '软约束'),
     h('div', { className: 'qqbot-ai-emotions' },
@@ -340,7 +346,7 @@ function renderAiSettings(panel, view) {
       h('div', { className: 'qqbot-ai-settings-hero-meta' },
         statusPill(h, '状态投影', 'violet'),
         h('span', null, updatedAt ? `更新于 ${time(updatedAt)}` : '等待状态数据'))),
-    h('div', { className: 'qqbot-ai-settings-grid' }, personaCard, h('aside', { className: 'qqbot-ai-settings-side' }, emotionCard, profilesCard)),
+    h('div', { className: 'qqbot-ai-settings-grid' }, personaStack, h('aside', { className: 'qqbot-ai-settings-side' }, emotionCard, profilesCard)),
     h('div', { className: 'qqbot-ai-settings-bottom' }, memoryCard, groupsCard))
 }
 
