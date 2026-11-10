@@ -7,6 +7,7 @@
 - [当前架构总览](architecture/README.md)
 - [分支对比与同步状态](architecture/branches.md)
 - [架构决策目录](decisions/README.md)
+- [Bot Workspace Runtime 设计方案](design/workspace-runtime.md)
 - [路线图](roadmap/README.md)
 - [发布记录](../releases/README.md)
 
