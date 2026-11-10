@@ -6,7 +6,7 @@ import { readJsonFile, SerialQueue, writeJsonAtomic, writeTextAtomic } from './a
 
 const DEFAULTS = () => ({
   emotion: { valence: 0.08, arousal: 0.4, energy: 0.62, socialBattery: 0.55, stress: 0.16 },
-  core: { name: '群友', identity: '群里的普通群友', voice: '简洁自然，不用客服腔' },
+  core: { name: '鱼鱼', identity: '十岁的小学生，住在杭州，喜欢画画和橘猫年糕。', voice: '短句，直白，有点孩子气。' },
 })
 
 const PROCESSED_LIMIT = 500

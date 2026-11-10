@@ -8,8 +8,8 @@ import {
   normalizePersona, readPersonaFile, writePersonaFile,
 } from '../host/services/persona/index.js'
 
-test('default persona uses the real name and generic settings', () => {
-  assert.equal(DEFAULT_PERSONA.name, '天青色瞪眼鱼')
+test('default persona uses the little-girl name and generic settings', () => {
+  assert.equal(DEFAULT_PERSONA.name, '鱼鱼')
   assert.equal(DEFAULT_PERSONA.version, 2)
   assert.ok(DEFAULT_PERSONA.settings.length >= 1)
   assert.doesNotMatch(DEFAULT_PERSONA.settings.join('\n'), /^名称：|^角色：/mu)

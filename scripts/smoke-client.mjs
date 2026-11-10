@@ -259,15 +259,15 @@ let personaState = {
 
 const GROUP_DASHBOARD = {
   character: {
-    core: { name: '天青色瞪眼鱼', identity: '天青色瞪眼鱼，杭州漫画家，正在画炒股期货题材漫画', voice: '短句、口语、热络', keywords: ['股票', '期货', 'K线', '漫画', '分镜'] },
+    core: { name: '鱼鱼', identity: '十岁的小学生，住在杭州，喜欢画画和橘猫年糕。', voice: '短句，直白，有点孩子气。', keywords: ['画画', '年糕', '猫'] },
     emotion: { valence: 0.12, arousal: 0.42, energy: 0.61, socialBattery: 0.48, stress: 0.18 },
   },
   persona: {
     version: 2,
-    name: '天青色瞪眼鱼',
-    settings: ['天青色瞪眼鱼，28 岁，杭州漫画家，正在画《多空之间》', '短句、口语、热络', '自来熟、热情、话多但有分寸', '像熟人一样自然接话；句子尽量短'],
-    keywords: ['股票', '期货', 'K线', '漫画', '分镜'],
-    examples: [{ user: '你最近在画什么', assistant: '炒股期货题材的《多空之间》' }],
+    name: '鱼鱼',
+    settings: ['十岁，小学四年级。', '喜欢画画，画得一般但很投入。', '养了一只橘猫，叫年糕。'],
+    keywords: ['画画', '年糕', '猫'],
+    examples: [{ user: '你几岁啦', assistant: '十岁，四年级。' }],
     updatedAt: '2026-11-03T07:00:00.000Z',
   },
   groups: {
@@ -728,16 +728,16 @@ expectTestId(tree, 'qqbot-ai-persona-rules')
 expectTestId(tree, 'qqbot-ai-emotion-numbers')
 expectTestId(tree, 'qqbot-ai-settings-memories')
 expectTestId(tree, 'qqbot-ai-settings-groups')
-if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('自来熟')) throw new Error('personality missing in settings')
-if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('多空之间')) throw new Error('persona example missing in settings')
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('十岁')) throw new Error('setting entry missing in settings')
+if (!text(expectTestId(tree, 'qqbot-ai-settings')).includes('年糕')) throw new Error('setting entry missing in settings')
 clickTestId(tree, 'qqbot-ai-settings-back')
 tree = await settle()
 expectTestId(tree, 'qqbot-ai-character')
 
-if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('股票')) throw new Error('persona keywords missing in dashboard')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('画画')) throw new Error('persona keywords missing in dashboard')
 expectTestId(tree, 'qqbot-ai-emotion')
 expectTestId(tree, 'qqbot-ai-memories')
-if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('天青色瞪眼鱼')) throw new Error('character name missing in dashboard')
+if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('鱼鱼')) throw new Error('character name missing in dashboard')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('测试群·摸鱼办事处')) throw new Error('group name missing in dashboard')
 if (!text(expectTestId(tree, 'qqbot-ai-dashboard')).includes('下次触发')) throw new Error('next trigger threshold missing in dashboard')
 expectTestId(tree, 'qqbot-ai-profiles')
