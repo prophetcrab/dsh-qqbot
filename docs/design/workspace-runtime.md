@@ -94,7 +94,8 @@ QQ / Koishi
 4. **显式触发**：只有 `/work`（或后续确认的触发方式）进入任务运行时。
 5. **文件硬隔离、进程默认禁用**：文件层可以做到代码级路径硬拦截；进程层在获得 OS 级沙箱前必须硬禁用。
 6. **先文件、后工具、再 shell**：不要第一步就开放命令执行。
-7. **长任务异步化**：Koishi 请求有超时限制，Workspace 任务不应强依赖单次 HTTP 同步返回。
+7. **策略双路线**：默认配置自动生成 allow/approval 基线，管理员可按工具手动覆盖；两者都不能突破 hard deny。
+8. **长任务异步化**：Koishi 请求有超时限制，Workspace 任务不应强依赖单次 HTTP 同步返回。
 
 ---
 
@@ -263,6 +264,7 @@ if (denied.has(name)) deny
 
 ```text
 data/config/workspace.json
+data/config/workspace-policy.json
 data/state/workspace/approvals/
 data/state/workspace/audit.jsonl
 ```
@@ -441,6 +443,150 @@ ToolsBridge
 | qqbot_control / qqbot_configure | DSH tools | ❌ | ❌ |
 | shell / 包管理 | 自建或 DSH | ❌ | 审批后 |
 | DSH 子 agent / workflow | 待探测 | ❌ | 单独评估 |
+
+### 7.4 工具审批与放行策略（两条路线）
+
+工具调用采用统一的三种决策：
+
+```text
+allow       默认放行
+approval    需要审批
+deny        拒绝
+```
+
+`deny` 中有一类是不可覆盖的 **hard deny**（见 §5.2），它永远不能通过手动策略或审批变成 allow。
+
+策略支持两条路线，二者不是互斥的：
+
+```text
+路线 A：默认配置（自动）
+  根据工具元数据自动生成 allow / approval 基线
+路线 B：手动修改
+  管理员逐个工具覆盖 allow / approval / deny
+```
+
+最终生效策略：
+
+```text
+hard deny
+  → 手动 override
+  → 自动默认
+  → 未知工具一律 deny
+```
+
+#### 7.4.1 路线 A：默认配置
+
+默认配置不是让模型猜，而是由每个工具适配器声明固定元数据：
+
+```json
+{
+  "id": "delete_file",
+  "risk": "destructive",
+  "sideEffects": true,
+  "scope": "workspace",
+  "defaultDecision": "approval",
+  "reason": "删除文件不可自动恢复"
+}
+```
+
+Policy Compiler 在以下时机生成默认策略：
+
+- 首次启动；
+- 工具目录 hash 变化；
+- 管理员在面板点击「重新生成默认策略」。
+
+默认基线建议：
+
+| 工具类型 | 默认决策 |
+| --- | --- |
+| `list_dir` / `read_file` / `search_files` | allow |
+| `git status` / `git diff` / `git log` | allow |
+| `write_file` / `create_dir` / `move_file`（workspace 内） | allow |
+| `delete_file` / 覆盖已有文件 | approval |
+| `web_search` / `web_fetch` | allow（有配额） |
+| `image_generate` | allow（记录用量，有配额） |
+| `qqbot_status` / `qqbot_logs` | allow（只读） |
+| `shell` / 包安装 | MVP hard deny；开启后默认 approval |
+| `qqbot_control` / `qqbot_configure` | hard deny |
+| 未知工具 | hard deny |
+
+这里的 `write_file` 默认 allow，是因为 `/work` 已经是显式任务意图；  
+如果担心覆盖风险，可以把“覆盖已有文件”拆成独立工具或单独审批条件。
+
+#### 7.4.2 路线 B：手动修改
+
+管理员可以在面板中逐个工具修改：
+
+```text
+allow ↔ approval ↔ deny
+```
+
+限制：
+
+- hard deny 行显示为锁定，不能修改；
+- 手动 deny 可以比默认更严格；
+- 手动 allow 不能绕过 hard deny；
+- 修改必须记录操作者、时间、旧值、新值；
+- 修改后从下一次工具调用开始生效；
+- 如果某个工具从 approval 改成 allow，已存在的待审批请求自动失效；
+- 如果某个工具从 allow 改成 approval，正在运行的 Run 在下一次调用时进入审批。
+
+#### 7.4.3 策略配置
+
+建议存放在：
+
+```text
+<projectDir>/data/config/workspace-policy.json
+```
+
+结构：
+
+```json
+{
+  "version": 1,
+  "mode": "auto",
+  "defaultsVersion": 1,
+  "overrides": {
+    "delete_file": "approval",
+    "web_fetch": "approval",
+    "shell": "deny"
+  },
+  "updatedAt": "2026-11-10T..."
+}
+```
+
+`mode`：
+
+| 模式 | 行为 |
+| --- | --- |
+| `auto` | 自动默认 + 手动 override（推荐默认） |
+| `manual` | 以手动策略为主；未配置的工具按 approval 处理 |
+
+`manual` 模式仍不能覆盖 hard deny。未知工具始终 deny。
+
+#### 7.4.4 工具目录变化
+
+工具目录会随 DSH 版本和插件变化。策略合并规则：
+
+- 已存在的工具：保留手动 override；
+- 新工具：使用自动默认，并在面板标记「新工具」；
+- 被移除的工具：保留 override 记录但不参与执行，标记「已移除」；
+- 工具风险等级变化：保留 override，但标记「建议复核」；
+- 每次目录变化增加 `defaultsVersion`，写入审计。
+
+不能因为升级而静默把手动 `deny` 改回 `allow`。
+
+#### 7.4.5 与审批的关系
+
+```text
+effective = allow      → 直接执行
+effective = approval   → 创建 approval，等待管理员
+effective = deny       → 拒绝
+hard deny              → 拒绝，任何审批不可覆盖
+```
+
+审批通过只对**当前 Run + 当前工具参数 + 当前策略版本**有效；  
+策略或工具参数变化后，旧审批不能复用。
 
 ---
 
@@ -650,8 +796,9 @@ Hard Boundary → Policy → Approval → Execute → Audit
 | GET | `/qqbot/workspace/diff` | 最近 diff |
 | GET | `/qqbot/workspace/approvals` | 待审批列表 |
 | POST | `/qqbot/workspace/approvals/:id` | 批准/拒绝 |
-| GET | `/qqbot/workspace/policy` | 读取策略 |
-| POST | `/qqbot/workspace/policy` | 更新策略（仅面板管理员） |
+| GET | `/qqbot/workspace/policy` | 读取默认/手动/生效策略 |
+| POST | `/qqbot/workspace/policy` | 更新 override / mode（仅面板管理员） |
+| POST | `/qqbot/workspace/policy/reset` | 恢复自动默认策略 |
 
 创建任务请求示例：
 
@@ -689,7 +836,7 @@ Workspace
 ├─ 历史 Run 列表
 ├─ 每步工具调用与耗时
 ├─ 待审批操作
-├─ 策略编辑
+├─ 工具策略（默认值 / 手动 override / 生效值）
 ├─ audit 查询
 └─ workspace 大小 / git 状态
 ```
@@ -698,6 +845,9 @@ Workspace
 
 - 文件预览只读直到显式编辑；
 - 删除、shell、策略修改都要确认；
+- 策略表支持「重新生成默认」「恢复单个工具默认」「全部重置」；
+- hard deny 工具锁定显示，不能编辑；
+- 工具目录变化后标记新工具 / 已移除工具 / 建议复核；
 - Run 日志默认折叠，失败时展开；
 - 长内容在面板查看，不塞进 QQ 消息。
 
@@ -707,7 +857,8 @@ Workspace
 
 ```text
 <projectDir>/workspace/                     # 可写工作区
-<projectDir>/data/config/workspace.json     # 权限与资源策略
+<projectDir>/data/config/workspace.json     # 运行/资源策略
+<projectDir>/data/config/workspace-policy.json  # 工具默认值 + 手动 override
 <projectDir>/data/state/workspace/runs/     # Run 记录
 <projectDir>/data/state/workspace/audit.jsonl
 <projectDir>/data/state/workspace/approvals/
@@ -741,6 +892,7 @@ Workspace 本体不在 `data/` 下，避免备份/清理脚本误删；`data/sta
 - 路径安全（resolve/realpath/符号链接）；
 - 文件读写/列表/搜索；
 - git init、status、diff；
+- 工具策略模型与自动默认基线（先覆盖文件工具）；
 - 面板文件浏览。
 
 验收：
@@ -772,6 +924,7 @@ Workspace 本体不在 `data/` 下，避免备份/清理脚本误删；`data/sta
 
 - 工具枚举与 schema；
 - 安全工具接入（web_search / web_fetch 等）；
+- 自动默认策略 + 手动 override；
 - 工具调用审计；
 - 禁止层过滤。
 
@@ -823,6 +976,9 @@ MVP 建议只做 Phase 1 + Phase 2：
 [ ] 路径逃逸测试全部拒绝：`..`、绝对路径、符号链接、前缀伪装
 [ ] 直接 `node:fs` / `node:child_process` 导入被架构测试拦截
 [ ] 未知工具 / 控制面工具硬拒绝
+[ ] 自动默认策略能生成 allow / approval 基线
+[ ] 手动 override 生效，hard deny 不可覆盖
+[ ] 策略修改有审计，旧审批随策略变化失效
 [ ] 伪造/越权修改 Policy、Approval、Audit 硬拒绝
 [ ] 单 Run 最长 90s、最多 12 步
 [ ] 一次任务能生成一个文件并回群摘要
@@ -856,7 +1012,23 @@ MVP 建议只做 Phase 1 + Phase 2：
 - B. 每群一个子目录（推荐）
 - C. shared 只读 + 群私有可写（长期推荐）
 
-### 16.4 “所有 DSH 能力”的边界
+### 16.4 默认放行基线
+
+- `write_file` / `move_file` 默认 allow 还是 approval？
+- 覆盖已有文件是否单独拆成 approval？
+- `image_generate` 是否默认 allow？
+- 新工具默认 approval 还是 deny？
+
+推荐：
+
+```text
+workspace 内创建/追加/移动：allow
+覆盖已有文件、删除：approval
+image_generate：allow + 配额
+新工具：approval（在人工确认前不自动放行）
+```
+
+### 16.5 “所有 DSH 能力”的边界
 
 - 是否允许 `qqbot_status` / `qqbot_logs` 只读工具？
 - 是否允许 image_generate？
