@@ -107,3 +107,10 @@ test('persona settings route saves v2 name/settings and keeps other fields', asy
   assert.equal(read.body.data.persona.name, '小鱼')
   assert.deepEqual(read.body.data.persona.settings, ['十岁，小学四年级。', '喜欢画画。'])
 })
+
+test('status reports AI availability from the DSH model selection', async (t) => {
+  const { routes } = await loadHost(t)
+  const response = await invokeRoute(routes.get('/qqbot/status'), { method: 'GET', url: '/qqbot/status' })
+  assert.equal(response.status, 200)
+  assert.equal(response.body.data.ai.available, false)
+})

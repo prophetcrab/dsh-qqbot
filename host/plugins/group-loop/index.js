@@ -24,6 +24,11 @@ export default {
       profilesPath: paths.assets.profiles,
     })
     api.provide('groupLoop', loop)
+    api.registerStatusProvider(async () => {
+      const selection = api.ctx?.get?.('agentDefaultModel')?.currentSelection?.()
+      const available = selection !== null && typeof selection === 'object' && typeof selection.provider === 'string' && typeof selection.model === 'string'
+      return { ai: available ? { available: true, provider: selection.provider, model: selection.model } : { available: false } }
+    })
     api.registerRoutes(routes(api, loop))
     api.registerClientTab({ id: 'ai', title: { zh: 'AI', en: 'AI' }, order: 1 })
     api.registerClientTab({ id: 'tokens', title: { zh: 'Token', en: 'Tokens' }, order: 8 })
