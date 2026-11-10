@@ -508,7 +508,8 @@ Policy Compiler 在以下时机生成默认策略：
 | `qqbot_status` / `qqbot_logs` | allow（只读） |
 | `shell` / 包安装 | MVP hard deny；开启后默认 approval |
 | `qqbot_control` / `qqbot_configure` | hard deny |
-| 未知工具 | hard deny |
+| 目录外未知工具 | hard deny |
+| 目录内新增、尚未分类的工具 | approval |
 
 这里的 `write_file` 默认 allow，是因为 `/work` 已经是显式任务意图；  
 如果担心覆盖风险，可以把“覆盖已有文件”拆成独立工具或单独审批条件。
