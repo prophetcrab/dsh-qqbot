@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { only, readBody, sendJson, stringField } from '../../kernel/http.js'
 import { fetchContacts } from './contacts.js'
 
-/** @param {object} api plugin API @param {object} napcat NapcatManager */
+/** @param {object} api plugin API @param {object} napcat DockerNapcatManager */
 export function routes(api, napcat) {
   return [
     {

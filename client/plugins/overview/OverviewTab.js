@@ -6,7 +6,7 @@ import { renderSetupCard } from './SetupCard.js'
 export function renderOverview(panel) {
   const {
     t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
-    stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi, qq,
+    stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi,
     settings, napcatSupported, platformInstallHint, napcatAccounts, wsClients, napcatInstalled,
     napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, lifecycleBusy, h
   } = panel
@@ -55,7 +55,7 @@ export function renderOverview(panel) {
   const napcatCard = h('section', { className: 'qqbot-card' },
     h('div', { className: 'qqbot-card-head' },
       h('h2', { className: 'qqbot-card-title' }, t('napcatTitle')),
-      h('span', { className: 'qqbot-card-sub' }, `QQ · ${qq.installed === true ? t('stInstalled') : t('stMissing')}`)),
+      h('span', { className: 'qqbot-card-sub' }, `Docker · ${napcatInstalled ? t('stInstalled') : t('stMissing')}`)),
     h('div', { className: 'qqbot-rows' }, ...napcatRows),
     h('div', { className: 'qqbot-actions-row' },
       actionButton('napcat-start', t('napcatStart'), null, startNapcat, { disabled: napcatRunning || lifecycleBusy }),

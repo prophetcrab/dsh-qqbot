@@ -1,6 +1,16 @@
 # 安装与运行
 
-> 当前分支 `dshbot-mac`，仅支持 macOS（Apple Silicon）。
+> 当前分支 `dshbot-mac`，仅支持 macOS（Apple Silicon）。NapCat 通过 OrbStack/Docker 运行，本机 QQ 不会被修改。
+
+## 0. 前置依赖
+
+安装 OrbStack：
+
+```bash
+brew install --cask orbstack
+```
+
+打开一次 OrbStack 完成初始化。
 
 ## 1. 安装插件
 
@@ -24,13 +34,13 @@ node scripts/install-profile.mjs --profile desktop --install
 
 - 从 `template/` 创建 `~/project/qq-bot`
 - 解压 Koishi 离线依赖
-- 从 `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` 离线安装 NapCat
+- 启动 OrbStack 并拉取 NapCat Docker 镜像
 - 写入 OneBot 反向 WS 配置
 
-NapCat 安装需要一次 macOS 管理员授权。
+首次使用需要安装 OrbStack（`brew install --cask orbstack`）。本机 QQ 不被修改。
 
-生命周期：DSH 正常退出/重载插件时会停止 Koishi 与 NapCat（本地 QQ 进程）；
-DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程（本地 QQ 不会被结束）。
+生命周期：DSH 正常退出/重载插件时会停止 Koishi 与 NapCat 容器；
+DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程。
 若不希望崩溃时自动结束 Koishi，可设置 `lifecycleGuard: false`；正常退出/卸载
 仍会停止服务。
 
@@ -38,7 +48,7 @@ DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程（本地 QQ
 
 1. 打开面板「概览」
 2. 点「启动全部」或分别启动 NapCat / Koishi
-3. 用手机 QQ 扫描面板二维码
+3. 用手机 QQ 扫描面板二维码（Docker 内的 Linux QQ）
 4. 登录后机器人状态变为在线
 
 ## 4. 配置
@@ -84,8 +94,9 @@ DSH 的 HTTP endpoint 由 `data/state/ai.json` 发布给 Koishi 插件。
 
 | 现象 | 检查 |
 | --- | --- |
-| NapCat 未安装 | 看 `vendor/napcat/payload` 是否存在；看 macOS 管理员授权 |
-| 二维码不显示 | NapCat 是否运行；端口 6099 |
+| NapCat 未安装 | 看 OrbStack 是否运行；看 Docker 镜像是否拉取成功 |
+| 镜像拉取失败 | 检查 OrbStack Docker registry mirror（例如 `https://docker.m.daocloud.io`），确认能访问 Docker Hub |
+| 二维码不显示 | NapCat 容器是否运行；端口 6099；查看容器日志 |
 | 机器人离线 | Koishi 5140、OneBot 反向 WS `/onebot` |
 | 权限不生效 | `data/config/access.json` 是否写入；Koishi access-control 是否启用 |
 | Koishi 连不上 DSH | DSH 是否运行；`data/state/ai.json` 的 endpoint/端口 |
@@ -101,5 +112,4 @@ npm run smoke:host
 npm run smoke:client
 npm run check:architecture
 npm run check:template
-npm run offline:verify
 ```

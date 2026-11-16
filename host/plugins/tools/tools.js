@@ -83,7 +83,14 @@ function logsTool(api) {
     execute: async (args) => {
       const source = String(args?.source ?? 'koishi')
       const lines = clampLines(args?.lines, api.settings.logLines)
-      if (source === 'napcat') return { text: 'NapCat 日志请打开 NapCat WebUI → 日志 查看' }
+      if (source === 'napcat') {
+        const napcat = api.get('napcat')
+        if (napcat !== null && napcat !== undefined && typeof napcat.logs === 'function') {
+          const tail = await napcat.logs(lines)
+          return { text: tail.length === 0 ? '暂无 NapCat 容器日志' : tail.join('\n') }
+        }
+        return { text: 'NapCat 日志请打开 NapCat WebUI → 日志 查看' }
+      }
       const tail = await koishi.logs(lines)
       return { text: tail.length === 0 ? '暂无日志（Koishi 可能不是由本插件启动）' : tail.join('\n') }
     },

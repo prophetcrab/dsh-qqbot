@@ -20,8 +20,8 @@ import {
 
 export { detectKoishiProject, hostPlatform, platformInfo }
 
-/** macOS defaults to the local QQ.app patched client. */
-export const DEFAULT_SETTINGS = { ...BASE_SETTINGS, napcatBackend: 'local' }
+/** macOS now uses the Docker NapCat backend; local QQ is not patched. */
+export const DEFAULT_SETTINGS = { ...BASE_SETTINGS, napcatBackend: 'docker' }
 
 /** Merge row config over the macOS defaults. */
 export function resolveSettings(raw = {}) {
@@ -29,13 +29,10 @@ export function resolveSettings(raw = {}) {
 }
 
 /** NapCat installation root on macOS (inside the QQ container). */
-export const NAPCAT_INSTALL_DIR = '~/Library/Containers/com.tencent.qq/Data/Documents/napcat'
+export const NAPCAT_INSTALL_DIR = ''
 
 /** NapCat runtime configuration directories, most specific first. */
-export const NAPCAT_CONFIG_DIRS = [
-  '~/Library/Containers/com.tencent.qq/Data/Library/Application Support/QQ/NapCat/config',
-  '~/Library/Containers/com.tencent.qq/Data/Documents/napcat/config',
-]
+export const NAPCAT_CONFIG_DIRS = []
 
 /** QQ application bundle path on macOS. */
 export const QQ_APP_PATH = '/Applications/QQ.app'
@@ -71,24 +68,31 @@ export function detectQq(settings = {}) {
 }
 
 /**
- * Inspect NapCat's installation and runtime configuration inside the QQ container.
+ * Docker-only build: only an explicitly configured local NapCat directory is
+ * reported, for diagnostics. Docker state is owned by DockerNapcatManager.
  *
  * @param {typeof DEFAULT_SETTINGS} settings
  */
 export function detectNapcat(settings = {}) {
-  const installDir = typeof settings.napcatDir === 'string' && settings.napcatDir !== ''
-    ? settings.napcatDir
-    : firstExisting([expandHome(NAPCAT_INSTALL_DIR)], (path) => fsExistsSync(path))
-  const configDir = firstExisting(NAPCAT_CONFIG_DIRS.map(expandHome), (path) => fsExistsSync(path)) ?? (installDir === null ? null : join(installDir, 'config'))
-  const accounts = configDir === null ? [] : readAccounts(configDir)
-  const webui = readWebui(configDir, settings?.napcatPort ?? DEFAULT_SETTINGS.napcatPort)
+  const installDir = typeof settings.napcatDir === 'string' && settings.napcatDir !== '' ? settings.napcatDir : null
+  if (installDir === null || !fsExistsSync(installDir)) {
+    return {
+      installed: false,
+      installDir: null,
+      configDir: null,
+      version: null,
+      accounts: [],
+      webui: { port: settings?.napcatPort ?? DEFAULT_SETTINGS.napcatPort, token: null },
+    }
+  }
+  const configDir = fsExistsSync(join(installDir, 'config')) ? join(installDir, 'config') : null
   return {
-    installed: installDir !== null,
+    installed: true,
     installDir,
     configDir,
-    version: installDir === null ? null : readNapcatVersion(installDir),
-    accounts,
-    webui,
+    version: readNapcatVersion(installDir),
+    accounts: configDir === null ? [] : readAccounts(configDir),
+    webui: readWebui(configDir, settings?.napcatPort ?? DEFAULT_SETTINGS.napcatPort),
   }
 }
 
@@ -97,7 +101,7 @@ export function napcatQrPath(detected) {
   if (typeof detected?.configDir === 'string' && detected.configDir !== '') {
     return join(detected.configDir, '..', 'cache', 'qrcode.png')
   }
-  return expandHome('~/Library/Containers/com.tencent.qq/Data/Library/Application Support/QQ/NapCat/cache/qrcode.png')
+  return null
 }
 
 /** Read the QQ bundle version from Info.plist without extra tools. */
@@ -108,14 +112,6 @@ function readQqVersion(appPath) {
     if (match !== null) return match[1]
   } catch {
     // fall through
-  }
-  return null
-}
-
-/** First existing path from a list, or null. */
-function firstExisting(paths, predicate) {
-  for (const path of paths) {
-    if (predicate(path)) return path
   }
   return null
 }

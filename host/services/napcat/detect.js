@@ -6,12 +6,14 @@
  */
 
 import { dirname, join } from 'node:path'
-import { expandHome } from '../../platform/index.js'
 import { failure, isPlainObject } from './common.js'
-import { WS_CLIENT_NAME, QQ_EXECUTABLE, listWebsocketClients } from './onebot-config.js'
+import { WS_CLIENT_NAME, listWebsocketClients } from './onebot-config.js'
 
 /** `ws://127.0.0.1:<koishiPort><reversePath>` expected by Koishi. */
 export function websocketUrl(manager) {
+  // The Docker backend points OneBot at the host from inside the container, so
+  // it overrides the URL (`host.docker.internal` instead of 127.0.0.1).
+  if (typeof manager.onebotUrl === 'string' && manager.onebotUrl !== '') return manager.onebotUrl
   return `ws://127.0.0.1:${manager.settings.koishiPort}${manager.settings.reversePath}`
 }
 
@@ -36,19 +38,10 @@ export function detectQq(manager) {
   }
 }
 
-/**
- * Process command-line fragment used to find the running NapCat client.
- * Only the QQ executable is matched: a plain desktop QQ instance must never be
- * picked up by status or stop.
- */
-export function processPattern() {
-  return QQ_EXECUTABLE
-}
-
 /** Safe wrapper around the injected process finder. */
 export function processInfo(manager) {
   try {
-    const found = manager.platform.findProcess(processPattern())
+    const found = manager.platform.findProcess('')
     return isPlainObject(found) ? found : { running: false, pid: null }
   } catch {
     return { running: false, pid: null }
@@ -89,7 +82,7 @@ export function qrImagePath(manager) {
   }
   const configDir = typeof detected?.configDir === 'string' ? detected.configDir : ''
   if (configDir !== '') return join(dirname(configDir), 'cache', 'qrcode.png')
-  return expandHome('~/Library/Containers/com.tencent.qq/Data/Library/Application Support/QQ/NapCat/cache/qrcode.png')
+  return null
 }
 
 /** Select the accounts to configure. */

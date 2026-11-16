@@ -7,7 +7,7 @@
 | 分支 | 角色 | 代码 | 平台 | 当前版本 / release |
 |---|---|---|---|---|
 | `main` | 导航与管理 | 无插件代码 | 无 | 只记录发布元数据 |
-| `dshbot-mac` | macOS 功能开发主线 | 完整 macOS 代码 | `host/platform/mac`，本地 QQ/NapCat | `v0.7.1` |
+| `dshbot-mac` | macOS 功能开发主线 | 完整 macOS 代码 | `host/platform/mac`，Docker/Linux QQ | `v0.7.1` |
 | `dshbot-win64` | Windows 代码分支 | 完整 Windows 代码 | `host/platform/win`，Docker/Linux QQ | `v0.7.0-win64` |
 
 分支头会随提交变化，以 `git log` / GitHub 实际状态为准。
@@ -17,9 +17,9 @@
 | 能力 | `dshbot-mac` | `dshbot-win64` |
 |---|---|---|
 | 平台实现 | `host/platform/mac` | `host/platform/win` |
-| NapCat 后端 | 本地 macOS QQ.app | Docker `mlikiowa/napcat-docker` |
-| QQ 安装 | patched QQ.app | Linux QQ 在容器内，主机不装 QQ |
-| 离线资源 | darwin 运行时包 + NapCat payload | `node_modules-win32-x64.tar.gz`，无 NapCat payload |
+| NapCat 后端 | Docker `mlikiowa/napcat-docker` | Docker `mlikiowa/napcat-docker` |
+| QQ 安装 | 不修改本机 QQ | Linux QQ 在容器内，主机不装 QQ |
+| 离线资源 | darwin 运行时包 | `node_modules-win32-x64.tar.gz` |
 | 插件包资产 | `...-macos-arm64.tgz` | `...-windows-x64.tgz` |
 | 面板平台提示 | macOS | Windows |
 | CI | macOS runner | Windows runner |
@@ -30,14 +30,14 @@
 ### 已对齐
 
 - 共享代码基线来自同一个 v0.7.0 主历史；
-- Windows 分支已完成 macOS 平台层、本地 NapCat 后端、macOS payload 和 darwin runtime bundle 的移除；
+- macOS 与 Windows 分支现在都使用 Docker NapCat 后端；macOS 不再修改本机 QQ.app；
 - Windows 分支保留 `host/platform/common` 共享实现，平台差异收口到 `host/platform/win`；
 - 两平台 release 说明采用相同结构，版本号独立。
 
 ### 尚未对齐
 
-- `dshbot-mac` 仍包含 `host/platform/mac`、本地 NapCat 后端、`vendor/napcat` 和 darwin runtime bundle；这是 macOS 分支的预期内容，不是 Windows 分支的遗漏。
-- Windows 分支在 v0.7.0 之后的共享修复已在 `dshbot-mac` 上 cherry-pick 落地（平台层 `common` 共享实现、OneBot 重复客户端、重复 @、Koishi 端口同步与状态探针、生命周期 guard、模板测试 CI、构建校验）；Docker 生命周期等 Windows 专属改动保留在 win 分支。
+- `dshbot-mac` 包含 `host/platform/mac`、Docker NapCat 后端和 darwin runtime bundle；本机 QQ 不再被修改。
+- macOS 已移植 Windows 分支的 Docker NapCat 管理模块并适配 OrbStack；两边都保留各自的平台层和运行时依赖，Docker 生命周期不再只属于 win 分支。
 - 平台分支的 root README/SETUP/CONTRIBUTING 保留平台运行细节；项目级架构、决策和发布记录以 `main` 为权威，平台分支中的副本是同步快照。
 - Windows 分支中 `f979045` 是 v0.7.0-win64 release tag，分支头还包含发布后的 CI 修复和导航/发布文档，不等于 release 资产内容。
 

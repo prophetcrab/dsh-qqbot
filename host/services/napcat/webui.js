@@ -44,7 +44,10 @@ export async function webuiInfo(manager, detected = undefined) {
 
 /** Normalize a webui descriptor. */
 export function makeWebui(manager, source, portCandidate) {
-  const port = Number.isInteger(portCandidate) ? portCandidate : manager.settings.napcatPort
+  // Docker maps the container's 6099 to a host port; probes must use that host
+  // port instead of the WebUI port written inside webui.json.
+  const localPort = Number.isInteger(manager.webuiLocalPort) ? manager.webuiLocalPort : null
+  const port = localPort ?? (Number.isInteger(portCandidate) ? portCandidate : manager.settings.napcatPort)
   return { port, token: source.token, baseUrl: `http://127.0.0.1:${port}` }
 }
 

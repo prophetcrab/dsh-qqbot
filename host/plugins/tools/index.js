@@ -11,7 +11,7 @@ export const name = 'tools'
 export const version = '1.0.0'
 
 const SYSTEM_PROMPT = 'QQ bot control center: qqbot_status reads the local QQ/NapCat/Koishi state; qqbot_control starts/stops NapCat or Koishi; qqbot_configure writes the OneBot reverse WebSocket config; qqbot_plugin lists/installs/enables/uninstalls Koishi plugins; qqbot_logs tails the managed Koishi process. '
-  + 'NapCat is installed from the bundled offline payload on macOS; logging into QQ still needs the user to scan the QR code. '
+  + 'NapCat runs as a Docker container through OrbStack on macOS; logging into QQ still needs the user to scan the QR code. '
   + 'Never expose tokens; the panel and tools mask secrets.'
 
 export default {

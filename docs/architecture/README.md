@@ -6,7 +6,7 @@
 
 | 形态 | 状态 | 进程拓扑 |
 |---|---|---|
-| macOS 桌面版 | 已发布 v0.7.0 | DSH Host + 本地 Koishi + macOS QQ/NapCat |
+| macOS 桌面版 | 已发布 v0.7.1 | DSH Host + 本地 Koishi + Docker/Linux QQ/NapCat |
 | Windows 桌面版 | 已发布 v0.7.0-win64 | DSH Host + 本地 Koishi + Docker Linux QQ/NapCat |
 | 服务器版 A：全量 DSH | 规划中 | 浏览器 → 服务器 DSH Host + 插件 + Koishi + NapCat |
 | 服务器版 B2：远程 UI | 规划中 | 桌面最小插件 → 服务器 DSH Host + 机器人全量运行时 |
@@ -18,7 +18,7 @@
 ```text
 QQ
   ↕
-NapCat / Linux QQ（本地或 Docker）
+NapCat / Linux QQ（Docker）
   ↕  OneBot 11 反向 WebSocket
 Koishi / group-listener / game-core
   ↕  /qqbot/group/*、游戏/工具契约
@@ -52,7 +52,7 @@ client/runtime ← client/components ← client/plugins ← client/index.js
 平台层规则：
 
 - `process.platform` 只允许出现在 `host/platform/`；
-- macOS 使用 `host/platform/mac` + 本地 QQ/NapCat；
+- macOS 使用 `host/platform/mac` + Docker/Linux QQ；
 - Windows 使用 `host/platform/win` + Docker/Linux QQ；
 - 平台分支不得把另一平台的平台层、payload 或运行时依赖带回本分支。
 
@@ -73,7 +73,7 @@ client/runtime ← client/components ← client/plugins ← client/index.js
 
 ## 6. 当前验证基线
 
-- DSH Host 测试：291 个（Windows 分支当前基线）；
+- DSH Host 测试：268 个（macOS Docker 后端当前基线）；
 - Koishi 模板测试：67 个；
 - Client build、host smoke、client smoke、architecture guard；
 - Windows CI：`.github/workflows/checks.yml`，Windows runner；

@@ -4,7 +4,7 @@
 
 import { textOutput } from '../../kernel/http.js'
 
-/** @param {object} api plugin API @param {object} napcat NapcatManager */
+/** @param {object} api plugin API @param {object} napcat DockerNapcatManager */
 export function tools(api, napcat) {
   return [
     {

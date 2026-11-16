@@ -46,7 +46,6 @@ dsh-qqbot/
 │   └── plugins/             # overview / ai / messages / access / plugins / features /
 │                            # logs / games / tokens
 ├── template/                # Koishi 运行时模板（从 qq-bot 同步）
-├── vendor/napcat/           # NapCat 离线 payload
 └── scripts/                 # 构建、校验、冒烟、安装
 ```
 
@@ -305,32 +304,37 @@ GameAdminService.GAMES 中的 id / name / description
 
 ## 两个外部依赖
 
-### NapCat（macOS）
+### NapCat（Docker / OrbStack）
 
 | 项 | 值 |
 | --- | --- |
-| QQ.app | `/Applications/QQ.app` |
-| QQ 容器 | `~/Library/Containers/com.tencent.qq/Data` |
-| NapCat 目录 | `.../Documents/napcat` |
-| 配置目录 | `.../Library/Application Support/QQ/NapCat/config` 或 `.../Documents/napcat/config` |
+| 容器运行时 | OrbStack |
+| NapCat 镜像 | `mlikiowa/napcat-docker:latest` |
+| 容器 | `dsh-qqbot-napcat` |
+| 数据目录 | `~/project/qq-bot/runtime/napcat-docker` |
 | WebUI | `127.0.0.1:6099` |
-| 反向 WS | `ws://127.0.0.1:5140/onebot` |
-| 离线包 | `vendor/napcat/payload/NapCat.Shell-4.18.42.zip` |
+| 反向 WS | `ws://host.docker.internal:5140/onebot` |
+| 本机 QQ | 不修改，可继续正常使用 |
 
 配置：
 
 ```text
-napcatBackend        local（本分支固定使用本地 QQ.app + NapCat）
+napcatBackend        docker（本分支固定使用 Docker）
 napcatPort           6099
 napcatToken          空
-qqPath               空
-napcatDir            空
-offlineVendorDir     空
-offlineNapcatVersion 空
+dockerNapcatImage    mlikiowa/napcat-docker:latest
+dockerNapcatContainer dsh-qqbot-napcat
+dockerNapcatDataDir  空（默认 <projectDir>/runtime/napcat-docker）
+dockerNapcatHost     host.docker.internal
+dockerAutoStart      true（自动启动 OrbStack）
+dockerDesktopPath    空（默认查找 /Applications/OrbStack.app）
+dockerEngineTimeoutMs 180000
 lifecycleGuard       true（DSH 崩溃时由 watchdog 结束 Koishi 进程）
 ```
 
-NapCat **只从内置离线包安装**，校验 size + SHA-256，不下载。
+NapCat 运行在容器里的 Linux QQ 中，不再打补丁本机 `/Applications/QQ.app`，也不需要 macOS 的 App Management 授权。
+
+> QQ 同一账号的 PC 登录可能互踢；建议机器人使用单独的 QQ 账号。
 
 ### Koishi
 
@@ -366,6 +370,8 @@ logLines           200
 
 ## 安装
 
+前置：安装 OrbStack（`brew install --cask orbstack`），用于运行 NapCat 容器。
+
 ```bash
 cd ~/project/dsh-qqbot
 node scripts/install-profile.mjs --profile desktop --install
@@ -373,28 +379,31 @@ node scripts/install-profile.mjs --profile desktop --install
 
 首次加载会：
 
-1. 从 `template/` 创建 `~/project/qq-bot`
-2. 解压内置 Koishi `darwin-arm64` 依赖
-3. 从 `vendor/napcat` 离线安装 NapCat
-4. 写 OneBot 反向 WS 配置
-5. 启动后扫码登录
+1. 确认 OrbStack 已安装并完成初始化
+2. 从 `template/` 创建 `~/project/qq-bot`
+3. 解压内置 Koishi `darwin-arm64` 依赖
+4. 拉取 NapCat Docker 镜像
+5. 写 OneBot 反向 WS 配置
+6. 启动容器后扫码登录
 
 ## 运行时数据
 
 ```text
-~/project/qq-bot/data/
-├── config/
-│   ├── access.json
-│   ├── persona.json
-│   └── prompts/group-chat.json
-├── state/
-│   ├── ai.json          # DSH discovery endpoint（Koishi 插件读取）
-│   ├── koishi.db
-│   └── napcat-login-qr.png
-├── assets/
-│   ├── persona-presets.json
-│   └── profiles.json
-└── logs/
+~/project/qq-bot/
+├── data/
+│   ├── config/
+│   │   ├── access.json
+│   │   ├── persona.json
+│   │   └── prompts/group-chat.json
+│   ├── state/
+│   │   ├── ai.json          # DSH discovery endpoint（Koishi 插件读取）
+│   │   ├── koishi.db
+│   │   └── napcat-login-qr.png
+│   ├── assets/
+│   │   ├── persona-presets.json
+│   │   └── profiles.json
+│   └── logs/
+└── runtime/napcat-docker/   # NapCat 容器 compose / QQ / cache
 ```
 
 DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平铺的 `data/*.json` 可用 `node scripts/migrate-data.mjs ~/project/qq-bot --database` 一次性迁移（迁移前停止 Koishi）。
@@ -402,14 +411,13 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 291 个 host/client 测试
+npm test                 # 268 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
-npm run smoke:host       # 53 routes / 6 tools / 3 features
+npm run smoke:host       # 47 routes / 6 tools / 3 features
 npm run smoke:client
 npm run check:architecture
 npm run check:template
-npm run offline:verify
 npm run check            # 全部
 ```
 

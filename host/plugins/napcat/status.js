@@ -2,7 +2,7 @@
  * NapCat status provider for the aggregated `/qqbot/status` snapshot.
  */
 
-/** @param {object} napcat NapcatManager */
+/** @param {object} napcat DockerNapcatManager */
 export function createStatusProvider(napcat) {
   return async function napcatStatus() {
     const status = await napcat.status().catch((error) => ({

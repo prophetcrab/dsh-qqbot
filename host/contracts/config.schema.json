@@ -5,20 +5,80 @@
   "description": "Row config accepted by cordis.patch.yml. Unknown keys are ignored; every path accepts ~ expansion.",
   "type": "object",
   "properties": {
-    "projectDir": { "type": "string" },
-    "koishiPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
-    "napcatPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
-    "reversePath": { "type": "string" },
-    "napcatToken": { "type": "string" },
-    "qqPath": { "type": "string" },
-    "napcatDir": { "type": "string" },
-    "lifecycleGuard": { "type": "boolean" },
-    "bootstrap": { "type": "boolean" },
-    "offlineVendorDir": { "type": "string" },
-    "offlineNapcatVersion": { "type": "string" },
-    "autoRestartKoishi": { "type": "boolean" },
-    "autoInstallDeps": { "type": "boolean" },
-    "logLines": { "type": "integer", "minimum": 20, "maximum": 2000 }
+    "projectDir": {
+      "type": "string"
+    },
+    "koishiPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "napcatPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "reversePath": {
+      "type": "string"
+    },
+    "napcatToken": {
+      "type": "string"
+    },
+    "qqPath": {
+      "type": "string"
+    },
+    "napcatDir": {
+      "type": "string"
+    },
+    "lifecycleGuard": {
+      "type": "boolean"
+    },
+    "bootstrap": {
+      "type": "boolean"
+    },
+    "autoRestartKoishi": {
+      "type": "boolean"
+    },
+    "autoInstallDeps": {
+      "type": "boolean"
+    },
+    "logLines": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 2000
+    },
+    "napcatBackend": {
+      "type": "string",
+      "enum": [
+        "docker"
+      ]
+    },
+    "dockerNapcatImage": {
+      "type": "string"
+    },
+    "dockerNapcatContainer": {
+      "type": "string"
+    },
+    "dockerNapcatDataDir": {
+      "type": "string"
+    },
+    "dockerNapcatHost": {
+      "type": "string"
+    },
+    "dockerNapcatToken": {
+      "type": "string"
+    },
+    "dockerAutoStart": {
+      "type": "boolean"
+    },
+    "dockerDesktopPath": {
+      "type": "string"
+    },
+    "dockerEngineTimeoutMs": {
+      "type": "integer",
+      "minimum": 10000,
+      "maximum": 600000
+    }
   },
   "additionalProperties": true
 }

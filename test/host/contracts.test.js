@@ -48,8 +48,6 @@ test('config contract: resolved settings validate against the schema', () => {
     napcatToken: '',
     qqPath: '',
     napcatDir: '',
-    offlineVendorDir: '',
-    offlineNapcatVersion: '',
     autoRestartKoishi: true,
     autoInstallDeps: true,
     logLines: 200,

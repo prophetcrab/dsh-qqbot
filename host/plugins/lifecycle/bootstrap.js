@@ -1,6 +1,6 @@
 /**
  * First-run bootstrap: scaffold the bundled Koishi project, install its
- * dependencies, prepare the NapCat installer and apply the OneBot config.
+ * dependencies, pull the NapCat Docker image and apply the OneBot config.
  *
  * Never blocks plugin activation; every step is retryable from the panel.
  */
@@ -8,7 +8,7 @@
 import { join } from 'node:path'
 import { ensureDir, fileMtime, writeFileAtomic } from '../../platform/index.js'
 
-/** How long a failed offline install attempt suppresses repeated admin prompts. */
+/** How long a failed Docker image pull suppresses repeated attempts. */
 const RETRY_WINDOW_MS = 10 * 60 * 1000
 
 /** @param {object} api plugin API */
@@ -22,22 +22,21 @@ export async function bootstrap(api) {
     if (boot?.ok === false) logger.warn('自动安装 Koishi 运行环境失败：%s', boot.message ?? boot.error ?? 'unknown')
     const state = await napcat.status()
     if (state.installed !== true) {
-      // This macOS build ships NapCat offline. Install once; the macOS admin
-      // prompt is the only interactive step. Avoid retrying every boot after
-      // the user declines it.
-      const markerPath = join(api.settings.projectDir, 'runtime', 'napcat-offline-install.json')
+      // Docker backend: pull the image once. OrbStack is started by the
+      // engine helper; no macOS App Management prompt is involved.
+      const markerPath = join(api.settings.projectDir, 'runtime', 'napcat-docker-install.json')
       const mtime = await fileMtime(markerPath)
       const recentlyTried = mtime !== null && Date.now() - Date.parse(mtime) < RETRY_WINDOW_MS
       if (recentlyTried) {
-        logger.info('NapCat 离线安装最近已尝试，跳过重复授权提示')
+        logger.info('NapCat Docker 安装最近已尝试，跳过重复拉取')
       } else {
         const installed = await napcat.install()
         if (installed.ok === true) {
           await ensureDir(join(api.settings.projectDir, 'runtime'))
           await writeFileAtomic(markerPath, JSON.stringify({ at: new Date().toISOString(), version: installed.version ?? null }))
-          logger.info('NapCat 已从内置离线包安装（版本 %s）', installed.version ?? 'unknown')
+          logger.info('NapCat Docker 镜像已就绪（%s）', installed.version ?? 'unknown')
         } else {
-          logger.warn('NapCat 离线安装失败：%s', installed.message ?? installed.error ?? 'unknown')
+          logger.warn('NapCat Docker 安装失败：%s', installed.message ?? installed.error ?? 'unknown')
         }
       }
     } else if (state.configApplied !== true) {

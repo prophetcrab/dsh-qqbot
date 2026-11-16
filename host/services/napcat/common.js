@@ -5,11 +5,8 @@
  * tests never touch a real QQ process, NapCat config or the network.
  */
 
-/** Stable user-facing messages for unsupported hosts. */
-export const UNSUPPORTED_INSTALL = '当前平台暂不支持 NapCat 安装（此构建仅支持 macOS）'
-export const UNSUPPORTED_CONTROL = '当前平台暂不支持 NapCat 启动/停止'
-export const UNSUPPORTED_CONFIGURE = '当前平台暂不支持 NapCat 配置'
-export const UNSUPPORTED_STATUS = '当前平台暂不支持 NapCat（此构建仅支持 macOS）'
+/** Stable user-facing message when the Docker backend is unavailable. */
+export const UNSUPPORTED_STATUS = 'NapCat 需要 OrbStack/Docker；请确认 OrbStack 已安装并运行'
 
 /** Whether `value` is a non-array object. */
 export function isPlainObject(value) {
@@ -43,7 +40,7 @@ export function runDetail(result) {
 
 /** Whether NapCat actions are supported on a normalized platform id. */
 export function isSupportedPlatform(platform) {
-  return platform === 'macos'
+  return platform === 'docker'
 }
 
 /** Extract the meaningful payload from a NapCat WebUI API envelope. */
@@ -72,9 +69,7 @@ export function firstString(data, keys) {
 /** Normalized platform id via the injected platform seam. */
 export function platformId(manager) {
   try {
-    const id = manager.platform.hostPlatform()
-    if (id === 'macos' || id === 'other') return id
-    return 'other'
+    return manager.platform.hostPlatform() === 'docker' ? 'docker' : 'other'
   } catch {
     return 'other'
   }

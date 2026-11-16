@@ -1,8 +1,7 @@
 /**
- * One-click environment setup: scaffold Koishi, install dependencies, install
- * NapCat (from the bundled offline payload), apply the OneBot WS config, then
- * start both services. GUI-only steps (macOS App Management and QQ QR scan)
- * stay with the user; everything else is automated.
+ * One-click environment setup: scaffold Koishi, install dependencies, pull
+ * the NapCat Docker image, apply the OneBot WS config, then start both
+ * services. The QQ QR scan stays with the user; everything else is automated.
  */
 
 /**
@@ -31,7 +30,7 @@ export async function runFullSetup({ api, setup }) {
   } else if (napcatBefore.installed !== true) {
     push('napcat-install', await napcat.install())
   } else {
-    steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `NapCat 已安装（${napcatBefore.version ?? '未知版本'}）` })
+    steps.push({ step: 'napcat-install', ok: true, skipped: true, message: `NapCat Docker 镜像已就绪（${napcatBefore.version ?? '未知版本'}）` })
   }
 
   const napcatAfter = await napcat.status()
@@ -40,7 +39,7 @@ export async function runFullSetup({ api, setup }) {
   } else if (napcatAfter.installed === true) {
     steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '登录 QQ 后自动写入 OneBot 配置' })
   } else {
-    steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '等待 NapCat 安装器完成安装' })
+    steps.push({ step: 'napcat-configure', ok: true, skipped: true, message: '等待 NapCat Docker 镜像准备完成' })
   }
 
   const login = await napcat.loginState().catch(() => null)

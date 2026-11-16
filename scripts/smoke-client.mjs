@@ -707,8 +707,8 @@ console.log('login card: ok')
 if (!text(expectTestId(tree, 'qqbot-platform-badge')).includes('macOS · arm64')) {
   throw new Error('macOS platform badge missing')
 }
-if (!text(expectTestId(tree, 'qqbot-panel')).includes('管理员授权')) {
-  throw new Error('macOS admin authorization hint missing')
+if (!text(expectTestId(tree, 'qqbot-panel')).includes('OrbStack')) {
+  throw new Error('OrbStack Docker hint missing')
 }
 console.log('platform macOS: ok')
 

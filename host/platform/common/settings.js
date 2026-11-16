@@ -20,8 +20,8 @@ export const BASE_SETTINGS = {
   qqPath: '',
   /** Optional explicit NapCat directory (unusual layouts / tests). */
   napcatDir: '',
-  /** NapCat backend: 'local' (patched macOS QQ.app) or 'docker' (Linux QQ container). */
-  napcatBackend: 'local',
+  /** NapCat backend: Docker/Linux QQ only on this branch. */
+  napcatBackend: 'docker',
   /** Docker backend: image tag, container name and data directory. */
   dockerNapcatImage: 'mlikiowa/napcat-docker:latest',
   dockerNapcatContainer: 'dsh-qqbot-napcat',
@@ -31,20 +31,16 @@ export const BASE_SETTINGS = {
   dockerNapcatHost: 'host.docker.internal',
   /** Empty means generate and persist a random WebUI token in the data dir. */
   dockerNapcatToken: '',
-  /** Start Docker Desktop automatically when the engine is not running. */
+  /** Start OrbStack automatically when the engine is not running. */
   dockerAutoStart: true,
-  /** Optional Docker Desktop executable/app path; empty means auto-detect. */
+  /** Optional OrbStack app path; empty means auto-detect /Applications/OrbStack.app. */
   dockerDesktopPath: '',
-  /** How long to wait for the Docker engine after launching Docker Desktop. */
+  /** How long to wait for the Docker engine after launching OrbStack. */
   dockerEngineTimeoutMs: 180000,
   /** Stop Koishi/NapCat when the DSH host process exits (detached watchdog). */
   lifecycleGuard: true,
   /** Run first-run bootstrap (scaffold/install/configure) when the plugin loads. */
   bootstrap: true,
-  /** Empty means the bundled `vendor/napcat`; a path pins another offline bundle. */
-  offlineVendorDir: '',
-  /** Empty means the version declared by the offline manifest. */
-  offlineNapcatVersion: '',
   autoRestartKoishi: true,
   autoInstallDeps: true,
   /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
@@ -69,9 +65,7 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     : defaults.reversePath
   const reversePath = reversePathRaw.startsWith('/') ? reversePathRaw : `/${reversePathRaw}`
   const logLines = toBoundedInt(source.logLines, defaults.logLines, 20, 2000)
-  const napcatBackend = source.napcatBackend === 'local' || source.napcatBackend === 'docker'
-    ? source.napcatBackend
-    : defaults.napcatBackend
+  const napcatBackend = 'docker'
   const dockerNapcatDataDirRaw = typeof source.dockerNapcatDataDir === 'string' ? source.dockerNapcatDataDir.trim() : ''
   const dockerNapcatDataDir = dockerNapcatDataDirRaw === ''
     ? join(projectDir, 'runtime', 'napcat-docker')
@@ -101,8 +95,6 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     dockerEngineTimeoutMs: toBoundedInt(source.dockerEngineTimeoutMs, defaults.dockerEngineTimeoutMs, 10_000, 600_000),
     lifecycleGuard: source.lifecycleGuard === undefined ? defaults.lifecycleGuard : source.lifecycleGuard === true,
     bootstrap: source.bootstrap === undefined ? defaults.bootstrap : source.bootstrap === true,
-    offlineVendorDir: typeof source.offlineVendorDir === 'string' ? expandHome(source.offlineVendorDir) : '',
-    offlineNapcatVersion: typeof source.offlineNapcatVersion === 'string' ? source.offlineNapcatVersion.trim() : '',
     autoRestartKoishi: source.autoRestartKoishi === undefined ? defaults.autoRestartKoishi : source.autoRestartKoishi === true,
     autoInstallDeps: source.autoInstallDeps === undefined ? defaults.autoInstallDeps : source.autoInstallDeps === true,
     autoSyncSelfId: source.autoSyncSelfId === undefined ? defaults.autoSyncSelfId : source.autoSyncSelfId === true,

@@ -6,7 +6,7 @@
  * service and plugin layers never touch `child_process` directly.
  */
 
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 
 /**
  * Run a file without a shell. Never throws for a non-zero exit; resolves with
@@ -51,6 +51,24 @@ export function run(file, args = [], options = {}) {
       child.stdin.end(options.input)
     }
   })
+}
+
+/**
+ * Launch an app/executable detached from the host process.
+ *
+ * @param {string} file
+ * @param {string[]} [args]
+ * @param {object} [options]
+ * @returns {boolean}
+ */
+export function launchDetached(file, args = [], options = {}) {
+  try {
+    const child = spawn(file, args, { detached: true, stdio: 'ignore', ...options })
+    if (typeof child.unref === 'function') child.unref()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
