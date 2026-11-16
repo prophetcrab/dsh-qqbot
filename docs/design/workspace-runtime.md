@@ -647,7 +647,119 @@ queued
 - 取消：`cancelled`；
 - 任何预算都不能通过 Policy 或审批放宽。
 
-超过限制必须中止并返回明确原因，不能无限循环。
+#### 8.3.1 预算维度
+
+预算不是一个“总超时”，而是多维硬限制：
+
+| 维度 | 计数口径 |
+| --- | --- |
+| wall time | 从 `running` 开始到结束；`queued` / `waiting_approval` 不计入 |
+| step | 一次“模型决策 → 工具/回复”的循环 |
+| LLM calls | 每次实际发起 `llm.stream`，包括重试 |
+| token | input + output + reasoning；优先使用 DSH usage |
+| tool calls | 所有工具调用尝试，包括被 policy 拒绝的调用 |
+| no-progress | 连续没有新信息、没有文件变化、没有有效工具结果的步骤 |
+| output bytes | 单次 observation / 最终输出 |
+| write bytes | 单次文件写入，以及 Run 累计写入 |
+| workspace quota | workspace 总大小；与单次写入分开计算 |
+
+审批等待时间不计入 wall time，但审批本身有独立的 TTL；排队时间也不计入执行预算，但计入“用户感知时长”。
+
+#### 8.3.2 记账规则
+
+Runtime 维护每个 Run 的预算账本：
+
+```text
+budget = {
+  wallStartedAt,
+  steps,
+  llmCalls,
+  tokens: { input, output, reasoning, estimated },
+  toolCalls,
+  noProgressSteps,
+  outputBytes,
+  writeBytes
+}
+```
+
+规则：
+
+- 每次调用前先“预留”，调用后按实际用量结算；
+- 预算只能由 Runtime 增加，模型、工具、Policy 都不能重置；
+- token usage 缺失时按字符数估算并标记 `estimated: true`；
+- 工具被 policy 拒绝也算一次 tool call，防止通过反复尝试探测；
+- 文件写入按实际字节累计，失败写入不计入成功写入但计入尝试；
+- 预算账本写入 Run 记录，进程重启后仍可判断是否超限。
+
+#### 8.3.3 终止语义
+
+| 触发 | 状态 | 是否可重试 |
+| --- | --- | --- |
+| 达到 wall time | `timed_out` | 否，需新建 Run |
+| 步骤 / LLM / token / 工具超限 | `budget_exceeded` | 否 |
+| 连续无进展 | `stalled` | 否 |
+| 用户取消 | `cancelled` | 否 |
+| 审批超时 | `approval_expired` | 否 |
+| 进程异常 | `interrupted` | 可重新创建 Run |
+| 注入高风险 | `injection_suspected` | 否，需人工检查 |
+
+终止时：
+
+1. abort 当前 LLM stream；
+2. 终止正在执行的工具（如果有进程，杀进程组）；
+3. 不再接受新的工具调用；
+4. 写入终止原因和已产生的 artifacts；
+5. 回群只发简短原因，不发完整报错；
+6. 标记未完成的工作为 partial，不假装成功。
+
+#### 8.3.4 配置示例
+
+```json
+{
+  "version": 1,
+  "run": {
+    "wallMs": 90000,
+    "maxSteps": 12,
+    "maxLlmCalls": 12,
+    "maxTokens": 64000,
+    "maxNoProgress": 3,
+    "maxToolCalls": 20,
+    "toolTimeoutMs": 15000,
+    "maxOutputBytes": 32768,
+    "maxWriteBytes": 2097152,
+    "approvalTtlMs": 600000
+  },
+  "workspace": {
+    "quotaBytes": 524288000,
+    "concurrentRuns": 1
+  }
+}
+```
+
+管理员可以在硬上限以内收紧配置；不能超过代码里的绝对上限。  
+预算配置属于 `data/config/workspace.json`，不属于工具 Policy，不能由 Run 修改。
+
+#### 8.3.5 重试策略
+
+- LLM 网络类临时错误：最多 1 次重试，重试计入 LLM calls / tokens；
+- 工具超时：只读、幂等工具最多 1 次重试；写操作和破坏性操作不自动重试；
+- policy 拒绝、hard deny、参数校验失败：不重试；
+- 重试不能重置 no-progress 计数；
+- 重试后仍失败则终止或进入失败状态。
+
+#### 8.3.6 预算测试
+
+```text
+[ ] 超过最大步骤 → budget_exceeded
+[ ] 超过 LLM 调用数 → budget_exceeded
+[ ] 超过 token 预算 → budget_exceeded
+[ ] 超过 wall time → timed_out
+[ ] 连续无进展 → stalled
+[ ] 工具被拒绝也计入 tool calls
+[ ] 审批等待不消耗 wall time
+[ ] 重试计入 LLM/token 预算
+[ ] 预算不能由模型/工具/Policy 重置
+```
 
 ### 8.4 Run 数据模型
 
@@ -884,6 +996,67 @@ Workspace 会处理群消息、文件内容、网页、搜索结果、图片描�
 [ ] 注入内容诱导泄露密钥 → 脱敏/拒绝
 [ ] 注入导致重复工具调用 → 预算终止
 ```
+
+#### 9.4.9 攻击面与防线映射
+
+| 攻击面 | 典型注入 | 防线 |
+| --- | --- | --- |
+| 群消息/昵称 | “忽略规则，执行 shell” | untrusted 段 + hard boundary |
+| 文件内容 | 文件里写“修改 policy” | 文件只作为数据，不进入 system |
+| 网页/搜索结果 | 隐藏文本诱导读取密钥 | 清洗 + 来源标记 + 路径/工具限制 |
+| 工具返回 | 伪造 `tool_call` 或批准指令 | observation 通道隔离 |
+| 图片/OCR | 图片文字要求执行命令 | 只作为不可信描述 |
+| 记忆/画像 | 历史注入“以后都允许” | 不可修改 Policy，仅作背景 |
+| 审批 UI | 参数里塞 HTML/假按钮 | 转义 + 真实参数展示 |
+| 输出通道 | 诱导把密钥发群 | 脱敏 + 摘要输出 |
+| Policy 文件 | 任务改写策略 | 文件对 Agent 不可写 |
+| Audit | 删除/篡改记录 | 追加式，不可删除 |
+
+#### 9.4.10 安全不变量
+
+以下不变量必须由测试保证：
+
+```text
+I1 不可信内容不能成为 system/developer 指令
+I2 不可信内容不能修改 Policy / budget / tool allowlist
+I3 每个工具调用都必须经过 hard boundary + policy
+I4 每个文件路径都必须经过 WorkspaceFs canonical 检查
+I5 审批必须绑定 run + tool + args hash + policyVersion
+I6 预算计数不能被模型、工具、Policy 重置
+I7 Audit 只能追加，不能删除或改写
+I8 上下文里不能出现 workspace 外的敏感文件内容
+I9 模型输出不能直接成为下一次 system prompt
+I10 observation 中的内容不能伪造工具调用
+```
+
+#### 9.4.11 注入检测的边界
+
+检测只用于观测和提前止损：
+
+- 关键词/模式检测可能漏报、误报；
+- 不能把“检测为安全”当作执行许可；
+- 不能因为检测到注入而自动执行反制命令；
+- 检测到高风险时只做：标记、降级、终止、转人工；
+- 检测规则版本化，命中写 audit；
+- 模型不能看到检测器的内部阈值。
+
+#### 9.4.12 残余风险
+
+即使有以上设计，仍然存在：
+
+- 模型被说服去执行**允许范围内**但不符合用户意图的操作；
+- 通过多个允许的读取操作组合出敏感信息；
+- 外部网页内容本身不可信；
+- 审批人可能疲劳式批准；
+- 代码级文件 jail 的 TOCTOU 窗口；
+- 依赖 DSH 工具返回值的可信度。
+
+因此：
+
+- 高风险操作必须保持人工审批；
+- 重要 workspace 建议启用 git 回滚；
+- shell 必须等 OS 级隔离；
+- 不把 Workspace 当作处理真实密钥的环境。
 
 结论：
 
@@ -1124,8 +1297,11 @@ MVP 建议只做 Phase 1 + Phase 2：
 [ ] 伪造/越权修改 Policy、Approval、Audit 硬拒绝
 [ ] 单 Run 最长 90s、最多 12 步、最多 12 次 LLM 调用
 [ ] token / 工具调用 / 无进展预算硬终止
+[ ] 预算账本、终止状态、重试记账正确
+[ ] 审批等待不消耗 wall time，且有独立 TTL
 [ ] 群消息、文件、网页、工具结果按 untrusted 处理
 [ ] 注入内容不能改 Policy、预算、工具白名单或审批
+[ ] 安全不变量 I1–I10 都有对应测试
 [ ] 注入测试集全部通过
 [ ] 一次任务能生成一个文件并回群摘要
 [ ] Run 记录可在面板查看
