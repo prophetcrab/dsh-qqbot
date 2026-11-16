@@ -5,7 +5,7 @@
 | 日期 | 2026-11-16 |
 | 状态 | 设计稿（未实现） |
 | 基线 | `dshbot-mac` / `bf9b046` |
-| 结论 | 独立 Workspace Task Runtime，不并入普通群聊 compose |
+| 结论 | analyze 判定需要时自动执行 Workspace Task，再进入 compose |
 
 ---
 
@@ -14,13 +14,14 @@
 ### 目标
 
 - 给 bot 一个独立工作目录和任务运行时。
-- 支持 `/work` 任务：文件操作、搜索、git diff、按策略调用 DSH 能力。
+- 群聊消息在 analyze 判定需要时自动执行 Workspace 任务，不需要用户额外下命令。
+- 支持文件操作、搜索、git diff、按策略调用 DSH 能力。
 - 每次任务有 Run 记录、预算、审计、审批和取消。
 - 面板可查看文件、Run、工具策略和审计。
 
 ### 非目标
 
-- 不让普通群消息自动获得 Workspace 权限。
+- 普通群消息不能直接指定工具、路径或策略；是否执行任务由 analyze 提案 + Runtime 校验决定。
 - MVP 不开放 shell、包安装和 DSH 控制面工具。
 - 不把 Workspace 当作真正的 OS 沙箱。
 - 不允许任务修改策略、审批或审计。
@@ -31,26 +32,34 @@
 ## 2. 总体架构
 
 ```text
-普通群聊：群消息 → analyze → compose → state-update（保持不变）
+QQ 群消息
+  → Koishi
+    → DSH group-turn
+      → analyze
+        ├─ 不需要任务 → compose
+        └─ 需要任务 → WorkspaceAgent（受预算/策略约束）
+                        → task result
+                        → compose
+      → state-update
+```
 
-工作任务：
-QQ / Koishi
-  → POST /qqbot/workspace/task
-    → WorkspaceAgent
-      ├─ WorkspaceFs
-      ├─ DSH Tools Bridge
-      ├─ DSH llm / agentDefaultModel
-      ├─ Policy / Approval
-      └─ RunStore / Audit
+WorkspaceAgent 内部：
+
+```text
+WorkspaceFs
+DSH Tools Bridge
+DSH llm / agentDefaultModel
+Policy / Approval
+RunStore / Audit
 ```
 
 原则：
 
-1. 普通聊天和任务执行分离。
-2. 默认拒绝，显式触发。
-3. 硬边界优先于策略和审批。
+1. 普通聊天和任务执行在同一个 turn 内编排，但任务可选。
+2. 由 analyze 自动判断是否执行任务，用户不需要额外命令。
+3. 自动执行不等于自动授权：硬边界、Policy、配额、预算照常生效。
 4. 先文件、后 DSH 工具、最后 shell。
-5. 长任务异步化，避免依赖 Koishi 单次请求。
+5. 任务超时不能拖垮普通回复，必须有 compose fallback。
 
 ---
 
@@ -295,12 +304,69 @@ queued → running → waiting_approval → running
 }
 ```
 
-### 6.4 结果回群
+### 6.4 结果回群与 turn 预算
 
-- MVP：90 秒内同步返回摘要；
-- 后续：异步 Run + 轮询/回调；
-- 群里只发摘要、变更文件、失败原因；
-- 完整日志留在面板和 Run 记录。
+自动任务和回复在同一个 group turn 内完成时：
+
+- 整个 turn 需要控制在 Koishi 请求超时以内；
+- MVP 建议单次自动任务最多 60 秒，给 compose 留时间；
+- 任务结果只把摘要 / 文件路径 / diff 摘要交给 compose；
+- 完整 Run 日志留在面板；
+- 任务超时或失败时，compose 仍要生成可读的 fallback，不能静默不回。
+
+超过 turn 预算的处理：
+
+- Phase 2：中止任务，compose 回复“这个任务没在限定时间内完成”，Run 标记失败；
+- Phase 5：改为异步 Run，先回“我处理一下”，完成后再主动发结果。
+
+### 6.5 自动任务编排
+
+analyze 除了决定 `speak`，还要返回可选的 `task` 提案：
+
+```json
+{
+  "speak": { "enabled": true, "kind": "reply", "replyType": "normal" },
+  "task": {
+    "needed": true,
+    "goal": "读取 workspace/groups/<id>/notes，生成本月摘要到 summary.md",
+    "reason": "用户明确要求整理文件"
+  }
+}
+```
+
+规则：
+
+- `task.goal` 只描述目标，不允许指定工具、策略、绝对路径或审批结果；
+- analyze 判断不需要任务时，`task.needed=false`；
+- 普通闲聊、情绪互动、简单问答默认不触发任务；
+- Runtime 会重新校验 goal、群/用户权限和预算，analyze 的提案不是授权；
+- 任务被拒绝或不可执行时，不静默失败：compose 要给出正常回复或说明。
+
+turn 编排：
+
+```text
+analyze
+  → task.needed?
+      yes → WorkspaceAgent.run(goal)
+              → taskResult / taskError
+      no  → 直接 compose
+  → compose（可注入任务摘要）
+  → state-update
+```
+
+自动任务还必须有限流：
+
+- 按群开启，不是所有群默认可用；
+- 每群冷却时间（例如 10 分钟）；
+- 每日 Run / token 配额；
+- 同一群同时只允许一个自动任务；
+- 触发失败或超时计入配额，防止反复试探。
+
+审批交互：
+
+- 自动 turn 默认只执行 `allow` 工具；
+- 需要审批的动作不会阻塞当前回复，而是把 Run 置为 `waiting_approval`，compose 提示“需要管理员确认”；
+- 审批完成后的结果通过异步消息回群（Phase 5）。
 
 ---
 
@@ -322,7 +388,7 @@ queued → running → waiting_approval → running
 - 不可信内容不能成为 system/developer 指令；
 - 不能修改 Policy、预算、工具白名单或审批；
 - 不能改变当前 Run 的目标；
-- 目标只能来自创建 Run 的显式请求。
+- 任务目标只能来自 analyze 提案，并经 Runtime 校验；不可信内容不能直接改变目标。
 
 ### 7.2 控制
 
@@ -354,24 +420,29 @@ I10 observation 不能伪造工具调用
 
 ## 8. 触发、API、面板
 
-### 命令
+### 自动触发
 
-```text
-/work <task>
-/work status
-/work cancel
-/work files
-/work diff
-/work approve <id>
-/work deny <id>
-```
+不设显式任务命令。用户正常说话，analyze 判断是否需要 Workspace：
 
-默认仅私聊管理员或白名单群管理员可创建任务；普通群聊永不触发 Workspace。
+| 消息 | 行为 |
+| --- | --- |
+| 日常聊天 / 情绪互动 | 不触发任务，直接 compose |
+| 明确要求整理文件、查 workspace、生成产物 | task.needed=true，自动执行 |
+| 需要外部事实但不需要写 workspace | 按普通回复处理，不强行创建任务 |
+| 群/用户无任务权限 | 不执行任务，compose 正常回复 |
+
+自动任务必须满足：
+
+- 群已启用 Workspace 自动任务；
+- 用户/群在策略允许范围内；
+- 未超过冷却、并发和每日配额；
+- analyze 的 task 提案通过 Runtime 校验。
 
 ### API
 
 ```text
-POST /qqbot/workspace/task
+POST /qqbot/group/turn        # Koishi 入口：analyze → 可选 task → compose
+POST /qqbot/workspace/task    # 内部/面板触发任务
 GET  /qqbot/workspace/runs
 GET  /qqbot/workspace/runs/:id
 POST /qqbot/workspace/runs/:id/cancel
@@ -380,6 +451,8 @@ POST /qqbot/workspace/policy
 GET  /qqbot/workspace/approvals
 POST /qqbot/workspace/approvals/:id
 ```
+
+`analyze` / `compose` 旧接口保留用于调试和兼容；新群聊链路优先走 `group-turn`。
 
 ### 面板
 
@@ -401,7 +474,7 @@ Workspace tab
 | --- | --- | --- |
 | Phase 0 | 探测 DSH tools API、原生 tool calling、工具风险 | 明确 Bridge 可行性 |
 | Phase 1 | WorkspaceFs、路径硬拦截、git、文件工具、策略模型 | 路径逃逸测试全过 |
-| Phase 2 | Run 模型、`/work`、单任务执行、预算、结果回群 | 能生成文件并回摘要 |
+| Phase 2 | Run 模型、analyze 自动任务、turn 编排、预算、结果进入 compose | 明确任务可自动生成产物并回复 |
 | Phase 3 | DSH Tools Bridge、自动默认 + 手动策略、审计 | 安全工具可调用，控制面工具拒绝 |
 | Phase 4 | shell + 审批 + OS 隔离 | 未审批命令不能执行 |
 | Phase 5 | 面板完整化、策略编辑、audit 查询 | 运营可用 |
@@ -413,7 +486,11 @@ MVP 只做 Phase 1 + Phase 2。
 ## 10. MVP 验收
 
 ```text
-[ ] /work 仅管理员/私聊可用
+[ ] 普通聊天不触发 Workspace
+[ ] 明确任务被 analyze 识别并自动执行
+[ ] 自动任务结果进入 compose，失败/超时有 fallback
+[ ] 群/用户无权限时不执行任务
+[ ] 冷却、并发、每日配额生效
 [ ] Workspace 文件读、写、列表、搜索
 [ ] `..`、绝对路径、符号链接、前缀伪装全部拒绝
 [ ] 直接 import node:fs / node:child_process 被架构测试拦截
@@ -435,10 +512,12 @@ MVP 只做 Phase 1 + Phase 2。
 
 ## 11. 待确认
 
-1. **触发**：仅管理员 `/work`（推荐）/ 白名单群 / 自然语言。
-2. **Shell**：MVP 不做（推荐）/ Phase 4 审批后 / 默认开放。
-3. **隔离**：所有群共享 / 每群子目录（推荐）/ shared 只读 + 群私有可写。
-4. **DSH 能力边界**：
+1. **自动任务范围**：默认关闭、按群白名单开启（推荐）/ 所有白名单群 / 所有群。
+2. **任务判定**：analyze 保守判定（推荐）/ 积极判定 / 仅明确文件类请求。
+3. **超时策略**：当前 turn 内中止 + fallback（推荐）/ 异步继续并晚点回。
+4. **Shell**：MVP 不做（推荐）/ Phase 4 审批后 / 默认开放。
+5. **隔离**：所有群共享 / 每群子目录（推荐）/ shared 只读 + 群私有可写。
+6. **DSH 能力边界**：
    - 只读 `qqbot_status` / `qqbot_logs`：建议允许；
    - `image_generate`：建议允许并按量配额；
    - MCP：按工具白名单；
