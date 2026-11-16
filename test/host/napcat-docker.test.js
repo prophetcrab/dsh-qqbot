@@ -9,6 +9,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { createHash } from 'node:crypto'
 import { apply } from '../../index.js'
 import { DockerNapcatManager } from '../../host/services/napcat/docker.js'
 import { resolveSettings } from '../../host/platform/index.js'
@@ -34,7 +35,7 @@ function makeSettings(dir, overrides = {}) {
  * Create a manager with a scripted `docker` executor.
  * `handler(file, args, options)` returns the execFile-style result.
  */
-async function makeManager(t, handler, { http, settings, settingsOverrides, launch, sleep } = {}) {
+async function makeManager(t, handler, { http, settings, settingsOverrides, launch, sleep, fetch } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-docker-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
   const resolved = settings ?? makeSettings(dir, settingsOverrides)
@@ -51,6 +52,7 @@ async function makeManager(t, handler, { http, settings, settingsOverrides, laun
       http: http ?? (async () => ({ ok: false, status: 0, data: null })),
       ...(typeof launch === 'function' ? { launch } : {}),
       ...(typeof sleep === 'function' ? { sleep } : {}),
+      ...(typeof fetch === 'function' ? { fetch } : {}),
     },
   })
   return { manager, calls, dir, settings: resolved }
@@ -185,10 +187,38 @@ test('docker backend: install pulls the image when it is missing', async (t) => 
   }
   const { manager } = await makeManager(t, handler, {
     http: async () => ({ ok: false, status: 0, data: null }),
+    settingsOverrides: { dockerNapcatImageUrl: '', dockerNapcatImageSha256: '' },
   })
   const result = await manager.install()
   assert.equal(result.ok, true)
   assert.equal(pulled.length, 1)
+})
+
+test('docker backend: install downloads and loads the GitHub image archive', async (t) => {
+  const buffer = Buffer.alloc(1024 * 1024 + 1, 7)
+  const digest = createHash('sha256').update(buffer).digest('hex')
+  let loaded = false
+  const calls = []
+  const handler = (file, args) => {
+    calls.push(args)
+    if (args[0] === 'info') return { code: 0, stdout: '29.6.2\n', stderr: '' }
+    if (args[0] === 'image') return loaded
+      ? { code: 0, stdout: 'sha256:image', stderr: '' }
+      : { code: 1, stdout: '', stderr: 'no image' }
+    if (args[0] === 'load') { loaded = true; return { code: 0, stdout: 'Loaded image', stderr: '' } }
+    return { code: 1, stdout: '', stderr: 'unexpected' }
+  }
+  const { manager } = await makeManager(t, handler, {
+    fetch: async () => ({ ok: true, status: 200, body: null, arrayBuffer: async () => buffer }),
+    settingsOverrides: {
+      dockerNapcatImageUrl: 'https://example.test/napcat.tar.gz',
+      dockerNapcatImageSha256: digest,
+    },
+  })
+  const result = await manager.install()
+  assert.equal(result.ok, true)
+  assert.match(result.message, /下载并加载/u)
+  assert.ok(calls.some((args) => args[0] === 'load'))
 })
 
 test('docker backend: missing docker surfaces an actionable error', async (t) => {

@@ -30,6 +30,7 @@ import { failure, isPlainObject, normalizeLogger } from './common.js'
 import { autoConfigure, configure } from './configure.js'
 import { ensureDefaultOnebotConfig } from './default-config.js'
 import { ensureDockerEngine } from './docker-engine.js'
+import { loadImageArchive } from './image-archive.js'
 import { START_TIMEOUT_MS, STOP_TIMEOUT_MS, waitForLogin } from './login.js'
 import { loginState as webuiLoginState, loginStatus as webuiLoginStatus, refreshQr as webuiRefreshQr } from './webui.js'
 import { status as snapshotStatus } from './snapshot.js'
@@ -112,6 +113,7 @@ export class DockerNapcatManager {
       ? this.deps.docker
       : (process.env.ORBSTACK_DOCKER || dockerBinary() || 'docker')
     this.launch = typeof this.deps.launch === 'function' ? this.deps.launch : launchDetached
+    this.fetch = typeof this.deps.fetch === 'function' ? this.deps.fetch : (typeof globalThis.fetch === 'function' ? globalThis.fetch.bind(globalThis) : null)
 
     const dataDir = typeof this.settings.dockerNapcatDataDir === 'string' ? this.settings.dockerNapcatDataDir : ''
     this.baseDir = dataDir !== '' ? dataDir : join(this.settings.projectDir, 'runtime', 'napcat-docker')
@@ -171,6 +173,19 @@ export class DockerNapcatManager {
       const image = await this.#docker(['image', 'inspect', '--format', '{{.Id}}', this.image], { timeoutMs: INSPECT_TIMEOUT_MS })
       if (image.code === 0) {
         return { ok: true, backend: 'docker', reused: true, version: this.image, message: `NapCat Docker 镜像已就绪（${this.image}）` }
+      }
+      const archiveUrl = typeof this.settings.dockerNapcatImageUrl === 'string' ? this.settings.dockerNapcatImageUrl : ''
+      if (archiveUrl !== '') {
+        const loaded = await loadImageArchive({
+          fetchImpl: this.fetch,
+          run: (args, options) => this.#docker(args, options),
+          url: archiveUrl,
+          sha256: this.settings.dockerNapcatImageSha256,
+          image: this.image,
+        })
+        if (loaded.ok !== true) return loaded
+        await this.refresh()
+        return { ok: true, backend: 'docker', version: this.image, ...loaded }
       }
       const pulled = await this.#compose(['pull'], { timeoutMs: COMPOSE_PULL_TIMEOUT_MS })
       if (pulled.code !== 0) {

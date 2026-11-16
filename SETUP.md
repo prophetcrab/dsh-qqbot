@@ -34,7 +34,7 @@ node scripts/install-profile.mjs --profile desktop --install
 
 - 从 `template/` 创建 `~/project/qq-bot`
 - 解压 Koishi 离线依赖
-- 启动 OrbStack 并拉取 NapCat Docker 镜像
+- 启动 OrbStack，下载 GitHub Release 镜像包并 `docker load`
 - 写入 OneBot 反向 WS 配置
 
 首次使用需要安装 OrbStack（`brew install --cask orbstack`）。本机 QQ 不被修改。
@@ -95,7 +95,7 @@ DSH 的 HTTP endpoint 由 `data/state/ai.json` 发布给 Koishi 插件。
 | 现象 | 检查 |
 | --- | --- |
 | NapCat 未安装 | 看 OrbStack 是否运行；看 Docker 镜像是否拉取成功 |
-| 镜像拉取失败 | 检查 OrbStack Docker registry mirror（例如 `https://docker.m.daocloud.io`），确认能访问 Docker Hub |
+| 镜像下载失败 | 检查 GitHub Release `napcat-docker-latest` 资产与 SHA-256；确认能访问 GitHub |
 | 二维码不显示 | NapCat 容器是否运行；端口 6099；查看容器日志 |
 | 机器人离线 | Koishi 5140、OneBot 反向 WS `/onebot` |
 | 权限不生效 | `data/config/access.json` 是否写入；Koishi access-control 是否启用 |

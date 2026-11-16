@@ -84,6 +84,12 @@
     },
     "githubRef": {
       "type": "string"
+    },
+    "dockerNapcatImageUrl": {
+      "type": "string"
+    },
+    "dockerNapcatImageSha256": {
+      "type": "string"
     }
   },
   "additionalProperties": true

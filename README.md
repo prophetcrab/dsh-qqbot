@@ -309,7 +309,7 @@ GameAdminService.GAMES 中的 id / name / description
 | 项 | 值 |
 | --- | --- |
 | 容器运行时 | OrbStack |
-| NapCat 镜像 | `mlikiowa/napcat-docker:latest` |
+| NapCat 镜像 | GitHub Release `napcat-docker-latest.tar.gz` → `docker load` |
 | 容器 | `dsh-qqbot-napcat` |
 | 数据目录 | `~/project/qq-bot/runtime/napcat-docker` |
 | WebUI | `127.0.0.1:6099` |
@@ -323,6 +323,8 @@ napcatBackend        docker（本分支固定使用 Docker）
 napcatPort           6099
 napcatToken          空
 dockerNapcatImage    mlikiowa/napcat-docker:latest
+dockerNapcatImageUrl GitHub Release napcat-docker-latest.tar.gz
+dockerNapcatImageSha256 固定 SHA-256
 dockerNapcatContainer dsh-qqbot-napcat
 dockerNapcatDataDir  空（默认 <projectDir>/runtime/napcat-docker）
 dockerNapcatHost     host.docker.internal
@@ -384,7 +386,7 @@ node scripts/install-profile.mjs --profile desktop --install
 1. 确认 OrbStack 已安装并完成初始化
 2. 从 `template/` 创建 `~/project/qq-bot`
 3. 解压内置 Koishi `darwin-arm64` 依赖
-4. 拉取 NapCat Docker 镜像
+4. 下载 GitHub Release 镜像包并 `docker load`
 5. 写 OneBot 反向 WS 配置
 6. 启动容器后扫码登录
 
@@ -413,7 +415,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 270 个 host/client 测试
+npm test                 # 271 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
 npm run smoke:host       # 47 routes / 6 tools / 3 features
