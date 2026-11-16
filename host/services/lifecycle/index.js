@@ -38,7 +38,7 @@ function describeSteps(steps, fallback) {
 export async function startAll(services) {
   const steps = []
   steps.push(await step('koishi', () => services.koishi.start()))
-  steps.push(await step('napcat', () => services.napcat.start()))
+  steps.push(await step('napcat', () => services.napcat.start({ waitForLogin: false })))
   return {
     ok: steps.every((entry) => entry.ok),
     message: describeSteps(steps, { ok: 'ok', fail: 'failed' }),

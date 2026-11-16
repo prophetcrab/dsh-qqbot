@@ -296,3 +296,21 @@ test('docker backend: qqbot_logs tails the container', async (t) => {
     : { code: 1, stdout: '', stderr: 'unexpected' }))
   assert.deepEqual(await manager.logs(2), ['line-1', 'line-2'])
 })
+
+test('docker backend: start with waitForLogin=false returns after compose up', async (t) => {
+  let running = false
+  const handler = (file, args) => {
+    if (args[0] === 'info') return { code: 0, stdout: '29.6.2\n', stderr: '' }
+    if (args[0] === 'image') return { code: 0, stdout: 'sha256:img', stderr: '' }
+    if (args[0] === 'inspect') return running
+      ? { code: 0, stdout: CONTAINER_RUNNING, stderr: '' }
+      : { code: 1, stdout: '', stderr: 'no such container' }
+    if (args.includes('up')) { running = true; return { code: 0, stdout: '', stderr: '' } }
+    return { code: 1, stdout: '', stderr: 'unexpected' }
+  }
+  const { manager } = await makeManager(t, handler)
+  const result = await manager.start({ waitForLogin: false })
+  assert.equal(result.ok, true)
+  assert.equal(result.waitingLogin, true)
+  assert.equal(result.loggedIn, false)
+})

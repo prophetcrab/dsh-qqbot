@@ -54,7 +54,7 @@ export async function runFullSetup({ api, setup }) {
   push('koishi-start', await koishi.start())
   let started = null
   if (napcatAfter.installed === true) {
-    started = await napcat.start()
+    started = await napcat.start({ waitForLogin: false })
     push('napcat-start', started)
   } else {
     steps.push({ step: 'napcat-start', ok: true, skipped: true, message: '等待 NapCat 安装完成' })

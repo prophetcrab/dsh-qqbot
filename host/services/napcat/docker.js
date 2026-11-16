@@ -212,6 +212,7 @@ export class DockerNapcatManager {
   async start(options = {}) {
     const requestedTimeout = Number(options?.timeoutMs)
     const timeoutMs = Number.isFinite(requestedTimeout) && requestedTimeout > 0 ? requestedTimeout : START_TIMEOUT_MS
+    const waitLogin = options?.waitForLogin !== false
     try {
       await this.ensureCompose()
       const engine = await this.ensureEngine()
@@ -227,6 +228,15 @@ export class DockerNapcatManager {
             qq: probe.qq,
             nickname: probe.nickname,
             message: `NapCat 容器已在运行${probe.qq ? `（QQ ${probe.qq}）` : ''}`,
+          }
+        }
+        if (this.webuiReachable === true && waitLogin === false) {
+          return {
+            ok: true,
+            alreadyRunning: true,
+            loggedIn: false,
+            waitingLogin: true,
+            message: 'NapCat 容器已在运行，请用手机扫描二维码登录 QQ',
           }
         }
         if (this.webuiReachable === true) {
@@ -245,6 +255,14 @@ export class DockerNapcatManager {
         return failure('docker-up-failed', `启动 NapCat 容器失败：${commandDetail(up)}`)
       }
       await this.refresh()
+      if (waitLogin === false) {
+        return {
+          ok: true,
+          loggedIn: false,
+          waitingLogin: true,
+          message: 'NapCat 容器已启动，请用手机扫描二维码登录 QQ',
+        }
+      }
       const started = await waitForLogin(this, timeoutMs)
       if (started?.ok === true && started.loggedIn === true) {
         await this.refresh()

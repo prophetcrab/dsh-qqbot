@@ -13,28 +13,32 @@ import { routes } from '../../host/plugins/lifecycle/routes.js'
 import { invokeRoute } from './helpers.js'
 
 function fakeServices(calls, { failNapcatStart = false } = {}) {
-  return {
+  const services = {
     koishi: {
       start: async () => { calls.push('koishi.start'); return { ok: true, message: 'koishi started' } },
       stop: async () => { calls.push('koishi.stop'); return { ok: true, message: 'koishi stopped' } },
     },
     napcat: {
-      start: async () => {
+      start: async (options) => {
         calls.push('napcat.start')
+        services.napcatStartOptions = options
         if (failNapcatStart) throw new Error('docker unavailable')
         return { ok: true, message: 'napcat started' }
       },
       stop: async () => { calls.push('napcat.stop'); return { ok: true, message: 'napcat stopped' } },
     },
   }
+  return services
 }
 
 test('lifecycle: startAll starts Koishi before NapCat', async () => {
   const calls = []
-  const result = await startAll(fakeServices(calls))
+  const services = fakeServices(calls)
+  const result = await startAll(services)
   assert.equal(result.ok, true)
   assert.deepEqual(calls, ['koishi.start', 'napcat.start'])
   assert.deepEqual(result.steps.map((step) => step.name), ['koishi', 'napcat'])
+  assert.equal(services.napcatStartOptions?.waitForLogin, false)
   assert.match(result.message, /koishi: ok/u)
 })
 
