@@ -113,7 +113,9 @@ export class DockerNapcatManager {
       ? this.deps.docker
       : (process.env.ORBSTACK_DOCKER || dockerBinary() || 'docker')
     this.launch = typeof this.deps.launch === 'function' ? this.deps.launch : launchDetached
-    this.fetch = typeof this.deps.fetch === 'function' ? this.deps.fetch : (typeof globalThis.fetch === 'function' ? globalThis.fetch.bind(globalThis) : null)
+    this.download = typeof this.deps.download === 'function'
+      ? this.deps.download
+      : (url, destination, options) => this.run('/usr/bin/curl', ['-L', '--fail', '--silent', '--show-error', '--output', destination, url], options)
 
     const dataDir = typeof this.settings.dockerNapcatDataDir === 'string' ? this.settings.dockerNapcatDataDir : ''
     this.baseDir = dataDir !== '' ? dataDir : join(this.settings.projectDir, 'runtime', 'napcat-docker')
@@ -177,7 +179,7 @@ export class DockerNapcatManager {
       const archiveUrl = typeof this.settings.dockerNapcatImageUrl === 'string' ? this.settings.dockerNapcatImageUrl : ''
       if (archiveUrl !== '') {
         const loaded = await loadImageArchive({
-          fetchImpl: this.fetch,
+          download: this.download,
           run: (args, options) => this.#docker(args, options),
           url: archiveUrl,
           sha256: this.settings.dockerNapcatImageSha256,

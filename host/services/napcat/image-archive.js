@@ -1,61 +1,46 @@
 /**
  * Download a `docker save` archive from GitHub Releases and load it into the
- * Docker engine. Used by the NapCat installer so a fresh machine does not need
- * Docker Hub access.
+ * Docker engine. Downloads go through curl rather than Node fetch so the
+ * system CA/proxy configuration is respected; this is required on managed
+ * macOS networks where Node's bundled CA rejects the proxy certificate.
  */
 
 import { createHash } from 'node:crypto'
-import { createWriteStream } from 'node:fs'
+import { createReadStream } from 'node:fs'
 import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import { failure } from './common.js'
 
 const MIN_ARCHIVE_BYTES = 1024 * 1024
 const DOWNLOAD_TIMEOUT_MS = 300_000
 const LOAD_TIMEOUT_MS = 300_000
 
-/** Stream the release asset to disk while hashing it. */
-async function download(url, destination, fetchImpl) {
-  if (typeof fetchImpl !== 'function') throw new Error('当前环境不支持 fetch，无法下载 NapCat 镜像包')
-  const controller = typeof AbortController === 'function' ? new AbortController() : null
-  const timer = controller === null ? null : setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
-  timer?.unref?.()
-  let response
-  try {
-    response = await fetchImpl(url, { redirect: 'follow', signal: controller?.signal })
-  } finally {
-    if (timer !== null) clearTimeout(timer)
-  }
-  if (response === null || response === undefined || response.ok !== true) {
-    throw new Error(`下载 NapCat 镜像包失败：HTTP ${response?.status ?? 'unknown'}`)
-  }
-  if (response.body === null || typeof Readable.fromWeb !== 'function') {
-    const { writeFile } = await import('node:fs/promises')
-    const buffer = Buffer.from(await response.arrayBuffer())
-    await writeFile(destination, buffer)
-    if (buffer.length < MIN_ARCHIVE_BYTES) throw new Error('NapCat 镜像包为空或过小')
-    return createHash('sha256').update(buffer).digest('hex')
-  }
-  const hash = createHash('sha256')
-  const source = Readable.fromWeb(response.body)
-  source.on('data', (chunk) => hash.update(chunk))
-  await pipeline(source, createWriteStream(destination))
-  const digest = hash.digest('hex')
-  const size = (await stat(destination)).size
-  if (size < MIN_ARCHIVE_BYTES) throw new Error('NapCat 镜像包为空或过小')
-  return digest
+/** SHA-256 of a file without loading it into memory. */
+function hashFile(file) {
+  return new Promise((resolvePromise, reject) => {
+    const hash = createHash('sha256')
+    const stream = createReadStream(file)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolvePromise(hash.digest('hex')))
+  })
 }
 
 /** Download, verify and `docker load` a NapCat image archive. */
-export async function loadImageArchive({ fetchImpl, run, url, sha256, image }) {
+export async function loadImageArchive({ download, run, url, sha256, image }) {
   if (typeof url !== 'string' || url === '') return failure('image-archive-missing', '未配置 NapCat 镜像包地址')
+  if (typeof download !== 'function') return failure('image-archive-download-missing', '当前环境没有 curl 下载通道')
   const tempDir = await mkdtemp(join(tmpdir(), 'dsh-napcat-image-'))
   const archive = join(tempDir, 'napcat-docker.tar.gz')
   try {
-    const actual = await download(url, archive, fetchImpl)
+    const downloaded = await download(url, archive, { timeoutMs: DOWNLOAD_TIMEOUT_MS })
+    if (downloaded?.code !== 0) {
+      return failure('image-archive-download-failed', `下载 NapCat 镜像包失败：${String(downloaded?.stderr || downloaded?.error || downloaded?.code).slice(0, 300)}`)
+    }
+    const bytes = (await stat(archive)).size
+    if (bytes < MIN_ARCHIVE_BYTES) return failure('image-archive-empty', 'NapCat 镜像包为空或过小')
+    const actual = await hashFile(archive)
     const expected = typeof sha256 === 'string' ? sha256.trim().toLowerCase() : ''
     if (expected !== '' && actual !== expected) {
       return failure('image-archive-checksum', `NapCat 镜像包校验失败：期望 ${expected.slice(0, 12)}…，实际 ${actual.slice(0, 12)}…`)
@@ -66,7 +51,7 @@ export async function loadImageArchive({ fetchImpl, run, url, sha256, image }) {
     }
     const inspect = await run(['image', 'inspect', '--format', '{{.Id}}', image], { timeoutMs: 30_000 })
     if (inspect.code !== 0) return failure('docker-load-missing-image', `镜像已加载但找不到 ${image}`)
-    return { ok: true, version: image, sha256: actual, source: url, message: 'NapCat 镜像包已下载并加载' }
+    return { ok: true, version: image, sha256: actual, bytes, source: url, message: 'NapCat 镜像包已下载并加载' }
   } finally {
     await rm(tempDir, { recursive: true, force: true }).catch(() => {})
   }

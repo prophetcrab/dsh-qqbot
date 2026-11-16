@@ -35,7 +35,7 @@ function makeSettings(dir, overrides = {}) {
  * Create a manager with a scripted `docker` executor.
  * `handler(file, args, options)` returns the execFile-style result.
  */
-async function makeManager(t, handler, { http, settings, settingsOverrides, launch, sleep, fetch } = {}) {
+async function makeManager(t, handler, { http, settings, settingsOverrides, launch, sleep, download } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'dsh-qqbot-docker-'))
   t.after(() => rm(dir, { recursive: true, force: true }))
   const resolved = settings ?? makeSettings(dir, settingsOverrides)
@@ -52,7 +52,7 @@ async function makeManager(t, handler, { http, settings, settingsOverrides, laun
       http: http ?? (async () => ({ ok: false, status: 0, data: null })),
       ...(typeof launch === 'function' ? { launch } : {}),
       ...(typeof sleep === 'function' ? { sleep } : {}),
-      ...(typeof fetch === 'function' ? { fetch } : {}),
+      ...(typeof download === 'function' ? { download } : {}),
     },
   })
   return { manager, calls, dir, settings: resolved }
@@ -209,7 +209,10 @@ test('docker backend: install downloads and loads the GitHub image archive', asy
     return { code: 1, stdout: '', stderr: 'unexpected' }
   }
   const { manager } = await makeManager(t, handler, {
-    fetch: async () => ({ ok: true, status: 200, body: null, arrayBuffer: async () => buffer }),
+    download: async (url, destination) => {
+      await writeFile(destination, buffer)
+      return { code: 0, stdout: '', stderr: '' }
+    },
     settingsOverrides: {
       dockerNapcatImageUrl: 'https://example.test/napcat.tar.gz',
       dockerNapcatImageSha256: digest,
