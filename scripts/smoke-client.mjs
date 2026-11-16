@@ -815,45 +815,6 @@ console.log('ai dashboard: ok')
 clickTestId(tree, 'qqbot-tab-overview')
 tree = await settle()
 
-// ---- runtime setup card -----------------------------------------------------
-expectTestId(tree, 'qqbot-setup-card')
-const setupSummaryText = text(expectTestId(tree, 'qqbot-setup-summary'))
-if (!setupSummaryText.includes('未创建')) throw new Error('setup card should report a missing Koishi project')
-if (!setupSummaryText.includes('未安装')) throw new Error('setup card should report missing dependencies')
-expectTestId(tree, 'qqbot-setup-install')
-expectTestId(tree, 'qqbot-setup-refresh')
-if (findTestId(tree, 'qqbot-setup-full') !== undefined) throw new Error('legacy full setup button should be removed')
-console.log('setup card: ok')
-
-// reinstall: POST starts the GitHub job and the card renders per-step progress
-clickTestId(tree, 'qqbot-setup-install')
-tree = await settle()
-if (fetchLog.filter((entry) => entry.method === 'POST' && entry.url === '/qqbot/setup/reinstall').length !== 1) {
-  throw new Error('reinstall did not POST /qqbot/setup/reinstall')
-}
-expectTestId(tree, 'qqbot-setup-progress')
-if (expectTestId(tree, 'qqbot-setup-install').props.disabled !== true) throw new Error('reinstall button must disable while running')
-if (!text(expectTestId(tree, 'qqbot-setup-status')).includes('正在重新安装')) throw new Error('setup status should show reinstall running')
-const setupSteps = findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-setup-step')
-if (setupSteps.length !== 9) throw new Error(`expected 9 setup steps, got ${setupSteps.length}`)
-const setupStepsText = setupSteps.map((node) => text(node)).join(' | ')
-for (const needle of ['停止现有服务', '下载 GitHub 资源', '校验资源', '同步 Koishi 环境', '安装依赖', '准备 NapCat Docker', '启动 Koishi', '启动 NapCat', '写入 OneBot 配置']) {
-  if (!setupStepsText.includes(needle)) throw new Error(`setup step copy missing: ${needle}`)
-}
-console.log('setup reinstall progress: ok')
-
-// finish the job -> refresh shows the ready state and completed steps
-finishSetupReinstall()
-clickTestId(tree, 'qqbot-setup-refresh')
-tree = await settle()
-if (!text(expectTestId(tree, 'qqbot-setup-status')).includes('运行环境已就绪')) {
-  throw new Error('setup card should report ready after the reinstall')
-}
-if (!text(expectTestId(tree, 'qqbot-setup-progress')).includes('9/9')) throw new Error('setup progress should complete at 9/9')
-expectTestId(tree, 'qqbot-setup-install')
-expectTestId(tree, 'qqbot-setup-collapse')
-console.log('setup reinstall flow: ok')
-
 // ---- action: start everything -> POST JSON ----------------------------------
 clickTestId(tree, 'qqbot-action-all-start')
 tree = await settle()

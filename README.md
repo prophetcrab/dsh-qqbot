@@ -388,8 +388,6 @@ node scripts/install-profile.mjs --profile desktop --install
 5. 写 OneBot 反向 WS 配置
 6. 启动容器后扫码登录
 
-面板「环境安装 → 重新安装环境」会从 `githubRepo@githubRef` 拉取 `template/`，同步 Koishi 插件与依赖，并重新准备 NapCat Docker 镜像。
-
 ## 运行时数据
 
 ```text

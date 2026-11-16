@@ -1,7 +1,6 @@
 import React from 'react'
 import { POLL_MS } from '../../runtime/api.js'
 import { renderLoginCard } from './LoginCard.js'
-import { renderSetupCard } from './SetupCard.js'
 
 export function renderOverview(panel) {
   const {
@@ -71,7 +70,6 @@ export function renderOverview(panel) {
   return h('div', { className: 'qqbot-stack' },
     h('div', { className: 'qqbot-grid' }, napcatCard, koishiCard),
     renderLoginCard(panel),
-    renderSetupCard(panel),
     h('section', { className: 'qqbot-card' },
       h('div', { className: 'qqbot-card-head' },
         h('h2', { className: 'qqbot-card-title' }, t('actionsTitle'))),
@@ -91,12 +89,12 @@ export function renderOverview(panel) {
 }
 
 /**
- * Overview hooks: status polling, the QR-login state machine and the runtime
- * setup poller. The card renderers below are pure functions of the panel.
+ * Overview hooks: status polling and the QR-login state machine. The card
+ * renderers below are pure functions of the panel.
  */
 export function useOverview(panel) {
   const {
-    hasSnapshot, napcatLoggedIn, setupPolling, tabRef, loggedInRef, loadStatus, loadSetup, loadLogin
+    hasSnapshot, napcatLoggedIn, tabRef, loggedInRef, loadStatus, loadLogin
   } = panel
 
   // Poll the snapshot; the host route is cheap and read-only.
@@ -111,10 +109,6 @@ export function useOverview(panel) {
     }
   }, [])
 
-  // First paint also reads the setup state once.
-  React.useEffect(() => {
-    loadSetup()
-  }, [])
 
   // Load the QR state as soon as the snapshot says the bot is signed out.
   React.useEffect(() => {
@@ -135,16 +129,4 @@ export function useOverview(panel) {
     }
   }, [])
 
-  // Setup polling: keep reading /qqbot/setup while an install is running.
-  React.useEffect(() => {
-    if (!setupPolling) return undefined
-    let disposed = false
-    const tick = () => { if (!disposed) loadSetup() }
-    tick()
-    const timer = setInterval(tick, 2000)
-    return () => {
-      disposed = true
-      clearInterval(timer)
-    }
-  }, [setupPolling])
 }

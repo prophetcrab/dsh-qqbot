@@ -30,8 +30,6 @@ node scripts/install-profile.mjs --profile desktop --install
 
 ## 2. 首次启动
 
-面板「环境安装 → 重新安装环境」会从 GitHub 重新拉取定制 Koishi 资源（`githubRepo@githubRef`），同步代码、安装依赖并准备 NapCat Docker 镜像；进度会按步骤显示。
-
 插件首次启动会自动：
 
 - 从 `template/` 创建 `~/project/qq-bot`
@@ -54,15 +52,6 @@ DSH 崩溃/被杀时由独立 watchdog 结束本项目 Koishi 进程。
 4. 登录后机器人状态变为在线
 
 ## 4. 配置
-
-### GitHub 环境源
-
-```text
-githubRepo  prophetcrab/dsh-qqbot
-githubRef   dshbot-mac
-```
-
-面板会从该分支下载 `template/`，同步 Koishi 资源；用户数据 `data/` 与 NapCat Docker `runtime/` 会保留。
 
 ### 权限
 

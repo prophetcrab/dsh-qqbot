@@ -42,9 +42,7 @@ const STATIC_TESTIDS = [
   'qqbot-message-row', 'qqbot-messages-filter', 'qqbot-messages-list', 'qqbot-messages-refresh', 'qqbot-panel',
   'qqbot-platform-badge', 'qqbot-plugin-install', 'qqbot-plugin-row',
   'qqbot-plugin-toggle', 'qqbot-plugin-uninstall', 'qqbot-plugins-refresh',
-  'qqbot-setup-card', 'qqbot-setup-collapse',
-  'qqbot-setup-expand', 'qqbot-setup-install', 'qqbot-setup-logs',
-  'qqbot-setup-refresh', 'qqbot-setup-status', 'qqbot-setup-step', 'qqbot-status-refresh',
+  'qqbot-status-refresh',
 ]
 
 /** Dynamic testids are template literals in the bundle. */
