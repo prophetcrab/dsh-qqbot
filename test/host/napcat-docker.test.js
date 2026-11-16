@@ -108,7 +108,7 @@ test('docker backend: start runs compose up and reports the login state', async 
   let running = false
   const handler = (file, args) => {
     if (args[0] === 'info') return { code: 0, stdout: '29.6.2\n', stderr: '' }
-    if (args[0] === 'image') return { code: 1, stdout: '', stderr: 'no image' }
+    if (args[0] === 'image') return { code: 0, stdout: 'sha256:image', stderr: '' }
     if (args[0] === 'inspect') {
       return running
         ? { code: 0, stdout: CONTAINER_RUNNING, stderr: '' }

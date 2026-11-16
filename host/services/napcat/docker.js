@@ -233,6 +233,13 @@ export class DockerNapcatManager {
       const engine = await this.ensureEngine()
       if (engine.ok !== true) return engine
       await this.refresh()
+      if (this.state.containerRunning !== true && this.state.imagePresent !== true) {
+        // First start after a fresh install must pull our GitHub archive, not
+        // let `compose up` silently fall back to Docker Hub.
+        const installed = await this.install()
+        if (installed.ok !== true) return installed
+        await this.refresh()
+      }
       if (this.state.containerRunning) {
         const probe = await this.loginStatus()
         if (probe.loggedIn === true) {
