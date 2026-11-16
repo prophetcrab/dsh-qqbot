@@ -43,7 +43,6 @@ export function renderSetupCard(panel) {
       { key: 'deps', label: t('setupDeps'), value: installing ? t('setupInstalling') : data.hasNodeModules === true ? t('setupInstalled') : t('setupNotInstalled') },
       { key: 'napcat', label: t('setupNapcat'), value: napcatInstalled ? t('stInstalled') : t('stMissing') },
       { key: 'onebot', label: t('setupOneBot'), value: napcat.configApplied === true ? t('setupConfigured') : t('setupPending') },
-      { key: 'source', label: t('setupSource'), value: `${data.githubRepo || '—'}@${data.githubRef || '—'}` },
     ]
   const summary = h('div', { className: 'qqbot-setup-summary', 'data-testid': 'qqbot-setup-summary' },
     ...summaryItems.map((item) => h('span', { key: item.key, className: 'qqbot-setup-item' },

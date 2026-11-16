@@ -317,7 +317,6 @@ export const zh = {
   setupLastInstall: '上次安装',
   setupInstallOk: '成功',
   setupInstallFail: '失败',
-  setupSource: 'GitHub',
   setupProgress: '进度',
   setupReinstalling: '正在重新安装…',
   setupReinstallFailed: '重装失败',

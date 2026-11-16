@@ -317,7 +317,6 @@ export const en = {
   setupLastInstall: 'Last install',
   setupInstallOk: 'ok',
   setupInstallFail: 'failed',
-  setupSource: 'GitHub',
   setupProgress: 'Progress',
   setupReinstalling: 'Reinstalling…',
   setupReinstallFailed: 'Reinstall failed',

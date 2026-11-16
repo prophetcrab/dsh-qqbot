@@ -2397,7 +2397,6 @@ window.__ModuleLoader__.load({
             { key: 'deps', label: t('setupDeps'), value: installing ? t('setupInstalling') : data.hasNodeModules === true ? t('setupInstalled') : t('setupNotInstalled') },
             { key: 'napcat', label: t('setupNapcat'), value: napcatInstalled ? t('stInstalled') : t('stMissing') },
             { key: 'onebot', label: t('setupOneBot'), value: napcat.configApplied === true ? t('setupConfigured') : t('setupPending') },
-            { key: 'source', label: t('setupSource'), value: `${data.githubRepo || '—'}@${data.githubRef || '—'}` },
           ]
         const summary = h('div', { className: 'qqbot-setup-summary', 'data-testid': 'qqbot-setup-summary' },
           ...summaryItems.map((item) => h('span', { key: item.key, className: 'qqbot-setup-item' },
@@ -3594,7 +3593,6 @@ window.__ModuleLoader__.load({
         setupLastInstall: 'Last install',
         setupInstallOk: 'ok',
         setupInstallFail: 'failed',
-        setupSource: 'GitHub',
         setupProgress: 'Progress',
         setupReinstalling: 'Reinstalling…',
         setupReinstallFailed: 'Reinstall failed',
@@ -4042,7 +4040,6 @@ window.__ModuleLoader__.load({
         setupLastInstall: '上次安装',
         setupInstallOk: '成功',
         setupInstallFail: '失败',
-        setupSource: 'GitHub',
         setupProgress: '进度',
         setupReinstalling: '正在重新安装…',
         setupReinstallFailed: '重装失败',
