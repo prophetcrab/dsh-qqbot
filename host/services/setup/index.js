@@ -9,7 +9,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync as fsExistsSync } from 'node:fs'
-import { copyFile, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RingLog, bundleKey, dataPaths, migrateDataLayout, npmExecutable, portPid, readJson, run } from '../../platform/index.js'
@@ -125,10 +125,18 @@ export class SetupManager {
       return { ok: true, created: false, skipped: true }
     }
     if (fsExistsSync(this.projectDir)) {
-      return {
-        ok: false,
-        error: 'project-not-empty',
-        message: `${this.projectDir} 已存在但不是 Koishi 项目，请清空该目录或修改 projectDir`,
+      // NapCat's Docker runtime can be created before the Koishi scaffold
+      // (for example when the container starts during first-run bootstrap).
+      // A directory containing only our runtime-owned entries is safe to
+      // complete in place; anything else is a foreign directory.
+      const entries = await readdir(this.projectDir).catch(() => null)
+      const runtimeOnly = Array.isArray(entries) && entries.every((name) => SKIP_NAMES.has(name))
+      if (!runtimeOnly) {
+        return {
+          ok: false,
+          error: 'project-not-empty',
+          message: `${this.projectDir} 已存在但不是 Koishi 项目，请清空该目录或修改 projectDir`,
+        }
       }
     }
     if (!fsExistsSync(join(this.templateDir, 'package.json'))) {
