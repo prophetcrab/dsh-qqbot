@@ -81,6 +81,7 @@ const LEGACY_ROUTES = [
   '/qqbot/setup',
   '/qqbot/setup/koishi',
   '/qqbot/setup/full',
+  '/qqbot/setup/reinstall',
   '/qqbot/logs',
   '/qqbot/napcat/install',
   '/qqbot/napcat/configure',
@@ -97,8 +98,8 @@ const LEGACY_ROUTES = [
   '/qqbot/koishi/plugins/install',
   '/qqbot/koishi/plugins/uninstall',
 ]
-assert.equal(LEGACY_ROUTES.length, 34, 'legacy route list must stay at 34')
-assert.ok(routes.size >= 34, `expected at least 34 routes, got ${routes.size}`)
+assert.equal(LEGACY_ROUTES.length, 35, 'legacy route list must stay at 35')
+assert.ok(routes.size >= 35, `expected at least 35 routes, got ${routes.size}`)
 for (const required of LEGACY_ROUTES) assert.ok(routes.has(required), `missing route ${required}`)
 assert.ok(routes.has('/qqbot/client/tabs'), 'missing client tab contribution route')
 

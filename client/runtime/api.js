@@ -20,6 +20,15 @@ export const SETUP_STEP_KEYS = {
   'koishi-start': 'setupStepKoishiStart',
   'napcat-configure': 'setupStepConfigure',
   'napcat-start': 'setupStepNapcatStart',
+  'stop-services': 'setupStepStop',
+  'download-source': 'setupStepDownload',
+  'extract-source': 'setupStepExtract',
+  'sync-koishi': 'setupStepSync',
+  'install-deps': 'setupStepDeps',
+  'napcat-docker': 'setupStepNapcatDocker',
+  'start-koishi': 'setupStepKoishiStart',
+  'start-napcat': 'setupStepNapcatStart',
+  'configure-onebot': 'setupStepConfigure',
 }
 
 export function messageOf(error) {

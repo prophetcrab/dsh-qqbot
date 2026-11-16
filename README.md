@@ -50,8 +50,8 @@ dsh-qqbot/
 ```
 
 平台层规则（ADR-0008 / 0009）：`process.platform` 只允许出现在
-`host/platform/`；本分支只携带 macOS 实现，`host/platform/win`、Docker NapCat
-后端和 Windows 离线包属于 `dshbot-win64` 分支，不得带回本分支。
+`host/platform/`；本分支只携带 macOS 实现，Windows 平台层和 Windows 离线包属于
+`dshbot-win64` 分支，不得带回本分支；Docker NapCat 后端由 macOS/Windows 共用。
 
 ### DSH Host 插件模型
 
@@ -329,6 +329,8 @@ dockerNapcatHost     host.docker.internal
 dockerAutoStart      true（自动启动 OrbStack）
 dockerDesktopPath    空（默认查找 /Applications/OrbStack.app）
 dockerEngineTimeoutMs 180000
+githubRepo           prophetcrab/dsh-qqbot
+githubRef            dshbot-mac
 lifecycleGuard       true（DSH 崩溃时由 watchdog 结束 Koishi 进程）
 ```
 
@@ -386,6 +388,8 @@ node scripts/install-profile.mjs --profile desktop --install
 5. 写 OneBot 反向 WS 配置
 6. 启动容器后扫码登录
 
+面板「环境安装 → 重新安装环境」会从 `githubRepo@githubRef` 拉取 `template/`，同步 Koishi 插件与依赖，并重新准备 NapCat Docker 镜像。
+
 ## 运行时数据
 
 ```text
@@ -411,7 +415,7 @@ DSH 写配置/人设/画像；Koishi 执行权限、触发和发送。旧版平�
 ## 开发
 
 ```bash
-npm test                 # 269 个 host/client 测试
+npm test                 # 270 个 host/client 测试
 npm run test:template    # 67 个 Koishi 模板测试（需 template 依赖）
 npm run build:client
 npm run smoke:host       # 47 routes / 6 tools / 3 features

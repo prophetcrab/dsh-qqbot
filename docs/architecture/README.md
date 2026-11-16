@@ -73,7 +73,7 @@ client/runtime ← client/components ← client/plugins ← client/index.js
 
 ## 6. 当前验证基线
 
-- DSH Host 测试：269 个（macOS Docker 后端当前基线）；
+- DSH Host 测试：270 个（macOS Docker 后端当前基线）；
 - Koishi 模板测试：67 个；
 - Client build、host smoke、client smoke、architecture guard；
 - Windows CI：`.github/workflows/checks.yml`，Windows runner；

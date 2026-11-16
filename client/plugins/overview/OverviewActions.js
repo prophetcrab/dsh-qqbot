@@ -44,7 +44,8 @@ export async function loadSetup(panel) {
     setSetupLogs(Array.isArray(data.logs) ? data.logs : [])
     setSetupError(null)
     setSetupPhase('ready')
-    if (data.installing === true) {
+    const jobRunning = data.reinstall !== null && typeof data.reinstall === 'object' && data.reinstall.status === 'running'
+    if (data.installing === true || jobRunning) {
       setSetupPolling(true)
     } else if (setupActionRef.current !== true) {
       setSetupPolling(false)
@@ -90,6 +91,21 @@ export function installKoishiEnv(panel) {
     setupActionRef.current = false
     setSetupPolling(false)
     loadSetup()
+  })
+}
+
+export function reinstallEnvironment(panel) {
+  const { loadSetup, runPost, setSetupSteps, setSetupResultMsg, setSetupPolling, setSetupExpanded, t } = panel
+  setSetupSteps(null)
+  setSetupResultMsg(null)
+  setSetupExpanded(true)
+  setSetupPolling(true)
+  return runPost('setup-reinstall', '/qqbot/setup/reinstall', {}, async () => {
+    await loadSetup()
+  }, t('setupReinstallStarted'), { acceptNotOk: true }).then((result) => {
+    if (result !== null && typeof result === 'object' && result.accepted === true) {
+      setSetupResultMsg(t('setupReinstallStarted'))
+    }
   })
 }
 

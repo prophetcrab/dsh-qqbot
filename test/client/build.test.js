@@ -43,7 +43,7 @@ const STATIC_TESTIDS = [
   'qqbot-platform-badge', 'qqbot-plugin-install', 'qqbot-plugin-row',
   'qqbot-plugin-toggle', 'qqbot-plugin-uninstall', 'qqbot-plugins-refresh',
   'qqbot-setup-card', 'qqbot-setup-collapse',
-  'qqbot-setup-expand', 'qqbot-setup-full', 'qqbot-setup-install', 'qqbot-setup-logs', 'qqbot-setup-napcat',
+  'qqbot-setup-expand', 'qqbot-setup-install', 'qqbot-setup-logs',
   'qqbot-setup-refresh', 'qqbot-setup-status', 'qqbot-setup-step', 'qqbot-status-refresh',
 ]
 

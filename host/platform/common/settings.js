@@ -46,6 +46,9 @@ export const BASE_SETTINGS = {
   /** Keep Koishi adapter selfId in sync with the QQ account logged into NapCat. */
   autoSyncSelfId: true,
   logLines: 200,
+  /** GitHub source used by the panel's environment reinstall. */
+  githubRepo: 'prophetcrab/dsh-qqbot',
+  githubRef: 'dshbot-mac',
 }
 
 /**
@@ -99,6 +102,8 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
     autoInstallDeps: source.autoInstallDeps === undefined ? defaults.autoInstallDeps : source.autoInstallDeps === true,
     autoSyncSelfId: source.autoSyncSelfId === undefined ? defaults.autoSyncSelfId : source.autoSyncSelfId === true,
     logLines,
+    githubRepo: typeof source.githubRepo === 'string' && source.githubRepo.trim() !== '' ? source.githubRepo.trim() : defaults.githubRepo,
+    githubRef: typeof source.githubRef === 'string' && source.githubRef.trim() !== '' ? source.githubRef.trim() : defaults.githubRef,
   }
 }
 

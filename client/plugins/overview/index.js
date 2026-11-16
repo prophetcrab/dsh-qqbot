@@ -1,7 +1,7 @@
 import { registerTab } from '../../runtime/tab-registry.js'
 import { useOverview, renderOverview } from './OverviewTab.js'
 import {
-  loadLogin, loadSetup, refreshLoginQr,
+  loadLogin, loadSetup, refreshLoginQr, reinstallEnvironment,
   installKoishiEnv, runSetupFull, installSetupNapcat,
   startAll, stopAll, installNapcat, configureNapcat,
   startNapcat, stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps,
@@ -16,7 +16,7 @@ registerTab({
     return () => renderOverview(panel)
   },
   handlers: {
-    loadLogin, loadSetup, refreshLoginQr,
+    loadLogin, loadSetup, refreshLoginQr, reinstallEnvironment,
     installKoishiEnv, runSetupFull, installSetupNapcat,
     startAll, stopAll, installNapcat, configureNapcat,
     startNapcat, stopNapcat, startKoishi, stopKoishi, restartKoishi, installDeps,

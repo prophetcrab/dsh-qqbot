@@ -78,6 +78,12 @@
       "type": "integer",
       "minimum": 10000,
       "maximum": 600000
+    },
+    "githubRepo": {
+      "type": "string"
+    },
+    "githubRef": {
+      "type": "string"
     }
   },
   "additionalProperties": true

@@ -9,10 +9,11 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync as fsExistsSync } from 'node:fs'
-import { copyFile, cp, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RingLog, bundleKey, dataPaths, migrateDataLayout, npmExecutable, portPid, readJson, run } from '../../platform/index.js'
+import { jobView, startReinstall as startReinstallJob } from './reinstall.js'
 import { setServerPort } from '../koishi/server-port.js'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -46,6 +47,14 @@ export class SetupManager {
     this.npmExecutable = typeof this.deps.npmExecutable === 'function' ? this.deps.npmExecutable : npmExecutable
     this.bundleKey = typeof this.deps.bundleKey === 'string' ? this.deps.bundleKey : bundleKey()
     this.logRing = new RingLog(400)
+    this.fetch = typeof this.deps.fetch === 'function' ? this.deps.fetch : globalThis.fetch
+    this.services = this.deps.services !== null && typeof this.deps.services === 'object' ? this.deps.services : {}
+    this.githubRepo = typeof this.settings.githubRepo === 'string' && this.settings.githubRepo !== '' ? this.settings.githubRepo : 'prophetcrab/dsh-qqbot'
+    this.githubRef = typeof this.settings.githubRef === 'string' && this.settings.githubRef !== '' ? this.settings.githubRef : 'dshbot-mac'
+    /** @type {object|null} */
+    this.reinstallJob = null
+    /** @type {Promise<object>|null} */
+    this.reinstallTask = null
     /** @type {boolean} */
     this.installing = false
     /** @type {{ ok: boolean, code: number|null, startedAt: string, finishedAt: string, error?: string }|null} */
@@ -90,6 +99,9 @@ export class SetupManager {
       bundleAvailable: fsExistsSync(this.bundlePath()),
       installing: this.installing,
       lastInstall: this.lastInstall,
+      reinstall: jobView(this.reinstallJob),
+      githubRepo: this.githubRepo,
+      githubRef: this.githubRef,
       logs: this.logRing.tail(40),
     }
   }
@@ -188,6 +200,53 @@ export class SetupManager {
     return { ok: true, skipped: true }
   }
 
+  /** Start the GitHub environment reinstall job (returns immediately). */
+  startReinstall() {
+    return startReinstallJob(this)
+  }
+
+  /**
+   * Replace the project code from a downloaded template while preserving
+   * runtime data (`data/`, `runtime/`, `logs/`).
+   *
+   * @param {string} templateDir
+   * @param {string} [previousSelfId]
+   */
+  async syncProject(templateDir, previousSelfId = '') {
+    const backupDir = join(this.projectDir, 'runtime', 'setup-backup', new Date().toISOString().replace(/[:.]/gu, '-'))
+    await mkdir(backupDir, { recursive: true })
+    for (const file of ['koishi.yml', 'package.json']) {
+      if (fsExistsSync(join(this.projectDir, file))) {
+        await copyFile(join(this.projectDir, file), join(backupDir, file)).catch(() => {})
+      }
+    }
+    for (const name of ['plugins', 'node_modules', 'presets']) {
+      await rm(join(this.projectDir, name), { recursive: true, force: true })
+    }
+    await mkdir(this.projectDir, { recursive: true })
+    await cp(templateDir, this.projectDir, {
+      recursive: true,
+      filter: (source) => !SKIP_NAMES.has(basename(source)),
+    })
+    await mkdir(join(this.projectDir, 'data'), { recursive: true })
+    await mkdir(join(this.projectDir, 'runtime'), { recursive: true })
+    await migrateDataLayout(this.projectDir)
+    await this.#syncKoishiPort()
+    await this.#seedPresets(templateDir)
+    if (typeof previousSelfId === 'string' && /^[1-9]\d{4,11}$/u.test(previousSelfId)) {
+      await this.setKoishiSelfId(previousSelfId)
+    }
+    return { ok: true, backupDir, message: `已同步 GitHub 模板，旧配置备份在 ${backupDir}` }
+  }
+
+  /** Install dependencies from a downloaded template bundle, then npm. */
+  async installDependenciesFrom(templateDir) {
+    if (fsExistsSync(join(this.projectDir, 'node_modules'))) return { ok: true, alreadyInstalled: true, message: '依赖已安装' }
+    const bundled = await this.#extractBundle(templateDir)
+    if (bundled) return { ok: true, bundled: true, message: '已从 GitHub 模板解压依赖包' }
+    return this.#runNpmInstall()
+  }
+
   /**
    * Read the configured Koishi OneBot `selfId`, if present.
    *
@@ -258,9 +317,9 @@ export class SetupManager {
    * Extract the platform-matched offline node_modules bundle, if present.
    * Returns true when node_modules now exists.
    */
-  async #extractBundle() {
+  async #extractBundle(templateDir = this.templateDir) {
     if (fsExistsSync(join(this.projectDir, 'node_modules'))) return true
-    const bundle = this.bundlePath()
+    const bundle = join(templateDir, 'runtime-bundles', `node_modules-${this.bundleKey}.tar.gz`)
     if (!fsExistsSync(bundle)) return false
     this.logRing.append(`[setup] 解压内置依赖包：${bundle}`)
     try {
@@ -297,8 +356,8 @@ export class SetupManager {
    * Seed the shipped persona presets into data/ on first install. Never
    * overwrites an existing preset library.
    */
-  async #seedPresets() {
-    const seed = join(this.templateDir, 'presets', 'persona-presets.json')
+  async #seedPresets(templateDir = this.templateDir) {
+    const seed = join(templateDir, 'presets', 'persona-presets.json')
     const target = dataPaths(this.projectDir).assets.personaPresets
     if (!fsExistsSync(seed) || fsExistsSync(target)) return false
     await mkdir(dirname(target), { recursive: true })

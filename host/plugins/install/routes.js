@@ -23,6 +23,12 @@ export function routes(api, setup) {
       }),
     },
     {
+      path: '/qqbot/setup/reinstall',
+      handler: (req, res) => only(req, res, ['POST'], async () => {
+        sendJson(res, 200, await api.serialize(() => setup.startReinstall()))
+      }),
+    },
+    {
       path: '/qqbot/setup/full',
       handler: (req, res) => only(req, res, ['POST'], async () => {
         sendJson(res, 200, await api.serialize(() => runFullSetup({ api, setup })))

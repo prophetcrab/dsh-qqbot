@@ -282,3 +282,68 @@ test('ensureProject: aligns koishi.yml server port with the profile setting', as
   assert.match(text, /port: 5150/u)
   assert.match(text, /maxPort: 5150/u)
 })
+
+test('reinstall: runs GitHub sync, dependency bundle and service restart with progress', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-setup-'))
+  const templateDir = await makeTemplate(join(root, 'template'))
+  await writeFile(join(templateDir, 'koishi.yml'), [
+    'plugins:',
+    '  group:server:',
+    '    server:sn8oqx:',
+    '      port: 5140',
+    '  group:adapter:',
+    '    adapter-onebot:rwzua8:',
+    "      selfId: '10000'",
+    '',
+  ].join('\n'))
+  await mkdir(join(templateDir, 'runtime-bundles'), { recursive: true })
+  await writeFile(join(templateDir, 'runtime-bundles', 'node_modules-darwin-arm64.tar.gz'), 'fake')
+  const settings = await makeSettings(root)
+  settings.githubRepo = 'prophetcrab/dsh-qqbot'
+  settings.githubRef = 'dshbot-mac'
+  const calls = []
+  const setup = new SetupManager({
+    settings,
+    logger,
+    deps: {
+      templateDir,
+      bundleKey: 'darwin-arm64',
+      run: async (file, args) => {
+        calls.push(['run', file, ...args])
+        if (file === 'git') {
+          const rootDir = args.at(-1)
+          const target = join(rootDir, 'template')
+          await mkdir(join(target, 'plugins', 'demo'), { recursive: true })
+          await writeFile(join(target, 'package.json'), JSON.stringify({ name: 'demo', version: '1.0.0' }))
+          await writeFile(join(target, 'koishi.yml'), await readFile(join(templateDir, 'koishi.yml'), 'utf8'))
+          await writeFile(join(target, 'plugins', 'demo', 'index.js'), 'export default {}\n')
+          await mkdir(join(target, 'runtime-bundles'), { recursive: true })
+          await writeFile(join(target, 'runtime-bundles', 'node_modules-darwin-arm64.tar.gz'), 'fake')
+        } else if (args.includes('-C')) {
+          await mkdir(join(settings.projectDir, 'node_modules', 'koishi'), { recursive: true })
+        }
+        return { code: 0, stdout: '', stderr: '' }
+      },
+      services: {
+        koishi: { stop: async () => ({ ok: true }), start: async () => ({ ok: true, message: 'koishi started' }) },
+        napcat: {
+          stop: async () => ({ ok: true }),
+          install: async () => ({ ok: true, version: 'docker' }),
+          start: async () => ({ ok: true, waitingLogin: true }),
+          configure: async () => ({ ok: true }),
+          loginState: async () => ({ loggedIn: false }),
+        },
+      },
+    },
+  })
+  const started = setup.startReinstall()
+  assert.equal(started.accepted, true)
+  assert.equal(started.job.steps.length, 9)
+  await setup.reinstallTask
+  const status = await setup.status()
+  assert.equal(status.reinstall.status, 'succeeded')
+  assert.deepEqual(status.reinstall.steps.map((step) => step.status), Array(9).fill('ok'))
+  assert.equal(calls.filter((call) => call[1] === 'tar').length, 1)
+  assert.ok(existsSync(join(settings.projectDir, 'plugins', 'demo', 'index.js')))
+  assert.ok(existsSync(join(settings.projectDir, 'node_modules')))
+})

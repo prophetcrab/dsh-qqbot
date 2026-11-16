@@ -1,5 +1,5 @@
 /**
- * Install plugin: one-click environment setup (scaffold/deps/NapCat/OneBot).
+ * Install plugin: GitHub environment reinstall, Koishi scaffolding and one-click setup.
  */
 
 import { SetupManager } from '../../services/setup/index.js'
@@ -14,11 +14,12 @@ export default {
   version,
   inject: ['platform', 'napcat', 'koishi'],
   provides: ['setup'],
-  description: 'Koishi project scaffolding, offline dependency bundle and one-click setup.',
+  description: 'GitHub environment reinstall: Koishi template sync, dependencies, NapCat Docker and OneBot config.',
   async apply(api) {
     const setup = new SetupManager({
       settings: api.settings,
       logger: api.logger,
+      deps: { services: { napcat: api.get('napcat'), koishi: api.get('koishi') } },
     })
     api.provide('setup', setup)
     api.registerRoutes(routes(api, setup))

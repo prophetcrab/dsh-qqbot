@@ -6,7 +6,7 @@ import { renderSetupCard } from './SetupCard.js'
 export function renderOverview(panel) {
   const {
     t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
-    stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi,
+    stopNapcat, startKoishi, stopKoishi, installDeps, reinstallEnvironment, hasSnapshot, napcat, koishi,
     settings, napcatSupported, platformInstallHint, napcatInstalled,
     napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, lifecycleBusy, h
   } = panel
