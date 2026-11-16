@@ -2,452 +2,155 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 日期 | 2026-11-10 |
-| 状态 | 设计草案（未实现，先定边界再开发） |
-| 基线 | `dshbot-mac` / `fabb235` |
-| 关联 | group-loop、prompt assembly、ADR-0011、DSH host services |
-| 结论 | 推荐做独立的 Workspace Task Runtime，不把 workspace 能力塞进普通群聊 compose |
+| 日期 | 2026-11-16 |
+| 状态 | 设计稿（未实现） |
+| 基线 | `dshbot-mac` / `bf9b046` |
+| 结论 | 独立 Workspace Task Runtime，不并入普通群聊 compose |
 
 ---
 
-## 1. 背景
+## 1. 目标与边界
 
-当前 QQ bot 的群聊链路是：
+### 目标
 
-```text
-QQ 群消息
-  → Koishi group-listener
-  → DSH /qqbot/group/analyze
-  → DSH /qqbot/group/compose
-  → DSH /qqbot/group/state-update
-  → Koishi 发送回复
-```
+- 给 bot 一个独立工作目录和任务运行时。
+- 支持 `/work` 任务：文件操作、搜索、git diff、按策略调用 DSH 能力。
+- 每次任务有 Run 记录、预算、审计、审批和取消。
+- 面板可查看文件、Run、工具策略和审计。
 
-它解决的是“看群聊、决定说不说、怎么说”，本身没有文件系统、命令执行或 DSH 工具调用能力。
+### 非目标
 
-我们的 ReAct 和自建工具栈已经移除，当前 compose 是单次 LLM 调用。  
-下一步希望机器人拥有自己的 workspace，并在 workspace 里调用 DSH 的能力完成实际任务。
-
-这里的核心问题不是“怎么再写一套工具”，而是：
-
-- 任务在哪里执行；
-- 执行时能访问什么；
-- QQ 群消息如何安全地触发；
-- 长任务如何回传；
-- 如何审计、取消、回滚。
+- 不让普通群消息自动获得 Workspace 权限。
+- MVP 不开放 shell、包安装和 DSH 控制面工具。
+- 不把 Workspace 当作真正的 OS 沙箱。
+- 不允许任务修改策略、审批或审计。
+- 不做无人值守的长期自治任务。
 
 ---
 
-## 2. 目标与非目标
-
-### 2.1 目标
-
-1. 给 bot 一个独立、可持久化的工作目录（Workspace）。
-2. 支持通过明确命令触发任务，而不是所有群聊消息都能触发。
-3. 在 Workspace 内完成文件读写、搜索、git diff 等基础工作。
-4. 通过 Capability Adapter 调用 DSH 暴露的安全能力。
-5. 每次任务有 Run 记录、工具调用记录、耗时、token 用量和审计日志。
-6. 能取消任务、限制资源、失败可读。
-7. 在 DSH 面板里查看 Workspace 文件、Run、审批和策略。
-
-### 2.2 非目标
-
-MVP 阶段明确不做：
-
-- 不把 Workspace 能力接进普通 `compose`；
-- 不允许任意群成员直接执行 shell；
-- 不允许访问 Workspace 之外的宿主目录；
-- 不开放 `qqbot_control` / `qqbot_configure` 等控制面工具；
-- 不把 Workspace 当作真正的 OS 沙箱；
-- 不允许任务自己修改权限策略或审批规则；
-- 不做无人值守的长期后台自治任务。
-
----
-
-## 3. 结论摘要
-
-建议采用：
+## 2. 总体架构
 
 ```text
-普通聊天：analyze / compose（保持现状，快速回复）
-工作任务：/work → 独立 Workspace Task Runtime
-```
+普通群聊：群消息 → analyze → compose → state-update（保持不变）
 
-Workspace Runtime 的边界：
-
-```text
+工作任务：
 QQ / Koishi
-  → /qqbot/workspace/task
+  → POST /qqbot/workspace/task
     → WorkspaceAgent
-      ├─ Workspace 文件系统（受路径约束）
-      ├─ DSH Tools Bridge（按白名单）
+      ├─ WorkspaceFs
+      ├─ DSH Tools Bridge
       ├─ DSH llm / agentDefaultModel
       ├─ Policy / Approval
-      └─ Run Store / Audit
+      └─ RunStore / Audit
 ```
 
-关键原则：
+原则：
 
-1. **硬边界优先**：先定义“永远不允许”的硬拦截层，再讨论策略和审批。
-2. **审批不是兜底**：审批只能放行硬边界内允许的操作，不能把禁止项变成允许项。
-3. **默认拒绝**：工具、路径、命令都先拒绝，再按策略放行。
-4. **显式触发**：只有 `/work`（或后续确认的触发方式）进入任务运行时。
-5. **文件硬隔离、进程默认禁用**：文件层可以做到代码级路径硬拦截；进程层在获得 OS 级沙箱前必须硬禁用。
-6. **先文件、后工具、再 shell**：不要第一步就开放命令执行。
-7. **策略双路线**：默认配置自动生成 allow/approval 基线，管理员可按工具手动覆盖；两者都不能突破 hard deny。
-8. **长任务异步化**：Koishi 请求有超时限制，Workspace 任务不应强依赖单次 HTTP 同步返回。
+1. 普通聊天和任务执行分离。
+2. 默认拒绝，显式触发。
+3. 硬边界优先于策略和审批。
+4. 先文件、后 DSH 工具、最后 shell。
+5. 长任务异步化，避免依赖 Koishi 单次请求。
 
 ---
 
-## 4. 当前链路与边界
+## 3. Workspace
 
-### 4.1 保持不变
-
-```text
-群消息 → analyze → compose → state-update
-```
-
-- 继续使用 DSH `llm` 与 `agentDefaultModel`；
-- 继续使用 persona v2（`[NAME LOAD]` / `[SETTING LOAD]`）；
-- 继续使用 prompt 配置，不在普通聊天中加入工具循环。
-
-### 4.2 新增独立链路
-
-```text
-/work 任务消息
-  → Workspace Task API
-  → WorkspaceAgent
-  → 结果摘要 / 文件 / diff 回到群或面板
-```
-
-两条链路共享：
-
-- DSH LLM；
-- persona；
-- token 统计基础设施；
-- 面板与本地 HTTP guard。
-
-但不能共享“群聊一收到消息就自动执行”的语义。
-
----
-
-## 5. 目标架构
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ DSH Host                                                 │
-│                                                         │
-│  group-loop（现有）          workspace（新增）            │
-│  ├─ analyze/compose          ├─ WorkspaceService         │
-│  ├─ persona/prompt           ├─ WorkspaceAgent           │
-│  └─ state-update             ├─ ToolsBridge              │
-│                              ├─ Policy/Approval          │
-│                              └─ RunStore/Audit           │
-│                                                         │
-│  DSH services: llm, agentDefaultModel, tools,            │
-│                attachments, systemPrompt                 │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-                 workspace filesystem
-                 ~/project/qq-bot/workspace
-```
-
-### 5.1 组件职责
-
-| 组件 | 职责 |
-| --- | --- |
-| WorkspaceService | 根目录、路径安全、文件 CRUD、搜索、git diff |
-| WorkspaceAgent | 一次任务的目标拆解、LLM 调用、步骤执行、结果汇总 |
-| ToolsBridge | 枚举/执行 DSH 工具，做白名单和参数检查 |
-| Policy | 决定用户/群/工具/操作能否执行 |
-| Approval | 敏感操作挂起、确认、拒绝、过期 |
-| RunStore | Run 状态、步骤、产物、用量 |
-| Audit | 追加式审计日志，记录谁在什么上下文做了什么 |
-| Workspace API | 给 Koishi / 面板调用的 HTTP 接口 |
-| Workspace Panel | 文件、Run、审批、策略、日志 UI |
-
-### 5.2 硬拦截边界（Hard Boundary）
-
-“硬拦截”指：由代码或操作系统直接拒绝，发生在 Policy、审批和模型判断之前；  
-配置、模型、群指令、管理员审批都不能覆盖。
-
-建议把权限分成两层执行：
-
-```text
-① Hard Boundary   永远不能发生的事（代码/OS 拒绝）
-② Policy/Approval 在允许集合内，决定哪些需要审批
-```
-
-#### 硬拦截清单
-
-| 操作 | 硬拦截策略 | 审批能否放行 |
-| --- | --- | --- |
-| 访问 Workspace 外路径 | 拒绝 | ❌ |
-| `..` 越界、绝对路径 | 拒绝 | ❌ |
-| 符号链接逃逸 | 拒绝 | ❌ |
-| 访问设备、FIFO、socket 等特殊文件 | 拒绝 | ❌ |
-| `qqbot_control` / `qqbot_configure` | 拒绝 | ❌ |
-| DSH 配置/模型配置/密钥目录 | 拒绝 | ❌ |
-| 未知工具 / 未登记工具 | 拒绝 | ❌ |
-| 修改 Policy / Approval / Audit | 拒绝 | ❌ |
-| 任务批准自己的审批 | 拒绝 | ❌ |
-| 伪造 groupId / userId | 拒绝 | ❌ |
-| 超过资源硬上限 | 终止任务 | ❌ |
-| shell / 包安装 | MVP 硬禁用 | ❌（Phase 4 才可能开启） |
-
-#### 5.2.1 文件系统硬隔离
-
-所有文件操作必须经过唯一的 `WorkspaceFs` 门面，禁止业务代码直接调用 `node:fs`：
-
-```text
-WorkspaceFs
-├─ resolve(path)     # 拒绝绝对路径、..、NUL
-├─ realpath(path)    # 解析后仍必须在 root 内
-├─ rejectSymlink()   # 拒绝符号链接；或使用 O_NOFOLLOW
-├─ open/read/write/list/move/delete
-└─ quota()           # 文件数、总大小、单文件大小
-```
-
-硬性要求：
-
-- 路径 resolve 后必须以 workspace realpath 为前缀；
-- 目标本身和父目录逐级检查符号链接；
-- 只允许普通文件和目录；
-- 不允许通过 `rename`、`copy`、`open` 绕过检查；
-- Windows 版还要处理盘符、UNC、大小写、ADS 等边界（后续平台分支验证）。
-
-代码级检查只能降低风险，不能完全消除 TOCTOU。  
-如果要求“绝对不可越界”，最终仍需要 OS 级文件沙箱或容器；但**所有代码路径统一门面 + 拒绝符号链接 + realpath 校验**应是 Phase 1 的硬要求。
-
-#### 5.2.2 进程硬隔离
-
-MVP：
-
-```text
-shell / child_process / exec / spawn = 硬禁用
-```
-
-不是“配置里默认关闭”，而是：
-
-- 不允许导入 `node:child_process`（架构测试拦截）；
-- 不存在可被模型调用的执行工具；
-- 即使 Policy 被误改，也没有执行入口。
-
-Phase 4 若开放 shell，必须满足：
-
-- 有 OS 级沙箱（`sandbox-exec` / 容器 / 独立用户）；
-- 无沙箱时启动直接失败，不允许 fallback 到裸 `spawn`；
-- cwd 固定在 workspace；
-- 环境变量白名单；
-- 固定超时、输出上限、进程组终止。
-
-只设置 `cwd` 不是硬隔离。
-
-#### 5.2.3 工具硬白名单
-
-ToolsBridge 采用“先编译白名单，再执行”：
-
-```text
-allowed = new Set([...])       # 代码内固定，不从 QQ 读取
-if (!allowed.has(name)) deny
-if (denied.has(name)) deny
-```
-
-- 未知工具一律拒绝；
-- DSH 控制面工具进入不可覆盖的 denylist；
-- 群指令/模型输出不能修改 allowed/denied；
-- 工具 schema 在注册时校验，运行时再次检查参数。
-
-#### 5.2.4 状态硬隔离
-
-以下路径对 Agent 只读或完全不可见：
-
-```text
-data/config/workspace.json
-data/config/workspace-policy.json
-data/state/workspace/approvals/
-data/state/workspace/audit.jsonl
-```
-
-- Run 只能追加自己的运行记录；
-- 不能删除、改写审计；
-- 不能修改 Policy；
-- 不能写 Approval 结果；
-- 管理员只能通过面板路由修改 Policy，不能通过 QQ 任务修改。
-
-#### 5.2.5 触发硬门禁
-
-任务入口先做身份硬校验，再做 Policy：
-
-```text
-1. 是否本地 HTTP 请求（面板/Koishi）
-2. 是否已登记群/用户
-3. 是否管理员或显式允许
-4. 是否超过并发限制
-```
-
-身份不明确时 fail closed，不进入 WorkspaceAgent。
-
-#### 5.2.6 资源硬上限
-
-资源上限由 Runtime 强制执行，不是提示词里的“请不要”：
-
-- 超时直接 abort；
-- 步骤 / LLM 调用 / token / 工具调用超限直接终止；
-- 连续无进展达到上限直接终止；
-- 输出/文件超限直接拒绝；
-- 进程超时杀进程组；
-- 配额满时拒绝新写入。
-
-#### 5.2.7 审批与硬拦截的关系
-
-```text
-硬拦截拒绝 → 任何审批都无效
-Policy 允许但敏感 → 审批可以决定是否执行
-Policy 禁止 → 不能通过审批放行
-```
-
-审批解决“是否现在做”，不解决“是否允许做”。  
-控制面工具、Workspace 外路径、Policy 修改属于后者，永远不可审批。
-
----
-
-## 6. Workspace 设计
-
-### 6.1 位置
+路径：
 
 ```text
 ~/project/qq-bot/workspace/
 ```
 
-不放在源码仓库内，避免误提交和误删除。
-
-### 6.2 目录结构
+结构：
 
 ```text
 workspace/
-├── README.md                 # 给 bot 和用户看的目录说明
-├── shared/                   # 所有群可读的公共资料
-├── groups/
-│   └── <sanitized-group-id>/
-│       ├── notes/
-│       ├── projects/
-│       └── scratch/
+├── shared/                 # 公共资料
+├── groups/<group-id>/      # 群私有目录
+│   ├── notes/
+│   ├── projects/
+│   └── scratch/
 ├── .bot/
-│   ├── runs/                 # Run 记录
-│   ├── approvals/            # 待审批操作
-│   ├── audit.jsonl           # 追加式审计
-│   └── config.json           # 权限/资源策略
-└── .git/                     # 推荐初始化
+│   ├── runs/
+│   ├── approvals/
+│   ├── audit.jsonl
+│   └── config.json
+└── .git/
 ```
 
-### 6.3 多群隔离
-
-推荐：
-
-- `shared/`：公共只读或受限写入；
-- `groups/<id>/`：群私有工作区；
-- `scratch/`：临时文件，按 Run 清理；
-- 群 ID 必须 hash/白名单过滤，不能直接拼路径。
-
-不建议所有群共用一个可写目录。群 ID 不可信，直接拼接会产生路径注入和跨群覆盖风险。
-
-### 6.4 Git
-
-建议 Workspace 初始化 Git 仓库：
-
-- 每次 Run 前记录 HEAD；
-- 任务结束后生成 diff；
-- 文件修改可通过 git 回滚；
-- 面板展示变更文件；
-- `.bot/` 加入 `.gitignore`。
-
-Git 不替代权限控制，但能显著降低“改坏了无法回滚”的成本。
+- 群 ID 必须 hash/白名单处理，不能直接拼路径。
+- 推荐初始化 git：每次 Run 记录 HEAD，结束后生成 diff，可回滚。
+- 运行元数据放 `data/state/workspace/`，Workspace 本体不放 `data/`。
 
 ---
 
-## 7. 能力模型
+## 4. 硬拦截（Hard Boundary）
 
-“调用 DSH 的所有能力”不能等同于“把 DSH 所有工具无条件给 QQ 群”。  
-建议先定义**能力目录（Capability Catalog）**，再决定暴露方式。
+硬拦截由代码或 OS 直接拒绝，发生顺序在 Policy、审批和模型判断之前。  
+配置、模型、群指令、管理员审批都不能覆盖。
 
-### 7.1 能力分层
+| 操作 | 硬拦截 |
+| --- | --- |
+| Workspace 外路径 | 拒绝 |
+| `..`、绝对路径、前缀伪装 | 拒绝 |
+| 符号链接逃逸 | 拒绝 |
+| 设备/FIFO/socket 等特殊文件 | 拒绝 |
+| `qqbot_control` / `qqbot_configure` | 永久禁止 |
+| DSH 配置、密钥、宿主目录 | 永久禁止 |
+| 未知工具/未登记工具 | 拒绝 |
+| 修改 Policy / Approval / Audit | 拒绝 |
+| 任务批准自己的审批 | 拒绝 |
+| 伪造 groupId / userId | 拒绝 |
+| 超过资源硬上限 | 终止 |
+| shell / 包安装 | MVP 禁止 |
 
-#### 安全层（默认开放，MVP）
+### 4.1 文件系统
 
-```text
-list_dir
-read_file
-write_file
-append_file
-create_dir
-move_file
-delete_file（限 workspace）
-search_files
-git status / diff / log
-```
-
-#### 受控层（策略或审批）
-
-```text
-shell / bash
-包安装
-批量删除
-访问 workspace 外部路径
-下载大文件
-长期进程
-```
-
-#### 禁止层
+所有文件操作必须经过唯一的 `WorkspaceFs`：
 
 ```text
-qqbot_control
-qqbot_configure
-DSH 自身配置/模型配置
-宿主用户目录、密钥、token、cookie
-任意宿主进程控制
+resolve → realpath → root 前缀检查 → 符号链接拒绝 → 普通文件/目录
 ```
 
-### 7.2 DSH Tools Bridge
+- 业务代码禁止直接 import `node:fs`，由架构测试拦截；
+- 拒绝 `..`、绝对路径、NUL、特殊文件；
+- 写入有单文件、单次、总量配额；
+- 代码级 jail 不能完全消除 TOCTOU，最终仍需 OS 级隔离可选加固。
 
-当前 Host 只把工具注册给 DSH agent；QQ bot 侧没有现成的工具枚举/执行入口。  
-因此需要先做 Phase 0 探测：
+### 4.2 进程
 
-1. DSH 的 `tools` 服务是否提供 `list/describe/execute`；
-2. `llm.stream` 是否支持原生 `tools` 参数；
-3. DSH 内置工具、插件工具、MCP 工具是否都能被同一接口枚举；
-4. 工具的返回值、错误、超时和权限语义。
-
-Bridge 接口建议：
+MVP：
 
 ```text
-ToolsBridge
-├─ list()                    # 返回允许暴露的工具目录
-├─ schema(name)              # 参数 schema
-├─ execute(name, args)       # 执行
-└─ policy(name)              # safe / sensitive / forbidden
+node:child_process / exec / spawn = 硬禁用
 ```
 
-如果 DSH 支持原生 tool calling，优先使用原生协议；  
-不要再写一套自由格式的 ReAct 文本解析器。之前自定义 ReAct 已经移除，不应以同样方式回归。
+- 架构测试禁止 import；
+- 不存在 shell 工具入口；
+- Policy 误改也无法执行。
 
-### 7.3 能力暴露矩阵
+Phase 4 若开放 shell，必须有 OS 级沙箱（sandbox-exec / 容器 / 独立用户）；  
+没有沙箱时启动失败，不允许 fallback 到裸 `spawn`。`cwd` 不是沙箱。
 
-| 能力 | 来源 | MVP | 后续 |
-| --- | --- | --- | --- |
-| Workspace 文件操作 | 自建 | ✅ | — |
-| git diff / 回滚 | 自建 | ✅ | — |
-| web_search / web_fetch | DSH tools | 待探测 | ✅ |
-| image_generate | DSH tools | 待探测 | ✅ |
-| MCP 资源/工具 | DSH tools | 待探测 | 按白名单 |
-| qqbot_status / qqbot_logs | DSH tools | 可考虑只读 | ✅ 只读 |
-| qqbot_control / qqbot_configure | DSH tools | ❌ | ❌ |
-| shell / 包管理 | 自建或 DSH | ❌ | 审批后 |
-| DSH 子 agent / workflow | 待探测 | ❌ | 单独评估 |
+### 4.3 工具与状态
 
-### 7.4 工具审批与放行策略（两条路线）
+- 工具使用编译期白名单，未知工具拒绝；
+- 控制面工具进入永久 denylist；
+- Policy、Approval、Audit 对 Agent 只读或不可见；
+- 管理员只能通过面板修改策略，不能从 QQ 任务修改。
 
-工具调用采用统一的三种决策：
+### 4.4 触发与资源
+
+- 任务入口先校验本地 HTTP、群、用户身份；
+- 身份不明确 fail closed；
+- 超时、步骤、token、工具调用、输出、配额全部由 Runtime 强制。
+
+---
+
+## 5. 工具策略
+
+工具决策：
 
 ```text
 allow       默认放行
@@ -455,93 +158,61 @@ approval    需要审批
 deny        拒绝
 ```
 
-`deny` 中有一类是不可覆盖的 **hard deny**（见 §5.2），它永远不能通过手动策略或审批变成 allow。
+其中 hard deny 不可覆盖。
 
-策略支持两条路线，二者不是互斥的：
+### 5.1 路线 A：默认配置（自动）
 
-```text
-路线 A：默认配置（自动）
-  根据工具元数据自动生成 allow / approval 基线
-路线 B：手动修改
-  管理员逐个工具覆盖 allow / approval / deny
-```
-
-最终生效策略：
-
-```text
-hard deny
-  → 手动 override
-  → 自动默认
-  → 未知工具一律 deny
-```
-
-#### 7.4.1 路线 A：默认配置
-
-默认配置不是让模型猜，而是由每个工具适配器声明固定元数据：
+每个工具声明固定元数据，Policy Compiler 生成默认策略：
 
 ```json
 {
   "id": "delete_file",
   "risk": "destructive",
   "sideEffects": true,
-  "scope": "workspace",
-  "defaultDecision": "approval",
-  "reason": "删除文件不可自动恢复"
+  "defaultDecision": "approval"
 }
 ```
 
-Policy Compiler 在以下时机生成默认策略：
-
-- 首次启动；
-- 工具目录 hash 变化；
-- 管理员在面板点击「重新生成默认策略」。
-
-默认基线建议：
-
-| 工具类型 | 默认决策 |
+| 工具 | 默认 |
 | --- | --- |
-| `list_dir` / `read_file` / `search_files` | allow |
-| `git status` / `git diff` / `git log` | allow |
-| `write_file` / `create_dir` / `move_file`（workspace 内） | allow |
-| `delete_file` / 覆盖已有文件 | approval |
-| `web_search` / `web_fetch` | allow（有配额） |
-| `image_generate` | allow（记录用量，有配额） |
-| `qqbot_status` / `qqbot_logs` | allow（只读） |
-| `shell` / 包安装 | MVP hard deny；开启后默认 approval |
-| `qqbot_control` / `qqbot_configure` | hard deny |
+| 读取/列表/搜索/git status/diff/log | allow |
+| Workspace 内写文件/建目录/移动 | allow |
+| 删除/覆盖已有文件 | approval |
+| web_search / web_fetch | allow（有配额） |
+| image_generate | allow（记录用量） |
+| qqbot_status / qqbot_logs | allow（只读） |
+| shell / 包安装 | MVP deny |
+| qqbot_control / qqbot_configure | hard deny |
 | 目录外未知工具 | hard deny |
-| 目录内新增、尚未分类的工具 | approval |
+| 目录内新增、未分类工具 | approval |
 
-这里的 `write_file` 默认 allow，是因为 `/work` 已经是显式任务意图；  
-如果担心覆盖风险，可以把“覆盖已有文件”拆成独立工具或单独审批条件。
+自动生成时机：首次启动、工具目录变化、面板点击「重新生成默认策略」。
 
-#### 7.4.2 路线 B：手动修改
+### 5.2 路线 B：手动修改
 
-管理员可以在面板中逐个工具修改：
+管理员可在面板逐个工具修改：
 
 ```text
 allow ↔ approval ↔ deny
 ```
 
-限制：
-
-- hard deny 行显示为锁定，不能修改；
-- 手动 deny 可以比默认更严格；
+- hard deny 锁定，不能改；
+- 手动 deny 可以更严格；
 - 手动 allow 不能绕过 hard deny；
-- 修改必须记录操作者、时间、旧值、新值；
-- 修改后从下一次工具调用开始生效；
-- 如果某个工具从 approval 改成 allow，已存在的待审批请求自动失效；
-- 如果某个工具从 allow 改成 approval，正在运行的 Run 在下一次调用时进入审批。
+- 修改记录操作者、时间、旧值、新值；
+- 改成 allow 后旧审批失效；
+- 改成 approval 后下一次调用进入审批。
 
-#### 7.4.3 策略配置
-
-建议存放在：
+### 5.3 生效顺序
 
 ```text
-<projectDir>/data/config/workspace-policy.json
+hard deny
+  → 手动 override
+  → 自动默认
+  → 未知工具 deny
 ```
 
-结构：
+配置：
 
 ```json
 {
@@ -550,88 +221,35 @@ allow ↔ approval ↔ deny
   "defaultsVersion": 1,
   "overrides": {
     "delete_file": "approval",
-    "web_fetch": "approval",
     "shell": "deny"
-  },
-  "updatedAt": "2026-11-10T..."
+  }
 }
 ```
 
-`mode`：
-
-| 模式 | 行为 |
-| --- | --- |
-| `auto` | 自动默认 + 手动 override（推荐默认） |
-| `manual` | 以手动策略为主；未配置的工具按 approval 处理 |
-
-`manual` 模式仍不能覆盖 hard deny。未知工具始终 deny。
-
-#### 7.4.4 工具目录变化
-
-工具目录会随 DSH 版本和插件变化。策略合并规则：
-
-- 已存在的工具：保留手动 override；
-- 新工具：使用自动默认，并在面板标记「新工具」；
-- 被移除的工具：保留 override 记录但不参与执行，标记「已移除」；
-- 工具风险等级变化：保留 override，但标记「建议复核」；
-- 每次目录变化增加 `defaultsVersion`，写入审计。
-
-不能因为升级而静默把手动 `deny` 改回 `allow`。
-
-#### 7.4.5 与审批的关系
-
-```text
-effective = allow      → 直接执行
-effective = approval   → 创建 approval，等待管理员
-effective = deny       → 拒绝
-hard deny              → 拒绝，任何审批不可覆盖
-```
-
-审批通过只对**当前 Run + 当前工具参数 + 当前策略版本**有效；  
-策略或工具参数变化后，旧审批不能复用。
+- `auto`：自动默认 + override；
+- `manual`：手动为主，未配置工具按 approval；
+- 工具目录变化保留 override，新工具标记待复核，移除工具保留记录但不执行。
 
 ---
 
-## 8. Workspace Agent 执行模型
+## 6. 任务运行时
 
-### 8.1 Run 状态机
-
-```text
-queued
-  → running
-  → waiting_approval
-  → running
-  → succeeded | failed | cancelled | timed_out
-```
-
-同一 Workspace 建议**串行执行**，避免两个任务同时改同一文件。
-
-### 8.2 一次 Run 的执行流程
+### 6.1 Run 状态
 
 ```text
-1. 接收任务 + 身份 + 群/私聊上下文
-2. Policy 检查（用户、群、能力、路径）
-3. 记录 workspace HEAD / 创建 run 目录
-4. 建立不可信上下文边界（群消息/文件/网页/工具结果）
-5. LLM 规划 + 工具调用循环
-6. 每个工具调用前检查 hard boundary + policy + 预算
-7. 敏感操作创建 approval 并挂起
-8. 执行、清洗 observation、更新 run
-9. 生成结果摘要 + diff + artifacts
-10. 回到群/面板，保留 run 记录
+queued → running → waiting_approval → running
+       → succeeded | failed | cancelled | timed_out | budget_exceeded | stalled
 ```
 
-### 8.3 资源限制
-
-建议默认值（可配置）：
+### 6.2 预算
 
 | 项 | 默认 |
 | --- | --- |
-| 单 Run 执行时长 | 90 秒（MVP 同步上限；审批等待不计入） |
+| 单 Run 执行时长 | 90 秒（审批等待不计入） |
 | 最大步骤 | 12 |
 | 最大 LLM 调用 | 12 |
-| 最大 token（输入 + 输出） | 64k / Run |
-| 连续无进展步骤 | 3（超过则终止） |
+| 最大 token | 64k / Run |
+| 连续无进展 | 3 步 |
 | 最大工具调用 | 20 |
 | 单次工具超时 | 15 秒 |
 | 单次输出 | 32 KB |
@@ -639,144 +257,37 @@ queued
 | Workspace 配额 | 500 MB |
 | 并发 Run | 1 / workspace |
 
-预算由 Runtime 强制累计和终止：
+记账规则：
 
-- 超时：`timed_out`；
-- 步骤/token/工具超限：`budget_exceeded`；
-- 连续无进展：`stalled`；
-- 取消：`cancelled`；
-- 任何预算都不能通过 Policy 或审批放宽。
+- 调用前预留，调用后按实际结算；
+- token usage 缺失时估算并标记 `estimated`；
+- 被拒绝的工具调用也计数；
+- 预算只能由 Runtime 增加，模型/工具/Policy 不能重置；
+- 重试计入 LLM/token 预算。
 
-#### 8.3.1 预算维度
+终止：
 
-预算不是一个“总超时”，而是多维硬限制：
-
-| 维度 | 计数口径 |
+| 原因 | 状态 |
 | --- | --- |
-| wall time | 从 `running` 开始到结束；`queued` / `waiting_approval` 不计入 |
-| step | 一次“模型决策 → 工具/回复”的循环 |
-| LLM calls | 每次实际发起 `llm.stream`，包括重试 |
-| token | input + output + reasoning；优先使用 DSH usage |
-| tool calls | 所有工具调用尝试，包括被 policy 拒绝的调用 |
-| no-progress | 连续没有新信息、没有文件变化、没有有效工具结果的步骤 |
-| output bytes | 单次 observation / 最终输出 |
-| write bytes | 单次文件写入，以及 Run 累计写入 |
-| workspace quota | workspace 总大小；与单次写入分开计算 |
+| wall time | `timed_out` |
+| 步骤/token/工具超限 | `budget_exceeded` |
+| 连续无进展 | `stalled` |
+| 用户取消 | `cancelled` |
+| 审批超时 | `approval_expired` |
+| 高风险注入 | `injection_suspected` |
 
-审批等待时间不计入 wall time，但审批本身有独立的 TTL；排队时间也不计入执行预算，但计入“用户感知时长”。
+终止时 abort LLM、终止工具、停止接受新调用、保留 partial artifacts，回群只发简短原因。
 
-#### 8.3.2 记账规则
-
-Runtime 维护每个 Run 的预算账本：
-
-```text
-budget = {
-  wallStartedAt,
-  steps,
-  llmCalls,
-  tokens: { input, output, reasoning, estimated },
-  toolCalls,
-  noProgressSteps,
-  outputBytes,
-  writeBytes
-}
-```
-
-规则：
-
-- 每次调用前先“预留”，调用后按实际用量结算；
-- 预算只能由 Runtime 增加，模型、工具、Policy 都不能重置；
-- token usage 缺失时按字符数估算并标记 `estimated: true`；
-- 工具被 policy 拒绝也算一次 tool call，防止通过反复尝试探测；
-- 文件写入按实际字节累计，失败写入不计入成功写入但计入尝试；
-- 预算账本写入 Run 记录，进程重启后仍可判断是否超限。
-
-#### 8.3.3 终止语义
-
-| 触发 | 状态 | 是否可重试 |
-| --- | --- | --- |
-| 达到 wall time | `timed_out` | 否，需新建 Run |
-| 步骤 / LLM / token / 工具超限 | `budget_exceeded` | 否 |
-| 连续无进展 | `stalled` | 否 |
-| 用户取消 | `cancelled` | 否 |
-| 审批超时 | `approval_expired` | 否 |
-| 进程异常 | `interrupted` | 可重新创建 Run |
-| 注入高风险 | `injection_suspected` | 否，需人工检查 |
-
-终止时：
-
-1. abort 当前 LLM stream；
-2. 终止正在执行的工具（如果有进程，杀进程组）；
-3. 不再接受新的工具调用；
-4. 写入终止原因和已产生的 artifacts；
-5. 回群只发简短原因，不发完整报错；
-6. 标记未完成的工作为 partial，不假装成功。
-
-#### 8.3.4 配置示例
-
-```json
-{
-  "version": 1,
-  "run": {
-    "wallMs": 90000,
-    "maxSteps": 12,
-    "maxLlmCalls": 12,
-    "maxTokens": 64000,
-    "maxNoProgress": 3,
-    "maxToolCalls": 20,
-    "toolTimeoutMs": 15000,
-    "maxOutputBytes": 32768,
-    "maxWriteBytes": 2097152,
-    "approvalTtlMs": 600000
-  },
-  "workspace": {
-    "quotaBytes": 524288000,
-    "concurrentRuns": 1
-  }
-}
-```
-
-管理员可以在硬上限以内收紧配置；不能超过代码里的绝对上限。  
-预算配置属于 `data/config/workspace.json`，不属于工具 Policy，不能由 Run 修改。
-
-#### 8.3.5 重试策略
-
-- LLM 网络类临时错误：最多 1 次重试，重试计入 LLM calls / tokens；
-- 工具超时：只读、幂等工具最多 1 次重试；写操作和破坏性操作不自动重试；
-- policy 拒绝、hard deny、参数校验失败：不重试；
-- 重试不能重置 no-progress 计数；
-- 重试后仍失败则终止或进入失败状态。
-
-#### 8.3.6 预算测试
-
-```text
-[ ] 超过最大步骤 → budget_exceeded
-[ ] 超过 LLM 调用数 → budget_exceeded
-[ ] 超过 token 预算 → budget_exceeded
-[ ] 超过 wall time → timed_out
-[ ] 连续无进展 → stalled
-[ ] 工具被拒绝也计入 tool calls
-[ ] 审批等待不消耗 wall time
-[ ] 重试计入 LLM/token 预算
-[ ] 预算不能由模型/工具/Policy 重置
-```
-
-### 8.4 Run 数据模型
+### 6.3 Run 记录
 
 ```json
 {
   "id": "run_...",
   "groupId": "123456",
   "userId": "20000",
-  "task": "整理这个月的笔记并生成摘要",
-  "workspace": "groups/123456",
+  "task": "整理 notes 并生成 summary.md",
   "status": "succeeded",
-  "createdAt": "2026-11-10T...",
-  "startedAt": "2026-11-10T...",
-  "finishedAt": "2026-11-10T...",
-  "steps": [
-    { "tool": "list_dir", "args": { "path": "notes" }, "ok": true, "ms": 12 }
-  ],
+  "steps": [{ "tool": "list_dir", "args": { "path": "notes" }, "ok": true, "ms": 12 }],
   "changedFiles": ["notes/summary.md"],
   "artifacts": ["notes/summary.md"],
   "usage": { "input": 1234, "output": 456, "total": 1690 },
@@ -784,630 +295,152 @@ budget = {
 }
 ```
 
-### 8.5 任务结果回群
+### 6.4 结果回群
 
-长任务不能依赖 Koishi 单次请求一直阻塞。建议：
-
-- MVP：任务限制在 90 秒内，同步返回摘要；
-- 后续：异步 Run + Koishi 轮询/回调，完成后主动发回群；
-- 群消息只发摘要、变更文件、失败原因，不刷完整工具日志；
-- 完整日志留在面板和 Run 记录里。
+- MVP：90 秒内同步返回摘要；
+- 后续：异步 Run + 轮询/回调；
+- 群里只发摘要、变更文件、失败原因；
+- 完整日志留在面板和 Run 记录。
 
 ---
 
-## 9. 安全模型
+## 7. 防注入
 
-安全模型分两层：
+不可信输入包括：群消息、文件名、文件内容、网页、搜索结果、图片/OCR、记忆、画像、工具返回。
 
-```text
-① 硬拦截：永远不允许的操作（见 §5.2）
-② 软策略 + 审批：在允许集合内决定是否执行
-```
+### 7.1 信任边界
 
-Workspace 不是完整的 OS 安全边界。文件层通过统一门面做到代码级硬拦截；  
-只要存在 shell，就必须承认它接近宿主权限，因此 MVP 硬禁用进程执行。
-
-### 9.1 威胁
-
-| 威胁 | 例子 |
+| 可信 | 不可信 |
 | --- | --- |
-| Prompt injection | 群友让 bot 读取密钥、删除文件 |
-| 路径穿越 | `../../.ssh/id_rsa` |
-| 符号链接逃逸 | workspace 内链接指向宿主目录 |
-| 命令注入 | 拼接 shell 参数执行任意命令 |
-| 资源耗尽 | 无限循环、巨大文件、长进程 |
-| 跨群读取 | A 群任务读 B 群私有目录 |
-| 权限提升 | 任务修改 policy/approval |
-| 数据外泄 | 把 workspace 内容发到外部 |
-
-### 9.2 控制
-
-执行顺序固定为：
-
-```text
-Hard Boundary → Policy → Approval → Execute → Audit
-```
-
-1. **路径约束**
-   - 所有路径先 resolve，再 realpath；
-   - 必须位于 workspace 根目录内；
-   - 拒绝符号链接逃逸；
-   - 拒绝绝对路径和 `..` 越界。
-
-2. **命令约束**
-   - MVP 不开放 shell；
-   - 后续使用 `spawn`，cwd 固定 workspace；
-   - 环境变量白名单，不继承宿主 secrets；
-   - 禁止交互式命令、长期进程、后台守护；
-   - 破坏性命令必须审批。
-
-3. **权限约束**
-   - Policy 默认拒绝；
-   - 任务不能修改 Policy；
-   - DSH 控制面工具永久禁止；
-   - 跨群路径默认禁止。
-
-4. **资源约束**
-   - 超时、步骤数、LLM 调用数、token、工具调用数、输出大小、workspace 配额。
-
-5. **审计**
-   - 每次工具调用写 audit；
-   - 记录 group/user/run/tool/args 摘要/结果摘要；
-   - 敏感值脱敏；
-   - Run 记录不可由模型修改。
-
-6. **审批**
-   - 敏感操作生成 approval；
-   - approval 有过期时间；
-   - 只能由管理员在面板或私聊确认；
-   - 模型不能批准自己的请求。
-
-### 9.3 关于“真沙箱”
-
-如果要开放 shell，macOS 上至少需要：
-
-- `sandbox-exec` 配置，或
-- 独立用户/容器/虚拟机，或
-- 只允许固定的、无参数化的命令模板。
-
-只设置 `cwd=workspace` 不构成沙箱。  
-在未完成 OS 级隔离前，shell 只能作为管理员显式开启的实验能力。
-
-### 9.4 防注入攻击
-
-Workspace 会处理群消息、文件内容、网页、搜索结果、图片描述和各种工具输出。  
-这些全部是**不可信输入**，不能假设模型永远能识破注入。
-
-安全保证不应来自“系统提示词写得更严厉”，而应来自：
-
-```text
-不可信数据与指令隔离
-  + 运行时特权分离
-  + hard boundary / policy
-  + 预算与审计
-```
-
-#### 9.4.1 信任边界
-
-| 来源 | 信任级别 |
-| --- | --- |
-| Runtime system prompt / task 对象 | 可信 |
-| Policy / Approval / Audit | 可信，Agent 不可写 |
-| 群消息、昵称、引用消息 | 不可信 |
-| Workspace 文件内容 | 不可信 |
-| 网页、搜索结果、MCP 返回 | 不可信 |
-| 图片/OCR/文件元数据 | 不可信 |
-| 记忆、用户画像、历史摘要 | 不可信 |
-| DSH / 外部工具返回 | 不可信 |
+| system prompt / task 对象 | 群消息、昵称、引用 |
+| Policy / Approval / Audit | 文件、网页、搜索结果 |
+| Runtime 校验结果 | 工具返回、MCP、图片描述 |
+|  | 记忆、画像、历史摘要 |
 
 规则：
 
-- 不可信内容永远不能变成 system/developer 指令；
-- 不可信内容不能修改 Policy、工具白名单、预算或审批状态；
-- 不可信内容不能改变当前 Run 的 task 目标；
-- 任务目标只能来自创建 Run 的显式请求。
+- 不可信内容不能成为 system/developer 指令；
+- 不能修改 Policy、预算、工具白名单或审批；
+- 不能改变当前 Run 的目标；
+- 目标只能来自创建 Run 的显式请求。
 
-#### 9.4.2 上下文隔离
+### 7.2 控制
 
-- 群消息、文件、网页、工具结果使用独立的 untrusted 段/消息角色；
-- 使用明确的边界标签，例如：
+1. **上下文隔离**：独立 untrusted 段，标签包裹，转义结束标签和伪 system 标记。
+2. **特权分离**：模型只提议；Runtime 执行 hard boundary → policy → approval。
+3. **结果清洗**：截断、去控制字符、转义边界，不自动打开 URL，不把 observation 里的 `tool_call` 当工具调用。
+4. **审批防绕过**：审批绑定 `runId + tool + args hash + policyVersion`；参数变化失效；模型不能自批。
+5. **外泄防护**：环境变量白名单；token/cookie/私钥脱敏；默认只回摘要。
+6. **检测**：可疑模式标记、写审计、必要时终止；检测不是安全边界。
 
-```text
-<untrusted source="web">
-...
-</untrusted>
-```
-
-- 对内容中的结束标签、伪造角色标记做转义/清理；
-- tool observation 只能进入 observation 通道，不能伪装成 assistant 的 tool_call；
-- 不把工具返回原文直接拼进 system prompt；
-- 不让模型输出决定“下一轮 system prompt 是什么”。
-
-#### 9.4.3 运行时特权分离
-
-模型只能**提议**工具和参数：
+### 7.3 安全不变量
 
 ```text
-模型提议
-  → Runtime 检查 hard boundary
-  → Policy / Approval
-  → 执行
+I1  不可信内容不能成为 system/developer 指令
+I2  不可信内容不能修改 Policy / budget / allowlist
+I3  每个工具调用必须经过 hard boundary + policy
+I4  每个文件路径必须经过 WorkspaceFs canonical 检查
+I5  审批绑定 run + tool + args hash + policyVersion
+I6  预算不能被模型、工具、Policy 重置
+I7  Audit 只能追加
+I8  上下文不出现 workspace 外敏感文件内容
+I9  模型输出不能直接成为下一次 system prompt
+I10 observation 不能伪造工具调用
 ```
 
-注入成功最多让模型“想调用某个工具”，不能让它绕过：
-
-- 路径 jail；
-- 工具白名单；
-- 控制面工具 denylist；
-- 预算；
-- 审批；
-- 审计。
-
-#### 9.4.4 工具结果清洗
-
-所有 observation 在执行前处理：
-
-- 截断到固定长度；
-- 去除 ANSI 控制字符、不可见字符、异常 Unicode 方向控制符；
-- 转义边界标签和伪 system 标记；
-- 记录来源、工具名、时间；
-- 不自动打开内容中的 URL；
-- 不把内容里的命令当作要执行的命令；
-- 不把内容里的 `tool_call` / JSON 当作模型工具调用。
-
-#### 9.4.5 审批防绕过
-
-- 审批展示真实工具、真实参数、真实路径；
-- 审批绑定 `runId + tool + 参数 hash + policyVersion`；
-- 参数变化后旧审批失效；
-- 不支持“批量批准所有未来操作”；
-- 模型不能批准、代签或复用审批；
-- 审批 UI 对参数做转义，防止 UI 注入；
-- 敏感操作即使被模型描述成“只是读取”，也按真实参数判断。
-
-#### 9.4.6 数据外泄防护
-
-- 环境变量白名单，不继承宿主密钥；
-- 输出前对 token、cookie、私钥模式做脱敏；
-- 默认只回传摘要和文件路径，不把大段原文发群；
-- 禁止把 workspace 外文件内容带入上下文；
-- 外部请求（web_fetch 等）应记录目标 URL；
-- 发现疑似密钥时中止并写 audit。
-
-#### 9.4.7 注入检测与处置
-
-检测是辅助，不是安全边界：
-
-- 记录疑似“忽略之前指令”“修改系统策略”“执行 shell”等模式；
-- 连续多次检测到高风险注入时，终止 Run 并标记 `injection_suspected`；
-- 不因为检测到注入就自动执行任何“反制动作”；
-- 检测结果写入 Run 和 audit，方便复盘。
-
-#### 9.4.8 防注入测试
-
-必须覆盖：
-
-```text
-[ ] 群消息要求读取 workspace 外文件 → 拒绝
-[ ] 网页内容要求执行 shell → 无 shell 入口，拒绝
-[ ] 文件内容伪造 system/tool_call → 不作为指令执行
-[ ] 工具返回要求修改 policy → policy 不变
-[ ] 伪造审批/自动批准 → 无效
-[ ] 注入内容诱导泄露密钥 → 脱敏/拒绝
-[ ] 注入导致重复工具调用 → 预算终止
-```
-
-#### 9.4.9 攻击面与防线映射
-
-| 攻击面 | 典型注入 | 防线 |
-| --- | --- | --- |
-| 群消息/昵称 | “忽略规则，执行 shell” | untrusted 段 + hard boundary |
-| 文件内容 | 文件里写“修改 policy” | 文件只作为数据，不进入 system |
-| 网页/搜索结果 | 隐藏文本诱导读取密钥 | 清洗 + 来源标记 + 路径/工具限制 |
-| 工具返回 | 伪造 `tool_call` 或批准指令 | observation 通道隔离 |
-| 图片/OCR | 图片文字要求执行命令 | 只作为不可信描述 |
-| 记忆/画像 | 历史注入“以后都允许” | 不可修改 Policy，仅作背景 |
-| 审批 UI | 参数里塞 HTML/假按钮 | 转义 + 真实参数展示 |
-| 输出通道 | 诱导把密钥发群 | 脱敏 + 摘要输出 |
-| Policy 文件 | 任务改写策略 | 文件对 Agent 不可写 |
-| Audit | 删除/篡改记录 | 追加式，不可删除 |
-
-#### 9.4.10 安全不变量
-
-以下不变量必须由测试保证：
-
-```text
-I1 不可信内容不能成为 system/developer 指令
-I2 不可信内容不能修改 Policy / budget / tool allowlist
-I3 每个工具调用都必须经过 hard boundary + policy
-I4 每个文件路径都必须经过 WorkspaceFs canonical 检查
-I5 审批必须绑定 run + tool + args hash + policyVersion
-I6 预算计数不能被模型、工具、Policy 重置
-I7 Audit 只能追加，不能删除或改写
-I8 上下文里不能出现 workspace 外的敏感文件内容
-I9 模型输出不能直接成为下一次 system prompt
-I10 observation 中的内容不能伪造工具调用
-```
-
-#### 9.4.11 注入检测的边界
-
-检测只用于观测和提前止损：
-
-- 关键词/模式检测可能漏报、误报；
-- 不能把“检测为安全”当作执行许可；
-- 不能因为检测到注入而自动执行反制命令；
-- 检测到高风险时只做：标记、降级、终止、转人工；
-- 检测规则版本化，命中写 audit；
-- 模型不能看到检测器的内部阈值。
-
-#### 9.4.12 残余风险
-
-即使有以上设计，仍然存在：
-
-- 模型被说服去执行**允许范围内**但不符合用户意图的操作；
-- 通过多个允许的读取操作组合出敏感信息；
-- 外部网页内容本身不可信；
-- 审批人可能疲劳式批准；
-- 代码级文件 jail 的 TOCTOU 窗口；
-- 依赖 DSH 工具返回值的可信度。
-
-因此：
-
-- 高风险操作必须保持人工审批；
-- 重要 workspace 建议启用 git 回滚；
-- shell 必须等 OS 级隔离；
-- 不把 Workspace 当作处理真实密钥的环境。
-
-结论：
-
-> 没有“绝对防注入”的模型；真正的保证是硬边界、运行时特权分离、不可信上下文隔离和预算。
+没有绝对防注入。真正的保证是硬边界、特权分离、不可信隔离和预算。
 
 ---
 
-## 10. 触发与交互
+## 8. 触发、API、面板
 
-### 10.1 命令
-
-```text
-/work <task>          创建任务
-/work status          查看当前任务
-/work cancel          取消当前任务
-/work files           查看最近产物
-/work diff            查看本次变更
-/work approve <id>    批准敏感操作（管理员）
-/work deny <id>       拒绝敏感操作（管理员）
-```
-
-### 10.2 权限矩阵
-
-| 场景 | 默认 |
-| --- | --- |
-| 私聊管理员 | 可建任务 |
-| 白名单群管理员 | 可建任务 |
-| 白名单群普通成员 | 默认不可建任务 |
-| 非白名单群 | 不可建任务 |
-| 普通聊天 | 永不触发 Workspace |
-| 读 workspace | 允许 |
-| 写 workspace | 允许，路径受限 |
-| shell | 默认关闭 |
-| 控制面工具 | 禁止 |
-
-具体触发方式需要在开发前确认（见 §16）。
-
----
-
-## 11. HTTP API 草案
-
-统一使用本地 HTTP guard；请求带 `apiVersion: 1`。
-
-| 方法 | 路径 | 用途 |
-| --- | --- | --- |
-| POST | `/qqbot/workspace/task` | 创建 Run |
-| GET | `/qqbot/workspace/runs` | Run 列表 |
-| GET | `/qqbot/workspace/runs/:id` | Run 详情 |
-| POST | `/qqbot/workspace/runs/:id/cancel` | 取消 Run |
-| GET | `/qqbot/workspace/files` | 文件树 |
-| GET | `/qqbot/workspace/file` | 文件内容 |
-| GET | `/qqbot/workspace/diff` | 最近 diff |
-| GET | `/qqbot/workspace/approvals` | 待审批列表 |
-| POST | `/qqbot/workspace/approvals/:id` | 批准/拒绝 |
-| GET | `/qqbot/workspace/policy` | 读取默认/手动/生效策略 |
-| POST | `/qqbot/workspace/policy` | 更新 override / mode（仅面板管理员） |
-| POST | `/qqbot/workspace/policy/reset` | 恢复自动默认策略 |
-
-创建任务请求示例：
-
-```json
-{
-  "apiVersion": 1,
-  "groupId": "123456",
-  "userId": "20000",
-  "task": "整理 notes/ 下这个月的记录，生成 summary.md"
-}
-```
-
-返回：
-
-```json
-{
-  "ok": true,
-  "data": {
-    "runId": "run_...",
-    "status": "queued"
-  }
-}
-```
-
----
-
-## 12. 面板设计
-
-新增 `Workspace` tab：
+### 命令
 
 ```text
-Workspace
-├─ 文件树 / 文件预览 / 下载
-├─ 当前 Run 状态机
-├─ 历史 Run 列表
-├─ 每步工具调用与耗时
-├─ 待审批操作
-├─ 工具策略（默认值 / 手动 override / 生效值）
-├─ audit 查询
+/work <task>
+/work status
+/work cancel
+/work files
+/work diff
+/work approve <id>
+/work deny <id>
+```
+
+默认仅私聊管理员或白名单群管理员可创建任务；普通群聊永不触发 Workspace。
+
+### API
+
+```text
+POST /qqbot/workspace/task
+GET  /qqbot/workspace/runs
+GET  /qqbot/workspace/runs/:id
+POST /qqbot/workspace/runs/:id/cancel
+GET  /qqbot/workspace/policy
+POST /qqbot/workspace/policy
+GET  /qqbot/workspace/approvals
+POST /qqbot/workspace/approvals/:id
+```
+
+### 面板
+
+```text
+Workspace tab
+├─ 文件树 / 预览
+├─ 当前 Run / 历史 Runs
+├─ 工具策略（默认 / override / 生效）
+├─ 待审批
+├─ audit
 └─ workspace 大小 / git 状态
 ```
 
-交互原则：
+---
 
-- 文件预览只读直到显式编辑；
-- 删除、shell、策略修改都要确认；
-- 策略表支持「重新生成默认」「恢复单个工具默认」「全部重置」；
-- hard deny 工具锁定显示，不能编辑；
-- 工具目录变化后标记新工具 / 已移除工具 / 建议复核；
-- Run 日志默认折叠，失败时展开；
-- 长内容在面板查看，不塞进 QQ 消息。
+## 9. 分阶段
+
+| 阶段 | 内容 | 退出条件 |
+| --- | --- | --- |
+| Phase 0 | 探测 DSH tools API、原生 tool calling、工具风险 | 明确 Bridge 可行性 |
+| Phase 1 | WorkspaceFs、路径硬拦截、git、文件工具、策略模型 | 路径逃逸测试全过 |
+| Phase 2 | Run 模型、`/work`、单任务执行、预算、结果回群 | 能生成文件并回摘要 |
+| Phase 3 | DSH Tools Bridge、自动默认 + 手动策略、审计 | 安全工具可调用，控制面工具拒绝 |
+| Phase 4 | shell + 审批 + OS 隔离 | 未审批命令不能执行 |
+| Phase 5 | 面板完整化、策略编辑、audit 查询 | 运营可用 |
+
+MVP 只做 Phase 1 + Phase 2。
 
 ---
 
-## 13. 数据与配置路径
-
-```text
-<projectDir>/workspace/                     # 可写工作区
-<projectDir>/data/config/workspace.json     # 运行/资源策略
-<projectDir>/data/config/workspace-policy.json  # 工具默认值 + 手动 override
-<projectDir>/data/state/workspace/runs/     # Run 记录
-<projectDir>/data/state/workspace/audit.jsonl
-<projectDir>/data/state/workspace/approvals/
-```
-
-Workspace 本体不在 `data/` 下，避免备份/清理脚本误删；`data/state/workspace` 只放运行元数据。
-
----
-
-## 14. 分阶段计划
-
-### Phase 0：能力探测与决策
-
-产出：
-
-- DSH `tools` 服务 API 探测结果；
-- DSH `llm.stream` 是否支持原生 tools；
-- 工具风险清单；
-- 本设计文档补充“确认项”。
-
-退出条件：
-
-- 明确 ToolsBridge 可行性；
-- 明确 MVP 是否只做文件工具。
-
-### Phase 1：Workspace 文件层
-
-产出：
-
-- workspace 初始化；
-- 路径安全（resolve/realpath/符号链接）；
-- 文件读写/列表/搜索；
-- git init、status、diff；
-- 工具策略模型与自动默认基线（先覆盖文件工具）；
-- 面板文件浏览。
-
-验收：
-
-- 无法通过路径穿越访问 workspace 外文件；
-- 文件操作有大小/数量限制；
-- 错误可读。
-
-### Phase 2：Task Runner MVP
-
-产出：
-
-- Run 数据模型；
-- `/work` 命令；
-- 单次任务 LLM 执行；
-- 步骤/时长/工具预算；
-- 结果摘要回群；
-- Run 面板。
-
-验收：
-
-- 私聊管理员可完成“读取 notes 并生成 summary.md”；
-- 超时/失败/取消有明确状态；
-- 不阻塞普通群聊。
-
-### Phase 3：DSH Tools Bridge
-
-产出：
-
-- 工具枚举与 schema；
-- 安全工具接入（web_search / web_fetch 等）；
-- 自动默认策略 + 手动 override；
-- 工具调用审计；
-- 禁止层过滤。
-
-验收：
-
-- 控制面工具无法从群聊调用；
-- 工具失败不会把原始堆栈发群；
-- 工具调用可追踪。
-
-### Phase 4：Shell 与审批
-
-前置：
-
-- 确认 OS 级隔离方案，或明确只允许管理员手动开启。
-
-产出：
-
-- spawn 执行器；
-- 环境变量白名单；
-- 审批流；
-- 资源限制；
-- 回滚。
-
-验收：
-
-- 未审批的敏感命令不能执行；
-- 超时进程被终止；
-- 审计可还原操作。
-
-### Phase 5：面板完善与运营
-
-产出：
-
-- Workspace tab 完整化；
-- 策略编辑；
-- audit 检索；
-- token 统计接入；
-- 多群隔离验收。
-
----
-
-## 15. MVP 验收标准
-
-MVP 建议只做 Phase 1 + Phase 2：
+## 10. MVP 验收
 
 ```text
 [ ] /work 仅管理员/私聊可用
-[ ] workspace 文件读、写、列表、搜索
-[ ] 路径逃逸测试全部拒绝：`..`、绝对路径、符号链接、前缀伪装
-[ ] 直接 `node:fs` / `node:child_process` 导入被架构测试拦截
+[ ] Workspace 文件读、写、列表、搜索
+[ ] `..`、绝对路径、符号链接、前缀伪装全部拒绝
+[ ] 直接 import node:fs / node:child_process 被架构测试拦截
 [ ] 未知工具 / 控制面工具硬拒绝
-[ ] 自动默认策略能生成 allow / approval 基线
+[ ] 自动默认策略生成 allow / approval 基线
 [ ] 手动 override 生效，hard deny 不可覆盖
 [ ] 策略修改有审计，旧审批随策略变化失效
 [ ] 伪造/越权修改 Policy、Approval、Audit 硬拒绝
-[ ] 单 Run 最长 90s、最多 12 步、最多 12 次 LLM 调用
-[ ] token / 工具调用 / 无进展预算硬终止
+[ ] 单 Run 90s、12 步、12 次 LLM 调用、64k token
 [ ] 预算账本、终止状态、重试记账正确
-[ ] 审批等待不消耗 wall time，且有独立 TTL
-[ ] 群消息、文件、网页、工具结果按 untrusted 处理
+[ ] 群消息/文件/网页/工具结果按 untrusted 处理
 [ ] 注入内容不能改 Policy、预算、工具白名单或审批
-[ ] 安全不变量 I1–I10 都有对应测试
-[ ] 注入测试集全部通过
-[ ] 一次任务能生成一个文件并回群摘要
-[ ] Run 记录可在面板查看
-[ ] 失败/超时/取消状态正确
+[ ] 安全不变量 I1–I10 有对应测试
 [ ] 不影响普通 analyze/compose 延迟
 [ ] 单元测试 + route smoke + client smoke 全绿
 ```
 
 ---
 
-## 16. 未决问题
+## 11. 待确认
 
-开发前需要确认：
-
-### 16.1 触发方式
-
-- A. 仅管理员 `/work`（推荐先做）
-- B. 白名单群所有成员可用 `/work`
-- C. 自然语言也能触发
-
-### 16.2 Shell
-
-- A. MVP 不做（推荐）
-- B. Phase 4 做，默认关闭 + 审批
-- C. 默认开放（不建议）
-
-### 16.3 Workspace 共享范围
-
-- A. 所有群一个 workspace（简单，隔离差）
-- B. 每群一个子目录（推荐）
-- C. shared 只读 + 群私有可写（长期推荐）
-
-### 16.4 默认放行基线
-
-- `write_file` / `move_file` 默认 allow 还是 approval？
-- 覆盖已有文件是否单独拆成 approval？
-- `image_generate` 是否默认 allow？
-- 新工具默认 approval 还是 deny？
-
-推荐：
-
-```text
-workspace 内创建/追加/移动：allow
-覆盖已有文件、删除：approval
-image_generate：allow + 配额
-新工具：approval（在人工确认前不自动放行）
-```
-
-### 16.5 “所有 DSH 能力”的边界
-
-- 是否允许 `qqbot_status` / `qqbot_logs` 只读工具？
-- 是否允许 image_generate？
-- 是否允许 MCP 工具？
-- 是否允许子 agent/workflow？
-- 控制面工具是否永久禁止？
-
-推荐：
-
-```text
-只读 QQ 状态/日志：允许
-image_generate：允许但记录用量
-MCP：按工具白名单
-子 agent/workflow：暂不开放
-qqbot_control/configure：禁止
-```
-
----
-
-## 17. 示例任务流
-
-```text
-用户（私聊管理员）：
-/work 把 notes/ 下这个月的记录整理成 summary.md
-
-Bot：
-收到，开始执行 run_xxx。
-
-WorkspaceAgent：
-1. list_dir notes
-2. read_file 若干记录
-3. LLM 汇总
-4. write_file notes/summary.md
-5. git diff
-6. 生成摘要
-
-Bot 回群/私聊：
-完成。新增 notes/summary.md，共整理 6 条记录。
-```
-
-如果任务需要 shell：
-
-```text
-WorkspaceAgent：
-需要执行 shell 命令：npm test
-→ 创建 approval
-→ 管理员确认
-→ 执行
-→ 记录结果
-```
-
----
-
-## 18. 设计边界总结
-
-一句话：
-
-> Workspace 是 bot 的“受控工作目录 + 任务运行时”，不是“把宿主权限直接交给 QQ 群”。
-
-先建立硬拦截层，再做文件层和任务记录，然后逐步接 DSH tools；shell 和“全部能力”必须最后做，并且必须叠加 OS 级隔离、审批和审计。
+1. **触发**：仅管理员 `/work`（推荐）/ 白名单群 / 自然语言。
+2. **Shell**：MVP 不做（推荐）/ Phase 4 审批后 / 默认开放。
+3. **隔离**：所有群共享 / 每群子目录（推荐）/ shared 只读 + 群私有可写。
+4. **DSH 能力边界**：
+   - 只读 `qqbot_status` / `qqbot_logs`：建议允许；
+   - `image_generate`：建议允许并按量配额；
+   - MCP：按工具白名单；
+   - 子 agent / workflow：暂不开放；
+   - `qqbot_control` / `qqbot_configure`：永久禁止。
