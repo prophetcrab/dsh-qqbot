@@ -100,8 +100,8 @@ export const CSS = `
 .qqbot-row-value.is-warn { color: var(--dsw-alias-state-warn-primary); }
 .qqbot-row-value.is-bad { color: var(--dsw-alias-state-error-primary); }
 .qqbot-actions-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
-.qqbot-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px;
-  word-break: break-all; }
+.qqbot-overview-card { min-height: 190px; } .qqbot-overview-card .qqbot-card-head { align-items: center; } .qqbot-overview-card .qqbot-rows { flex: 1; justify-content: center; } .qqbot-overview-card .qqbot-actions-row { margin-top: 2px; } .qqbot-overview-card .qqbot-actions-row .qqbot-btn { flex: 1; justify-content: center; min-width: 0; }
+.qqbot-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; word-break: break-all; }
 
 .qqbot-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .qqbot-toolbar-left, .qqbot-toolbar-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

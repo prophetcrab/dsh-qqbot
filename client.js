@@ -2183,7 +2183,7 @@ window.__ModuleLoader__.load({
     },
     "client/plugins/overview/OverviewTab.js": (__require) => {
       const React = __require("react")
-      const { compactValue, POLL_MS } = __require("client/runtime/api.js")
+      const { POLL_MS } = __require("client/runtime/api.js")
       const { renderLoginCard } = __require("client/plugins/overview/LoginCard.js")
       const { renderSetupCard } = __require("client/plugins/overview/SetupCard.js")
 
@@ -2191,7 +2191,7 @@ window.__ModuleLoader__.load({
         const {
           t, loading, loadError, loadStatus, startAll, stopAll, installNapcat, configureNapcat, startNapcat,
           stopNapcat, startKoishi, stopKoishi, installDeps, hasSnapshot, napcat, koishi,
-          settings, napcatSupported, platformInstallHint, napcatAccounts, wsClients, napcatInstalled,
+          settings, napcatSupported, platformInstallHint, napcatInstalled,
           napcatRunning, napcatLoggedIn, koishiRunning, botOnline, row, actionButton, lifecycleBusy, h
         } = panel
         if (!hasSnapshot) {
@@ -2207,51 +2207,49 @@ window.__ModuleLoader__.load({
         }
 
         const webui = napcat.webui || {}
+        const napcatState = !napcatInstalled
+          ? t('stMissing')
+          : !napcatRunning
+            ? t('stStopped')
+            : webui.reachable === true
+              ? t('stRunning')
+              : t('stStarting')
         const napcatRows = [
-          row(t('lblInstall'), napcatInstalled ? `${t('stInstalled')}${napcat.version ? ` · v${napcat.version}` : ''}` : t('stMissing'), napcatInstalled ? 'ok' : 'bad'),
-          row(t('lblProcess'), napcatRunning ? `${t('stRunning')}${napcat.pid ? ` · PID ${napcat.pid}` : ''}` : t('stStopped'), napcatRunning ? 'ok' : 'warn'),
-          row(t('lblLogin'), napcatLoggedIn
-            ? `${t('stLoggedIn')}${napcat.qq ? ` · ${napcat.qq}` : ''}${napcat.nickname ? ` (${napcat.nickname})` : ''}`
-            : t('stLoggedOut'), napcatLoggedIn ? 'ok' : 'warn'),
-          row(t('lblWebui'), `${webui.port || settings.napcatPort || '—'} · ${webui.reachable === true ? t('stReachable') : t('stUnreachable')}`, webui.reachable === true ? 'ok' : 'warn'),
-          row(t('lblConfig'), napcat.configApplied === true ? t('stApplied') : t('stNotApplied'), napcat.configApplied === true ? 'ok' : 'warn'),
-          row(t('lblAccounts'), String(napcatAccounts.length)),
-          row(t('lblWs'), wsClients.length === 0 ? t('noWs') : wsClients.join(' · '), wsClients.length === 0 ? 'warn' : 'ok', true),
+          row(t('lblStatus'), napcatState, !napcatInstalled ? 'bad' : napcatRunning && webui.reachable === true ? 'ok' : 'warn'),
+          ...(napcatInstalled ? [
+            row(t('lblLogin'), napcatLoggedIn
+              ? `${t('stLoggedIn')}${napcat.qq ? ` · ${napcat.qq}` : ''}${napcat.nickname ? ` (${napcat.nickname})` : ''}`
+              : t('stLoggedOut'), napcatLoggedIn ? 'ok' : 'warn'),
+            row(t('lblConfig'), napcat.configApplied === true ? t('stApplied') : t('stNotApplied'), napcat.configApplied === true ? 'ok' : 'warn'),
+          ] : []),
         ]
         if (typeof napcat.error === 'string' && napcat.error !== '') napcatRows.push(row(t('lblError'), napcat.error, 'bad'))
 
         const koishiRows = [
-          row(t('lblProject'), koishi.projectDir || settings.projectDir || '—', null, true),
-          row(t('lblDeps'), koishi.depsInstalled === true ? t('stInstalled') : t('stMissing'), koishi.depsInstalled === true ? 'ok' : 'warn'),
-          row(t('lblProcess'), koishiRunning
-            ? `${t('stRunning')}${koishi.managed === true ? ` · ${t('managed')}` : ''}${koishi.pid ? ` · PID ${koishi.pid}` : ''}`
-            : t('stStopped'), koishiRunning ? 'ok' : 'warn'),
-          row(t('lblPort'), String(koishi.port || settings.koishiPort || '—'), null, true),
+          row(t('lblStatus'), koishiRunning ? t('stRunning') : t('stStopped'), koishiRunning ? 'ok' : 'warn'),
           row(t('lblOnline'), botOnline
             ? `${t('stOnline')}${koishi.selfId ? ` · ${koishi.selfId}` : ''}${koishi.platform ? ` · ${koishi.platform}` : ''}`
             : t('stOffline'), botOnline ? 'ok' : 'warn'),
         ]
-        if (koishi.stats !== null && typeof koishi.stats === 'object') {
-          koishiRows.push(row(t('lblStats'), compactValue(koishi.stats), null, true))
-        }
+        if (koishi.depsInstalled === false) koishiRows.push(row(t('lblDeps'), t('stMissing'), 'bad'))
         if (typeof koishi.error === 'string' && koishi.error !== '') koishiRows.push(row(t('lblError'), koishi.error, 'bad'))
 
-        const napcatCard = h('section', { className: 'qqbot-card' },
+        const napcatCard = h('section', { className: 'qqbot-card qqbot-overview-card' },
           h('div', { className: 'qqbot-card-head' },
             h('h2', { className: 'qqbot-card-title' }, t('napcatTitle')),
             h('span', { className: 'qqbot-card-sub' }, `Docker · ${napcatInstalled ? t('stInstalled') : t('stMissing')}`)),
           h('div', { className: 'qqbot-rows' }, ...napcatRows),
           h('div', { className: 'qqbot-actions-row' },
-            actionButton('napcat-start', t('napcatStart'), null, startNapcat, { disabled: napcatRunning || lifecycleBusy }),
+            actionButton('napcat-start', t('napcatStart'), 'primary', startNapcat, { disabled: napcatRunning || lifecycleBusy }),
             actionButton('napcat-stop', t('napcatStop'), 'danger', stopNapcat, { disabled: !napcatRunning || lifecycleBusy })))
 
-        const koishiCard = h('section', { className: 'qqbot-card' },
+        const koishiCard = h('section', { className: 'qqbot-card qqbot-overview-card' },
           h('div', { className: 'qqbot-card-head' },
             h('h2', { className: 'qqbot-card-title' }, t('koishiTitle')),
             h('span', { className: 'qqbot-card-sub' }, `${t('lblPort')} · ${koishi.port || settings.koishiPort || '—'}`)),
           h('div', { className: 'qqbot-rows' }, ...koishiRows),
           h('div', { className: 'qqbot-actions-row' },
-            actionButton('koishi-start', t('koishiStart'), null, startKoishi, { disabled: koishiRunning || lifecycleBusy }),
+            actionButton('koishi-start', t('koishiStart'), 'primary', startKoishi, { disabled: koishiRunning || lifecycleBusy }),
             actionButton('koishi-stop', t('koishiStop'), 'danger', stopKoishi, { disabled: !koishiRunning || lifecycleBusy })))
 
         return h('div', { className: 'qqbot-stack' },
@@ -3297,6 +3295,7 @@ window.__ModuleLoader__.load({
         stMissing: 'Not installed',
         stRunning: 'Running',
         stStopped: 'Stopped',
+        stStarting: 'Starting',
         stLoggedIn: 'Signed in',
         stLoggedOut: 'Not signed in',
         stOnline: 'Online',
@@ -3312,19 +3311,20 @@ window.__ModuleLoader__.load({
         installNapcat: 'Install NapCat',
         configureNapcat: 'Apply OneBot config',
         installDeps: 'Install Koishi deps',
-        napcatStart: 'Start NapCat',
-        napcatStop: 'Stop NapCat',
-        koishiStart: 'Start Koishi',
-        koishiStop: 'Stop Koishi',
+        napcatStart: 'Start',
+        napcatStop: 'Stop',
+        koishiStart: 'Start',
+        koishiStop: 'Stop',
         koishiRestart: 'Restart Koishi',
         napcatTitle: 'NapCat',
         koishiTitle: 'Koishi',
         lblInstall: 'Installation',
         lblVersion: 'Version',
+        lblStatus: 'Status',
         lblProcess: 'Process',
-        lblLogin: 'Login',
+        lblLogin: 'QQ login',
         lblWebui: 'WebUI',
-        lblConfig: 'OneBot config',
+        lblConfig: 'Message config',
         lblAccounts: 'Accounts',
         lblWs: 'Reverse WS',
         lblProject: 'Project',
@@ -3733,6 +3733,7 @@ window.__ModuleLoader__.load({
         stMissing: '未安装',
         stRunning: '运行中',
         stStopped: '未运行',
+        stStarting: '启动中',
         stLoggedIn: '已登录',
         stLoggedOut: '未登录',
         stOnline: '在线',
@@ -3748,19 +3749,20 @@ window.__ModuleLoader__.load({
         installNapcat: '安装 NapCat',
         configureNapcat: '写入 OneBot 配置',
         installDeps: '安装 Koishi 依赖',
-        napcatStart: '启动 NapCat',
-        napcatStop: '停止 NapCat',
-        koishiStart: '启动 Koishi',
-        koishiStop: '停止 Koishi',
+        napcatStart: '启动',
+        napcatStop: '停止',
+        koishiStart: '启动',
+        koishiStop: '停止',
         koishiRestart: '重启 Koishi',
         napcatTitle: 'NapCat',
         koishiTitle: 'Koishi',
         lblInstall: '安装',
         lblVersion: '版本',
+        lblStatus: '状态',
         lblProcess: '进程',
-        lblLogin: '登录',
+        lblLogin: 'QQ 登录',
         lblWebui: 'WebUI',
-        lblConfig: 'OneBot 配置',
+        lblConfig: '消息配置',
         lblAccounts: '账号',
         lblWs: '反向 WS',
         lblProject: '项目',
@@ -4537,8 +4539,8 @@ window.__ModuleLoader__.load({
       .qqbot-row-value.is-warn { color: var(--dsw-alias-state-warn-primary); }
       .qqbot-row-value.is-bad { color: var(--dsw-alias-state-error-primary); }
       .qqbot-actions-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
-      .qqbot-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px;
-        word-break: break-all; }
+      .qqbot-overview-card { min-height: 190px; } .qqbot-overview-card .qqbot-card-head { align-items: center; } .qqbot-overview-card .qqbot-rows { flex: 1; justify-content: center; } .qqbot-overview-card .qqbot-actions-row { margin-top: 2px; } .qqbot-overview-card .qqbot-actions-row .qqbot-btn { flex: 1; justify-content: center; min-width: 0; }
+      .qqbot-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; word-break: break-all; }
 
       .qqbot-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
       .qqbot-toolbar-left, .qqbot-toolbar-right { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

@@ -62,7 +62,7 @@ export function routes(api, napcat) {
     {
       path: '/qqbot/napcat/start',
       handler: (req, res) => only(req, res, ['POST'], async () => {
-        sendJson(res, 200, await api.serialize(() => napcat.start()))
+        sendJson(res, 200, await api.serialize(() => napcat.start({ waitForLogin: false })))
       }),
     },
     {

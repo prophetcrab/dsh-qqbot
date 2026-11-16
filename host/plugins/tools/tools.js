@@ -57,7 +57,7 @@ function controlTool(api) {
           return koishi.restart()
         }
         const run = action === 'start'
-          ? (target === 'napcat' ? () => napcat.start() : () => koishi.start())
+          ? (target === 'napcat' ? () => napcat.start({ waitForLogin: false }) : () => koishi.start())
           : (target === 'napcat' ? () => napcat.stop() : () => koishi.stop())
         return run()
       })
