@@ -45,6 +45,7 @@ export const LEGACY_ROUTE_PATHS = [
   '/qqbot/setup/reinstall',
   '/qqbot/logs',
   '/qqbot/napcat/install',
+  '/qqbot/napcat/install/progress',
   '/qqbot/napcat/configure',
   '/qqbot/napcat/start',
   '/qqbot/napcat/stop',

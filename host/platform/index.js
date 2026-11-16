@@ -49,6 +49,7 @@ export const findProcess = impl.findProcess
 export const portPid = impl.portPid
 export const killPid = impl.killPid
 export const launchDetached = impl.launchDetached
+export const downloadFile = impl.downloadFile
 export const npmExecutable = impl.npmExecutable
 
 export const httpJson = impl.httpJson

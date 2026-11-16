@@ -1,8 +1,6 @@
-/**
- * Panel stylesheet: design tokens, layout, hover/focus states.
- * Kept as one module so the bundle still ships exactly one <style> element.
- */
+/** Panel stylesheet: one <style> element; token/modal blocks live in separate modules. */
 import { TOKEN_CSS } from './styles-tokens.js'
+import { MODAL_CSS } from './styles-modal.js'
 
 export const CSS = `
 .qqbot-page { box-sizing: border-box; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
@@ -497,4 +495,5 @@ export const CSS = `
 
 
 ${TOKEN_CSS}
+${MODAL_CSS}
 `

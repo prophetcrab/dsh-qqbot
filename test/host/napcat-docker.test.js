@@ -222,6 +222,8 @@ test('docker backend: install downloads and loads the GitHub image archive', asy
   assert.equal(result.ok, true)
   assert.match(result.message, /下载并加载/u)
   assert.ok(calls.some((args) => args[0] === 'load'))
+  assert.equal(manager.installProgress.snapshot().phase, 'done')
+  assert.equal(manager.installProgress.snapshot().percent, 100)
 })
 
 test('docker backend: missing docker surfaces an actionable error', async (t) => {

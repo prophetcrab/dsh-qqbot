@@ -1998,6 +1998,84 @@ window.__ModuleLoader__.load({
 
       return { renderLoginCard }
     },
+    "client/plugins/overview/NapcatInstallModal.js": (__require) => {
+      /** First-install progress dialog for the NapCat Docker image. */
+
+      function formatBytes(value) {
+        const bytes = Number(value)
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB'
+        if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
+        return `${Math.round(bytes / 1024 ** 2)} MB`
+      }
+
+      function renderNapcatInstallModal(panel) {
+        const { t, napcatInstall, napcatInstallOpen, setNapcatInstallOpen, h } = panel
+        if (napcatInstallOpen !== true) return null
+        const info = napcatInstall !== null && typeof napcatInstall === 'object'
+          ? napcatInstall
+          : { active: true, phase: 'starting', bytes: 0, total: 0, percent: 0 }
+        const phase = typeof info.phase === 'string' ? info.phase : 'starting'
+        const failed = phase === 'failed' || (typeof info.error === 'string' && info.error !== '')
+        const total = Number(info.total) || 0
+        const bytes = Number(info.bytes) || 0
+        const percent = Number.isFinite(Number(info.percent))
+          ? Math.max(0, Math.min(100, Math.round(Number(info.percent))))
+          : total > 0 ? Math.round((bytes / total) * 100) : 0
+        const phaseKey = {
+          starting: 'napcatInstallPhaseStarting',
+          'checking-engine': 'napcatInstallPhaseEngine',
+          downloading: 'napcatInstallPhaseDownload',
+          verifying: 'napcatInstallPhaseVerify',
+          loading: 'napcatInstallPhaseLoad',
+          'checking-image': 'napcatInstallPhaseCheck',
+          pulling: 'napcatInstallPhasePull',
+          done: 'napcatInstallPhaseDone',
+          failed: 'napcatInstallPhaseFailed',
+        }[phase] || 'napcatInstallPhaseStarting'
+        const showBytes = phase === 'downloading' && total > 0
+        return h('div', { className: 'qqbot-modal-backdrop', role: 'presentation' },
+          h('div', {
+            className: 'qqbot-modal',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-label': t('napcatInstallTitle'),
+            'data-testid': 'qqbot-napcat-install-modal',
+          },
+            h('div', { className: 'qqbot-modal-head' },
+              h('h2', { className: 'qqbot-modal-title' }, t('napcatInstallTitle')),
+              h('span', { className: `qqbot-modal-percent${failed ? ' is-bad' : ''}` }, failed ? '!' : `${percent}%`)),
+            h('p', { className: 'qqbot-modal-phase', 'data-testid': 'qqbot-napcat-install-phase' }, t(phaseKey)),
+            h('div', {
+              className: 'qqbot-modal-track',
+              role: 'progressbar',
+              'aria-valuemin': '0',
+              'aria-valuemax': '100',
+              'aria-valuenow': String(percent),
+              'data-testid': 'qqbot-napcat-install-progress',
+            }, h('div', {
+              className: `qqbot-modal-fill${phase === 'starting' || phase === 'pulling' || (phase === 'downloading' && bytes === 0) ? ' is-indeterminate' : ''}`,
+              style: { width: `${percent}%` },
+            })),
+            showBytes
+              ? h('p', { className: 'qqbot-modal-meta' }, `${formatBytes(bytes)} / ${formatBytes(total)}`)
+              : null,
+            h('p', { className: 'qqbot-modal-hint' }, t('napcatInstallHint')),
+            failed
+              ? h('p', { className: 'qqbot-modal-error' }, typeof info.error === 'string' ? info.error : t('napcatInstallFailed'))
+              : null,
+            failed
+              ? h('div', { className: 'qqbot-modal-actions' },
+                h('button', {
+                  type: 'button',
+                  className: 'qqbot-btn',
+                  'data-testid': 'qqbot-napcat-install-close',
+                  onClick: () => { setNapcatInstallOpen(false) },
+                }, t('close')))
+              : null))
+      }
+
+      return { renderNapcatInstallModal }
+    },
     "client/plugins/overview/OverviewActions.js": (__require) => {
       const { requestJson, messageOf } = __require("client/runtime/api.js")
 
@@ -2145,9 +2223,20 @@ window.__ModuleLoader__.load({
         }, t('setupNapcatDone'))
       }
 
+      /** Open the install-progress modal before a first NapCat start/install. */
+      function openNapcatInstall(panel) {
+        const { napcatInstalled, settings, setNapcatInstall, setNapcatInstallOpen } = panel
+        if (napcatInstalled === true) return
+        const total = Number(settings?.dockerNapcatImageBytes) || 593921964
+        setNapcatInstall({ active: true, phase: 'starting', bytes: 0, total, percent: 0, error: null })
+        setNapcatInstallOpen(true)
+      }
+
       function startAll(panel) {
-        const { loadStatus, runPost } = panel
+        const { loadStatus, runPost, setNapcatInstallOpen } = panel
+        openNapcatInstall(panel)
         return runPost('all-start', '/qqbot/all/start', {}, loadStatus)
+          .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
       }
 
       function stopAll(panel) {
@@ -2156,8 +2245,10 @@ window.__ModuleLoader__.load({
       }
 
       function installNapcat(panel) {
-        const { loadStatus, runPost } = panel
+        const { loadStatus, runPost, setNapcatInstallOpen } = panel
+        openNapcatInstall(panel)
         return runPost('napcat-install', '/qqbot/napcat/install', {}, loadStatus)
+          .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
       }
 
       function configureNapcat(panel) {
@@ -2166,8 +2257,10 @@ window.__ModuleLoader__.load({
       }
 
       function startNapcat(panel) {
-        const { loadStatus, runPost } = panel
+        const { loadStatus, runPost, setNapcatInstallOpen } = panel
+        openNapcatInstall(panel)
         return runPost('napcat-start', '/qqbot/napcat/start', {}, loadStatus)
+          .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
       }
 
       function stopNapcat(panel) {
@@ -2199,8 +2292,9 @@ window.__ModuleLoader__.load({
     },
     "client/plugins/overview/OverviewTab.js": (__require) => {
       const React = __require("react")
-      const { POLL_MS } = __require("client/runtime/api.js")
+      const { POLL_MS, requestJson } = __require("client/runtime/api.js")
       const { renderLoginCard } = __require("client/plugins/overview/LoginCard.js")
+      const { renderNapcatInstallModal } = __require("client/plugins/overview/NapcatInstallModal.js")
 
       function renderOverview(panel) {
         const {
@@ -2285,7 +2379,8 @@ window.__ModuleLoader__.load({
                 : null,
               actionButton('napcat-configure', t('configureNapcat'), null, configureNapcat),
               koishi.depsInstalled === false ? actionButton('koishi-install-deps', t('installDeps'), null, installDeps) : null),
-            !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null))
+            !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null),
+          renderNapcatInstallModal(panel))
       }
 
       /**
@@ -2294,7 +2389,8 @@ window.__ModuleLoader__.load({
        */
       function useOverview(panel) {
         const {
-          hasSnapshot, napcatLoggedIn, tabRef, loggedInRef, loadStatus, loadLogin
+          hasSnapshot, napcatLoggedIn, tabRef, loggedInRef, loadStatus, loadLogin,
+          napcatInstalled, napcatInstallOpen, setNapcatInstall, setNapcatInstallOpen
         } = panel
 
         // Poll the snapshot; the host route is cheap and read-only.
@@ -2328,6 +2424,37 @@ window.__ModuleLoader__.load({
           }
         }, [])
 
+        // Poll the installer even before a click: first-run bootstrap can start the
+        // image download on its own, and the modal should appear for that too.
+        React.useEffect(() => {
+          if (napcatInstalled === true && napcatInstallOpen !== true) return undefined
+          let disposed = false
+          const tick = async () => {
+            try {
+              const payload = await requestJson('/qqbot/napcat/install/progress')
+              const data = payload && payload.data
+              if (disposed || data === null || typeof data !== 'object') return
+              if (data.active === true) {
+                setNapcatInstall(data)
+                setNapcatInstallOpen(true)
+              } else if (napcatInstallOpen) {
+                setNapcatInstall(data)
+                if (data.phase === 'done') {
+                  setNapcatInstallOpen(false)
+                  await loadStatus()
+                }
+              }
+            } catch {
+              // Keep the modal open; the action's error banner explains a failed POST.
+            }
+          }
+          tick()
+          const timer = setInterval(tick, napcatInstallOpen ? 500 : 1500)
+          return () => {
+            disposed = true
+            clearInterval(timer)
+          }
+        }, [napcatInstallOpen, napcatInstalled])
       }
 
       return { renderOverview, useOverview }
@@ -3447,6 +3574,19 @@ window.__ModuleLoader__.load({
         setupStepExtract: 'Verify source',
         setupStepSync: 'Sync Koishi environment',
         setupStepNapcatDocker: 'Prepare NapCat Docker',
+        napcatInstallTitle: 'Installing NapCat image',
+        napcatInstallHint: 'First install downloads about 594 MB; the panel closes and refreshes when done.',
+        napcatInstallFailed: 'NapCat image install failed',
+        napcatInstallPhaseStarting: 'Preparing…',
+        napcatInstallPhaseEngine: 'Checking Docker / OrbStack…',
+        napcatInstallPhaseDownload: 'Downloading NapCat image',
+        napcatInstallPhaseVerify: 'Verifying image archive',
+        napcatInstallPhaseLoad: 'Loading image into Docker',
+        napcatInstallPhaseCheck: 'Checking image',
+        napcatInstallPhasePull: 'Pulling image from Docker Hub',
+        napcatInstallPhaseDone: 'Install complete',
+        napcatInstallPhaseFailed: 'Install failed',
+        close: 'Close',
         setupStepProject: 'Create Koishi project',
         setupStepDeps: 'Install dependencies',
         setupStepNapcatInstall: 'Install NapCat',
@@ -3894,6 +4034,19 @@ window.__ModuleLoader__.load({
         setupStepExtract: '校验资源',
         setupStepSync: '同步 Koishi 环境',
         setupStepNapcatDocker: '准备 NapCat Docker',
+        napcatInstallTitle: '正在安装 NapCat 镜像',
+        napcatInstallHint: '首次安装约 594 MB，完成后自动关闭并刷新面板。',
+        napcatInstallFailed: 'NapCat 镜像安装失败',
+        napcatInstallPhaseStarting: '准备安装…',
+        napcatInstallPhaseEngine: '检查 Docker / OrbStack…',
+        napcatInstallPhaseDownload: '下载 NapCat 镜像包',
+        napcatInstallPhaseVerify: '校验镜像包',
+        napcatInstallPhaseLoad: '加载镜像到 Docker',
+        napcatInstallPhaseCheck: '检查镜像',
+        napcatInstallPhasePull: '从 Docker Hub 拉取镜像',
+        napcatInstallPhaseDone: '安装完成',
+        napcatInstallPhaseFailed: '安装失败',
+        close: '关闭',
         setupStepProject: '创建 Koishi 项目',
         setupStepDeps: '安装依赖',
         setupStepNapcatInstall: '安装 NapCat',
@@ -4132,6 +4285,8 @@ window.__ModuleLoader__.load({
         const [loginError, setLoginError] = React.useState(null)
         const [qrTicket, setQrTicket] = React.useState(0)
         const [qrBroken, setQrBroken] = React.useState(false)
+        const [napcatInstall, setNapcatInstall] = React.useState(null)
+        const [napcatInstallOpen, setNapcatInstallOpen] = React.useState(false)
         const [messages, setMessages] = React.useState(null)
         const [messagesPhase, setMessagesPhase] = React.useState('idle')
         const [messagesError, setMessagesError] = React.useState(null)
@@ -4241,7 +4396,8 @@ window.__ModuleLoader__.load({
           accessError, setAccessError, accessWarning, setAccessWarning, accessDraft, setAccessDraft,
           contacts, setContacts, contactsPhase, setContactsPhase, contactsError, setContactsError,
           accessQuery, setAccessQuery, loginInfo, setLoginInfo, loginError, setLoginError,
-          qrTicket, setQrTicket, qrBroken, setQrBroken, messages, setMessages,
+          qrTicket, setQrTicket, qrBroken, setQrBroken, napcatInstall, setNapcatInstall,
+          napcatInstallOpen, setNapcatInstallOpen, messages, setMessages,
           messagesPhase, setMessagesPhase, messagesError, setMessagesError, messagesFilter, setMessagesFilter,
           messagesUpdatedAt, setMessagesUpdatedAt, setupInfo, setSetupInfo, setupPhase, setSetupPhase,
           setupError, setSetupError, setupLogs, setSetupLogs, setupSteps, setSetupSteps,
@@ -4256,6 +4412,31 @@ window.__ModuleLoader__.load({
       }
 
       return { deriveStatus, useStore }
+    },
+    "client/runtime/styles-modal.js": (__require) => {
+      /** Install-progress modal styles, kept separate for the per-file size budget. */
+      const MODAL_CSS = `
+      .qqbot-modal-backdrop { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center;
+        padding: 24px; background: rgba(0, 0, 0, 0.36); backdrop-filter: blur(4px); }
+      .qqbot-modal { width: min(430px, 100%); padding: 22px; border-radius: 16px; display: flex; flex-direction: column; gap: 12px;
+        background: var(--dsw-alias-bg-layer-1); border: 0.5px solid var(--dsw-alias-border-l1);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28); }
+      .qqbot-modal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .qqbot-modal-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+      .qqbot-modal-percent { font-size: 12px; color: var(--dsw-alias-brand-primary); font-variant-numeric: tabular-nums; }
+      .qqbot-modal-percent.is-bad { color: var(--dsw-alias-state-error-primary); }
+      .qqbot-modal-phase { margin: 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+      .qqbot-modal-track { height: 7px; border-radius: 999px; overflow: hidden; background: var(--dsw-alias-bg-layer-2); }
+      .qqbot-modal-fill { height: 100%; border-radius: inherit; background: var(--dsw-alias-brand-primary); transition: width 0.35s ease; }
+      .qqbot-modal-fill.is-indeterminate { width: 35% !important; animation: qqbot-modal-slide 1.2s ease-in-out infinite; }
+      @keyframes qqbot-modal-slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+      .qqbot-modal-meta, .qqbot-modal-hint { margin: 0; font-size: 10.5px; color: var(--dsw-alias-label-tertiary); }
+      .qqbot-modal-error { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 11px; line-height: 1.45;
+        color: var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); }
+      .qqbot-modal-actions { display: flex; justify-content: flex-end; }
+      `
+
+      return { MODAL_CSS }
     },
     "client/runtime/styles-tokens.js": (__require) => {
       /** Token usage tab styles; kept separate to respect the per-file size budget. */
@@ -4303,11 +4484,9 @@ window.__ModuleLoader__.load({
       return { TOKEN_CSS }
     },
     "client/runtime/styles.js": (__require) => {
-      /**
-       * Panel stylesheet: design tokens, layout, hover/focus states.
-       * Kept as one module so the bundle still ships exactly one <style> element.
-       */
+      /** Panel stylesheet: one <style> element; token/modal blocks live in separate modules. */
       const { TOKEN_CSS } = __require("client/runtime/styles-tokens.js")
+      const { MODAL_CSS } = __require("client/runtime/styles-modal.js")
 
       const CSS = `
       .qqbot-page { box-sizing: border-box; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden;
@@ -4801,6 +4980,7 @@ window.__ModuleLoader__.load({
       }
 
       ${TOKEN_CSS}
+      ${MODAL_CSS}
       `
 
       return { CSS }

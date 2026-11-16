@@ -1,14 +1,5 @@
-/**
- * Docker-backed NapCat manager: Linux QQ + NapCat in a container, controlled
- * through `docker compose`.
- *
- * The container talks OneBot back to the host through `host.docker.internal`
- * (configurable via `dockerNapcatHost`), so the host's own QQ client is never
- * touched or killed.
- *
- * All commands are argv arrays; every side effect is behind injectable
- * `run`/`http`/`fs` seams, so tests never start Docker.
- */
+/** Docker-backed NapCat manager: Linux QQ + NapCat in a container via `docker compose`.
+ * The container talks OneBot back through `host.docker.internal`; side effects are injectable. */
 
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
@@ -20,6 +11,7 @@ import {
   launchDetached,
   readJson,
   readdir,
+  downloadFile,
   readText,
   run as execFileRun,
   sleep as sleepFor,
@@ -31,6 +23,7 @@ import { autoConfigure, configure } from './configure.js'
 import { ensureDefaultOnebotConfig } from './default-config.js'
 import { ensureDockerEngine } from './docker-engine.js'
 import { loadImageArchive } from './image-archive.js'
+import { InstallProgress } from './install-progress.js'
 import { START_TIMEOUT_MS, STOP_TIMEOUT_MS, waitForLogin } from './login.js'
 import { loginState as webuiLoginState, loginStatus as webuiLoginStatus, refreshQr as webuiRefreshQr } from './webui.js'
 import { status as snapshotStatus } from './snapshot.js'
@@ -93,12 +86,7 @@ function commandDetail(result) {
  * Owns the NapCat Docker lifecycle.
  */
 export class DockerNapcatManager {
-  /**
-   * @param {object} options
-   * @param {object} [options.settings] resolved plugin settings
-   * @param {object} [options.logger]
-   * @param {object} [options.deps] test seam: { run, http, fs, sleep, now, docker }
-   */
+  /** @param {{ settings?: object, logger?: object, deps?: object }} [options] */
   constructor(options = {}) {
     const source = isPlainObject(options) ? options : {}
     this.settings = resolveSettings(isPlainObject(source.settings) ? source.settings : {})
@@ -115,7 +103,8 @@ export class DockerNapcatManager {
     this.launch = typeof this.deps.launch === 'function' ? this.deps.launch : launchDetached
     this.download = typeof this.deps.download === 'function'
       ? this.deps.download
-      : (url, destination, options) => this.run('/usr/bin/curl', ['-L', '--fail', '--silent', '--show-error', '--output', destination, url], options)
+      : (url, destination, options) => downloadFile('/usr/bin/curl', ['-L', '--fail', '--silent', '--show-error', '--output', destination, url], { ...options, watchPath: destination })
+    this.installProgress = new InstallProgress()
 
     const dataDir = typeof this.settings.dockerNapcatDataDir === 'string' ? this.settings.dockerNapcatDataDir : ''
     this.baseDir = dataDir !== '' ? dataDir : join(this.settings.projectDir, 'runtime', 'napcat-docker')
@@ -163,17 +152,20 @@ export class DockerNapcatManager {
     return snapshotStatus(this)
   }
 
-  /**
-   * Make sure the image is available. This does not touch a host QQ install.
-   * install anything into QQ; it only pulls the pinned Docker image.
-   */
+  /** Ensure the pinned Docker image is available without touching a host QQ install. */
   async install() {
+    this.installProgress.start(Number(this.settings.dockerNapcatImageBytes))
     try {
       await this.ensureCompose()
+      this.installProgress.update({ phase: 'checking-engine', message: '检查 Docker / OrbStack' })
       const engine = await this.ensureEngine()
-      if (engine.ok !== true) return engine
+      if (engine.ok !== true) {
+        this.installProgress.finish(engine.message ?? engine.error ?? 'Docker 引擎不可用')
+        return engine
+      }
       const image = await this.#docker(['image', 'inspect', '--format', '{{.Id}}', this.image], { timeoutMs: INSPECT_TIMEOUT_MS })
       if (image.code === 0) {
+        this.installProgress.finish()
         return { ok: true, backend: 'docker', reused: true, version: this.image, message: `NapCat Docker 镜像已就绪（${this.image}）` }
       }
       const archiveUrl = typeof this.settings.dockerNapcatImageUrl === 'string' ? this.settings.dockerNapcatImageUrl : ''
@@ -184,31 +176,33 @@ export class DockerNapcatManager {
           url: archiveUrl,
           sha256: this.settings.dockerNapcatImageSha256,
           image: this.image,
+          onProgress: (event) => this.installProgress.update(event),
         })
-        if (loaded.ok !== true) return loaded
+        if (loaded.ok !== true) {
+          this.installProgress.finish(loaded.message ?? loaded.error ?? '镜像安装失败')
+          return loaded
+        }
+        this.installProgress.finish()
         await this.refresh()
         return { ok: true, backend: 'docker', version: this.image, ...loaded }
       }
+      this.installProgress.update({ phase: 'pulling', message: '从 Docker Hub 拉取镜像' })
       const pulled = await this.#compose(['pull'], { timeoutMs: COMPOSE_PULL_TIMEOUT_MS })
       if (pulled.code !== 0) {
+        this.installProgress.finish(`拉取 NapCat Docker 镜像失败：${commandDetail(pulled)}`)
         return failure('docker-pull-failed', `拉取 NapCat Docker 镜像失败：${commandDetail(pulled)}`)
       }
+      this.installProgress.finish()
       await this.refresh()
       return { ok: true, backend: 'docker', version: this.image, message: `NapCat Docker 镜像已拉取（${this.image}）` }
     } catch (error) {
+      this.installProgress.finish(String(error?.message ?? error))
       return failure('docker-unavailable', `Docker 不可用：${String(error?.message ?? error)}`)
     }
   }
 
-  /**
-   * Make sure the Docker engine is reachable. If it is not and
-   * `dockerAutoStart` is enabled, launch OrbStack and poll `docker info`
-   * until it is ready (or the configured timeout expires).
-   */
-  /**
-   * Ensure a reachable Docker engine. The engine-specific behavior (readiness,
-   * OrbStack launch and polling) lives in `docker-engine.js`.
-   */
+
+  /** Ensure a reachable Docker engine; OrbStack launch/polling lives in `docker-engine.js`. */
   async ensureEngine() {
     return ensureDockerEngine({
       settings: this.settings,

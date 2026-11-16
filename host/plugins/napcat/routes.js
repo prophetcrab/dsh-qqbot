@@ -52,6 +52,12 @@ export function routes(api, napcat) {
       }),
     },
     {
+      path: '/qqbot/napcat/install/progress',
+      handler: (req, res) => only(req, res, ['GET'], async () => {
+        sendJson(res, 200, { ok: true, data: napcat.installProgress.snapshot() })
+      }),
+    },
+    {
       path: '/qqbot/napcat/configure',
       handler: (req, res) => only(req, res, ['POST'], async () => {
         const body = await readBody(req)

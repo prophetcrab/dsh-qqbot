@@ -1,6 +1,7 @@
 import React from 'react'
-import { POLL_MS } from '../../runtime/api.js'
+import { POLL_MS, requestJson } from '../../runtime/api.js'
 import { renderLoginCard } from './LoginCard.js'
+import { renderNapcatInstallModal } from './NapcatInstallModal.js'
 
 export function renderOverview(panel) {
   const {
@@ -85,7 +86,8 @@ export function renderOverview(panel) {
           : null,
         actionButton('napcat-configure', t('configureNapcat'), null, configureNapcat),
         koishi.depsInstalled === false ? actionButton('koishi-install-deps', t('installDeps'), null, installDeps) : null),
-      !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null))
+      !napcatInstalled ? h('p', { className: 'qqbot-hint' }, platformInstallHint) : null),
+    renderNapcatInstallModal(panel))
 }
 
 /**
@@ -94,7 +96,8 @@ export function renderOverview(panel) {
  */
 export function useOverview(panel) {
   const {
-    hasSnapshot, napcatLoggedIn, tabRef, loggedInRef, loadStatus, loadLogin
+    hasSnapshot, napcatLoggedIn, tabRef, loggedInRef, loadStatus, loadLogin,
+    napcatInstalled, napcatInstallOpen, setNapcatInstall, setNapcatInstallOpen
   } = panel
 
   // Poll the snapshot; the host route is cheap and read-only.
@@ -129,4 +132,35 @@ export function useOverview(panel) {
     }
   }, [])
 
+  // Poll the installer even before a click: first-run bootstrap can start the
+  // image download on its own, and the modal should appear for that too.
+  React.useEffect(() => {
+    if (napcatInstalled === true && napcatInstallOpen !== true) return undefined
+    let disposed = false
+    const tick = async () => {
+      try {
+        const payload = await requestJson('/qqbot/napcat/install/progress')
+        const data = payload && payload.data
+        if (disposed || data === null || typeof data !== 'object') return
+        if (data.active === true) {
+          setNapcatInstall(data)
+          setNapcatInstallOpen(true)
+        } else if (napcatInstallOpen) {
+          setNapcatInstall(data)
+          if (data.phase === 'done') {
+            setNapcatInstallOpen(false)
+            await loadStatus()
+          }
+        }
+      } catch {
+        // Keep the modal open; the action's error banner explains a failed POST.
+      }
+    }
+    tick()
+    const timer = setInterval(tick, napcatInstallOpen ? 500 : 1500)
+    return () => {
+      disposed = true
+      clearInterval(timer)
+    }
+  }, [napcatInstallOpen, napcatInstalled])
 }

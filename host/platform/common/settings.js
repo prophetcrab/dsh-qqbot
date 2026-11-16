@@ -27,6 +27,8 @@ export const BASE_SETTINGS = {
   /** GitHub release archive; empty falls back to a registry pull. */
   dockerNapcatImageUrl: 'https://github.com/prophetcrab/dsh-qqbot/releases/download/napcat-docker-latest/napcat-docker-latest.tar.gz',
   dockerNapcatImageSha256: '919fe1089303031ef8dd0caef812daeabb27398f17dcf67f213fd494439ae028',
+  /** Expected compressed archive size, used for the install progress bar. */
+  dockerNapcatImageBytes: 593921964,
   dockerNapcatContainer: 'dsh-qqbot-napcat',
   /** Empty means `<projectDir>/runtime/napcat-docker`. */
   dockerNapcatDataDir: '',
@@ -90,6 +92,7 @@ export function resolveSettings(raw = {}, defaults = BASE_SETTINGS) {
       : defaults.dockerNapcatImage,
     dockerNapcatImageUrl: typeof source.dockerNapcatImageUrl === 'string' ? source.dockerNapcatImageUrl.trim() : defaults.dockerNapcatImageUrl,
     dockerNapcatImageSha256: typeof source.dockerNapcatImageSha256 === 'string' ? source.dockerNapcatImageSha256.trim().toLowerCase() : defaults.dockerNapcatImageSha256,
+    dockerNapcatImageBytes: Number.isFinite(Number(source.dockerNapcatImageBytes)) && Number(source.dockerNapcatImageBytes) > 0 ? Number(source.dockerNapcatImageBytes) : defaults.dockerNapcatImageBytes,
     dockerNapcatContainer: typeof source.dockerNapcatContainer === 'string' && source.dockerNapcatContainer.trim() !== ''
       ? source.dockerNapcatContainer.trim()
       : defaults.dockerNapcatContainer,

@@ -117,6 +117,8 @@ export function useStore(t) {
   const [loginError, setLoginError] = React.useState(null)
   const [qrTicket, setQrTicket] = React.useState(0)
   const [qrBroken, setQrBroken] = React.useState(false)
+  const [napcatInstall, setNapcatInstall] = React.useState(null)
+  const [napcatInstallOpen, setNapcatInstallOpen] = React.useState(false)
   const [messages, setMessages] = React.useState(null)
   const [messagesPhase, setMessagesPhase] = React.useState('idle')
   const [messagesError, setMessagesError] = React.useState(null)
@@ -227,7 +229,8 @@ export function useStore(t) {
     accessError, setAccessError, accessWarning, setAccessWarning, accessDraft, setAccessDraft,
     contacts, setContacts, contactsPhase, setContactsPhase, contactsError, setContactsError,
     accessQuery, setAccessQuery, loginInfo, setLoginInfo, loginError, setLoginError,
-    qrTicket, setQrTicket, qrBroken, setQrBroken, messages, setMessages,
+    qrTicket, setQrTicket, qrBroken, setQrBroken, napcatInstall, setNapcatInstall,
+    napcatInstallOpen, setNapcatInstallOpen, messages, setMessages,
     messagesPhase, setMessagesPhase, messagesError, setMessagesError, messagesFilter, setMessagesFilter,
     messagesUpdatedAt, setMessagesUpdatedAt, setupInfo, setSetupInfo, setupPhase, setSetupPhase,
     setupError, setSetupError, setupLogs, setSetupLogs, setupSteps, setSetupSteps,

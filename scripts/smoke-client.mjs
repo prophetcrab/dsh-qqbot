@@ -235,6 +235,7 @@ let messagesData = MESSAGE_FIXTURE.slice()
 let setupInstalled = false
 let setupInstalling = false
 let setupReinstallJob = null
+let napcatInstallProgress = { active: false, phase: 'idle', bytes: 0, total: 0, percent: 0, error: null }
 const SETUP_STEPS = [
   ['stop-services', '停止现有服务'],
   ['download-source', '下载 GitHub 资源'],
@@ -485,6 +486,9 @@ globalThis.fetch = async (url, init) => {
     }
     return json({ ok: true, accepted: true, job: setupReinstallJob })
   }
+  if (path === '/qqbot/napcat/install/progress') {
+    return json({ ok: true, data: napcatInstallProgress })
+  }
   if (path === '/qqbot/napcat/login') {
     return json({ ok: true, data: loginStage === 'loggedIn' ? LOGIN_DONE : LOGIN_WAITING })
   }
@@ -702,6 +706,22 @@ if (findAll(tree, (node) => node.props && node.props['data-testid'] === 'qqbot-a
   throw new Error('overview restart button should be removed')
 }
 console.log('overview testids: ok')
+
+// ---- NapCat install-progress modal -----------------------------------------
+napcatInstallProgress = { active: true, phase: 'downloading', bytes: 120, total: 600, percent: 20, error: null }
+await new Promise((resolve) => setTimeout(resolve, 1700))
+tree = await settle()
+expectTestId(tree, 'qqbot-napcat-install-modal')
+if (!text(expectTestId(tree, 'qqbot-napcat-install-phase')).includes('下载 NapCat 镜像包')) {
+  throw new Error('install modal phase copy missing')
+}
+if (expectTestId(tree, 'qqbot-napcat-install-progress').props['aria-valuenow'] !== '20') throw new Error('install modal progress missing')
+napcatInstallProgress = { active: false, phase: 'done', bytes: 600, total: 600, percent: 100, error: null }
+await new Promise((resolve) => setTimeout(resolve, 700))
+tree = await settle()
+if (findTestId(tree, 'qqbot-napcat-install-modal') !== undefined) throw new Error('install modal should close when done')
+napcatInstallProgress = { active: false, phase: 'idle', bytes: 0, total: 0, percent: 0, error: null }
+console.log('napcat install modal: ok')
 if (!fetchLog.some((entry) => entry.method === 'GET' && entry.url === '/qqbot/access')) {
   throw new Error('access policy was not prefetched on mount')
 }

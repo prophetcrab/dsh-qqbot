@@ -325,6 +325,7 @@ napcatToken          空
 dockerNapcatImage    mlikiowa/napcat-docker:latest
 dockerNapcatImageUrl GitHub Release napcat-docker-latest.tar.gz
 dockerNapcatImageSha256 固定 SHA-256
+dockerNapcatImageBytes 镜像包字节数（进度条用）
 dockerNapcatContainer dsh-qqbot-napcat
 dockerNapcatDataDir  空（默认 <projectDir>/runtime/napcat-docker）
 dockerNapcatHost     host.docker.internal

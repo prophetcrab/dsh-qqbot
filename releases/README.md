@@ -8,6 +8,7 @@
 
 | 版本 | Tag | 资产 |
 | --- | --- | --- |
+| 0.7.8 | `v0.7.8` | `dsh-qqbot-0.7.8-macos-arm64.tgz` |
 | 0.7.7 | `v0.7.7` | `dsh-qqbot-0.7.7-macos-arm64.tgz` |
 | 0.7.6 | `v0.7.6` | `dsh-qqbot-0.7.6-macos-arm64.tgz` |
 | 0.7.5 | `v0.7.5` | `dsh-qqbot-0.7.5-macos-arm64.tgz` |

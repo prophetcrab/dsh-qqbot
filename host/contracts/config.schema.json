@@ -90,6 +90,9 @@
     },
     "dockerNapcatImageSha256": {
       "type": "string"
+    },
+    "dockerNapcatImageBytes": {
+      "type": "number"
     }
   },
   "additionalProperties": true

@@ -7,6 +7,7 @@
  */
 
 import { execFile, execFileSync, spawn } from 'node:child_process'
+import { statSync } from 'node:fs'
 
 /**
  * Run a file without a shell. Never throws for a non-zero exit; resolves with
@@ -50,6 +51,54 @@ export function run(file, args = [], options = {}) {
     if (typeof options.input === 'string' && child.stdin !== null) {
       child.stdin.end(options.input)
     }
+  })
+}
+
+/**
+ * Run a download command while reporting the destination file's growing size.
+ *
+ * Used for the NapCat GitHub archive: curl follows the system proxy/CA, and
+ * polling the destination gives the panel a real progress percentage.
+ *
+ * @param {string} file
+ * @param {string[]} args
+ * @param {{ watchPath?: string, timeoutMs?: number, onProgress?: (event: { bytes: number }) => void }} [options]
+ * @returns {Promise<{ code: number, stdout: string, stderr: string, error?: string }>}
+ */
+export function downloadFile(file, args = [], options = {}) {
+  return new Promise((resolvePromise) => {
+    let child
+    let stderr = ''
+    let progressTimer = null
+    let timeoutTimer = null
+    let settled = false
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      if (progressTimer !== null) clearInterval(progressTimer)
+      if (timeoutTimer !== null) clearTimeout(timeoutTimer)
+      resolvePromise(result)
+    }
+    try {
+      child = spawn(file, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true })
+    } catch (error) {
+      finish({ code: 1, stdout: '', stderr: '', error: String(error?.message ?? error) })
+      return
+    }
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk) })
+    child.on('error', (error) => finish({ code: 1, stdout: '', stderr, error: String(error?.message ?? error) }))
+    child.on('close', (code) => finish({ code: code === null ? 1 : code, stdout: '', stderr }))
+    if (typeof options.watchPath === 'string' && options.watchPath !== '') {
+      progressTimer = setInterval(() => {
+        try { options.onProgress?.({ bytes: statSync(options.watchPath).size }) } catch { /* file not created yet */ }
+      }, 500)
+      progressTimer.unref?.()
+    }
+    timeoutTimer = setTimeout(() => {
+      try { child.kill('SIGKILL') } catch { /* already gone */ }
+      finish({ code: 1, stdout: '', stderr, error: 'download timeout' })
+    }, options.timeoutMs ?? 300_000)
+    timeoutTimer.unref?.()
   })
 }
 

@@ -144,9 +144,21 @@ export function installSetupNapcat(panel) {
   }, t('setupNapcatDone'))
 }
 
+
+/** Open the install-progress modal before a first NapCat start/install. */
+function openNapcatInstall(panel) {
+  const { napcatInstalled, settings, setNapcatInstall, setNapcatInstallOpen } = panel
+  if (napcatInstalled === true) return
+  const total = Number(settings?.dockerNapcatImageBytes) || 593921964
+  setNapcatInstall({ active: true, phase: 'starting', bytes: 0, total, percent: 0, error: null })
+  setNapcatInstallOpen(true)
+}
+
 export function startAll(panel) {
-  const { loadStatus, runPost } = panel
+  const { loadStatus, runPost, setNapcatInstallOpen } = panel
+  openNapcatInstall(panel)
   return runPost('all-start', '/qqbot/all/start', {}, loadStatus)
+    .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
 }
 
 export function stopAll(panel) {
@@ -155,8 +167,10 @@ export function stopAll(panel) {
 }
 
 export function installNapcat(panel) {
-  const { loadStatus, runPost } = panel
+  const { loadStatus, runPost, setNapcatInstallOpen } = panel
+  openNapcatInstall(panel)
   return runPost('napcat-install', '/qqbot/napcat/install', {}, loadStatus)
+    .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
 }
 
 export function configureNapcat(panel) {
@@ -165,8 +179,10 @@ export function configureNapcat(panel) {
 }
 
 export function startNapcat(panel) {
-  const { loadStatus, runPost } = panel
+  const { loadStatus, runPost, setNapcatInstallOpen } = panel
+  openNapcatInstall(panel)
   return runPost('napcat-start', '/qqbot/napcat/start', {}, loadStatus)
+    .then((result) => { if (result === null || result.ok === false) setNapcatInstallOpen(false) })
 }
 
 export function stopNapcat(panel) {
