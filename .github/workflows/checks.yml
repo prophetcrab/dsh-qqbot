@@ -37,5 +37,7 @@ jobs:
         run: npm run check:architecture
       - name: Template drift
         run: node scripts/sync-template.mjs --check
-      - name: Offline payload
-        run: npm run offline:verify
+      - name: Release package contents
+        run: |
+          node -e "const fs = require('node:fs'); const p = 'template/runtime-bundles/node_modules-darwin-arm64.tar.gz'; if (!fs.existsSync(p) || fs.statSync(p).size < 1024) { console.error('missing ' + p); process.exit(1) }"
+          npm pack --dry-run >/dev/null
